@@ -32,9 +32,27 @@ Mở Terminal / Git Bash và chạy lệnh:
 
 Tạo một file có tên là .env tại thư mục gốc của frontend (ngang hàng với file package.json).
 Copy nội dung sau vào file .env và chỉnh sửa port cho khớp với server Backend của bạn:
+
 ` VITE_API_BASE_URL=http://localhost:3000/api`
 
 ### Bước 4: Khởi chạy Server ở môi trường phát triển
 
 `npm run dev`
+
 Sau khi chạy lệnh, Terminal sẽ hiển thị một đường dẫn Localhost (thường là http://localhost:5173). Nhấn Ctrl + Click vào link đó để mở giao diện trên trình duyệt.
+
+---
+## 📁 Cấu trúc thư mục dự án
+Để thuận tiện cho việc phối hợp phát triển, code được phân chia theo kiến trúc sau:
+
+src/assets/: Chứa các tài nguyên tĩnh như hình ảnh, file CSS/SCSS dùng chung.
+
+src/components/: Chứa các thành phần UI dùng lại nhiều lần (VD: Navbar, Sidebar, CustomButton).
+
+src/router/: Chứa cấu hình đường dẫn (Routes) để điều hướng các màn hình.
+
+src/services/: Chứa các file cấu hình Axios để gọi API (VD: authService.js, posService.js).
+
+src/stores/: Chứa các file Pinia quản lý State toàn cục (VD: thông tin User đang đăng nhập, Giỏ hàng).
+
+src/views/: Chứa các Component đóng vai trò là Trang màn hình đầy đủ (VD: Login.vue, POS.vue, BangLuong.vue).
