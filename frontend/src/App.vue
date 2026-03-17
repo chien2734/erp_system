@@ -1,7 +1,7 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <HelloWorld />
+  <router-view></router-view>
 </template>
+
+<script setup>
+// Không cần code gì ở đây lúc này
+</script>

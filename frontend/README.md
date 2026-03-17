@@ -27,6 +27,7 @@ Mở Terminal / Git Bash và chạy lệnh:
 ### Bước 2: Cài đặt các thư viện phụ thuộc (Dependencies)
 
 `npm install`
+`npm install vue-router pinia axios element-plus`
 
 ### Bước 3: Cấu hình biến môi trường (Environment Variables)
 
@@ -42,7 +43,9 @@ Copy nội dung sau vào file .env và chỉnh sửa port cho khớp với serve
 Sau khi chạy lệnh, Terminal sẽ hiển thị một đường dẫn Localhost (thường là http://localhost:5173). Nhấn Ctrl + Click vào link đó để mở giao diện trên trình duyệt.
 
 ---
+
 ## 📁 Cấu trúc thư mục dự án
+
 Để thuận tiện cho việc phối hợp phát triển, code được phân chia theo kiến trúc sau:
 
 src/assets/: Chứa các tài nguyên tĩnh như hình ảnh, file CSS/SCSS dùng chung.
