@@ -62,11 +62,29 @@
 
     <div class="w-[480px] bg-white flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.02)] z-20 flex-shrink-0">
       
-      <div class="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+      <div class="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50 min-h-[72px]">
         <el-icon class="text-xl text-blue-500"><UserFilled /></el-icon>
-        <el-input placeholder="Số điện thoại khách hàng..." class="flex-1" size="default">
-          <template #append><el-button :icon="Plus" /></template>
+        
+        <el-input 
+          v-if="!selectedCustomer"
+          v-model="searchCustomerPhone" 
+          placeholder="Nhập SĐT khách hàng (Enter để tìm)..." 
+          class="flex-1" 
+          size="default"
+          @keyup.enter="handleSearchCustomer"
+        >
+          <template #append>
+            <el-button :icon="Search" @click="handleSearchCustomer" />
+          </template>
         </el-input>
+
+        <div v-else class="flex-1 flex items-center justify-between bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
+          <div>
+            <p class="font-bold text-blue-700 text-sm leading-tight">{{ selectedCustomer.tenKH }}</p>
+            <p class="text-xs text-blue-500">{{ selectedCustomer.sdt }} <span v-if="selectedCustomer.hangTV" class="ml-1 font-semibold text-amber-600">[{{ selectedCustomer.hangTV }}]</span></p>
+          </div>
+          <el-button type="danger" link :icon="Delete" @click="clearCustomer" />
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
@@ -118,77 +136,98 @@
             <span>Tổng số lượng máy xuất:</span>
             <span class="font-bold text-slate-800">{{ totalMachines }} máy</span>
           </div>
+          
           <div class="flex justify-between items-center text-lg mt-2 pt-2 border-t border-slate-100">
-            <span class="font-bold text-slate-800">KHÁCH CẦN TRẢ</span>
+            <span class="font-bold text-slate-800">TỔNG TIỀN (CẦN TRẢ)</span>
             <span class="font-black text-blue-600 text-2xl">{{ formatPrice(cartTotal) }}</span>
+          </div>
+
+          <div class="flex justify-between items-center pt-2">
+            <span>Tiền khách đưa:</span>
+            <el-input v-model="customerMoney" placeholder="Nhập số tiền" class="!w-36" size="small">
+              <template #append>₫</template>
+            </el-input>
+          </div>
+          
+          <div class="flex justify-between items-center" :class="changeMoney < 0 ? 'text-red-500' : 'text-emerald-600'">
+            <span class="font-bold">Tiền thừa trả khách:</span>
+            <span class="font-bold">{{ formatPrice(changeMoney > 0 ? changeMoney : 0) }}</span>
           </div>
         </div>
 
         <el-button 
           type="primary" 
           class="w-full !h-14 text-lg font-bold shadow-lg shadow-blue-500/30 !rounded-xl"
-          :disabled="cart.length === 0"
+          :disabled="cart.length === 0 || changeMoney < 0"
           @click="processCheckout"
         >
           <div class="flex items-center justify-center gap-2">
             <el-icon><Money /></el-icon>
-            THANH TOÁN HÓA ĐƠN
+            LƯU HÓA ĐƠN & IN (F9)
           </div>
         </el-button>
       </div>
 
     </div>
   </div>
+
+  <BillPrintDialog ref="billDialogRef" />
 </template>
 
 <script setup>
+import BillPrintDialog from './BillPrintDialog.vue';
 import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, ShoppingCart, UserFilled, Monitor, Money, FullScreen } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 // --- MOCK DATABASE ---
-// 1. Bảng `sanPham`: Chứa thông tin chung và Giá Bán
 const dbSanPham = [
   { maSP: 'MAC_AIR_M2', tenSP: 'MacBook Air M2 13 inch', cauHinhSP: 'Apple M2 / 8GB / 256GB', giaBan: 26490000 },
   { maSP: 'ASUS_ROG_G15', tenSP: 'Asus ROG Strix G15', cauHinhSP: 'Ryzen 7 / 16GB / RTX 3060', giaBan: 32990000 },
   { maSP: 'DELL_XPS_13', tenSP: 'Dell XPS 13 Plus 9320', cauHinhSP: 'Core i7 / 16GB / 512GB', giaBan: 45000000 },
 ];
 
-// 2. Bảng `mayTinh`: Chứa các cá thể máy tính cụ thể (Serial Number)
-// maHoaDon = null nghĩa là máy đang ở trong kho, sẵn sàng bán.
 const dbMayTinh = ref([
   { maMay: 'SN-MAC-001', maSP: 'MAC_AIR_M2', maHoaDon: null, trangThai: 'Sẵn sàng' },
   { maMay: 'SN-MAC-002', maSP: 'MAC_AIR_M2', maHoaDon: null, trangThai: 'Sẵn sàng' },
   { maMay: 'SN-MAC-003', maSP: 'MAC_AIR_M2', maHoaDon: null, trangThai: 'Sẵn sàng' },
   { maMay: 'SN-ASUS-999', maSP: 'ASUS_ROG_G15', maHoaDon: null, trangThai: 'Sẵn sàng' },
-  // Cái Dell này đã bán (maHoaDon có giá trị), nên sẽ không hiện Tồn kho
   { maMay: 'SN-DELL-555', maSP: 'DELL_XPS_13', maHoaDon: 'HD-1001', trangThai: 'Đã bán' },
 ]);
+
+const dbKhachHang = [
+  { sdt: '0901234567', tenKH: 'Nguyễn Văn A', hangTV: 'VIP' },
+  { sdt: '0988777666', tenKH: 'Trần Thị B', hangTV: 'Thường' }
+];
 
 // --- STATE ---
 const scanInput = ref('');
 const searchQuery = ref('');
-const cart = ref([]); // Cấu trúc: [ { maSP, tenSP, giaBan, serials: ['SN-001', 'SN-002'] } ]
+const cart = ref([]); 
 const scanInputRef = ref(null);
+const billDialogRef = ref(null);
+const searchCustomerPhone = ref('');
+const selectedCustomer = ref(null);
+
+// Xử lý ô nhập "Tiền khách đưa" chỉ cho phép nhập số
+const customerMoneyRaw = ref('');
+const customerMoney = computed({
+  get: () => customerMoneyRaw.value,
+  set: (val) => { customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); }
+});
 
 onMounted(() => {
-  // Focus vào thanh quét mã vạch khi vừa mở POS lên
   if (scanInputRef.value) scanInputRef.value.focus();
 });
 
-// --- TÍNH TOÁN DỮ LIỆU HIỂN THỊ TRÊN GRID ---
+// --- TÍNH TOÁN DỮ LIỆU ---
 const filteredProducts = computed(() => {
   return dbSanPham.filter(sp => {
-    // 1. Lọc theo từ khóa tìm kiếm
     const matchSearch = sp.tenSP.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                         sp.maSP.toLowerCase().includes(searchQuery.value.toLowerCase());
     
-    // 2. Tính TỒN KHO THỰC TẾ: Đếm số lượng máy trong bảng mayTinh có maHoaDon = null VÀ chưa bị cho vào Giỏ hàng
     if (matchSearch) {
-      // Tìm các máy trong kho
       const cacMayTrongKho = dbMayTinh.value.filter(mt => mt.maSP === sp.maSP && mt.maHoaDon === null);
-      
-      // Trừ đi các máy đã nằm trong Giỏ hàng (để đang chọn thì số tồn kho trên lưới giảm xuống)
       const itemTrongGio = cart.value.find(c => c.maSP === sp.maSP);
       const soLuongDaChon = itemTrongGio ? itemTrongGio.serials.length : 0;
       
@@ -202,121 +241,131 @@ const filteredProducts = computed(() => {
 const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
 const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.giaBan * item.serials.length), 0));
 
+// Tính tiền thừa trả khách
+const changeMoney = computed(() => {
+  const moneyGiven = parseInt(customerMoneyRaw.value) || 0;
+  return moneyGiven - cartTotal.value;
+});
+
 // --- METHODS ---
+const handleSearchCustomer = () => {
+  const phone = searchCustomerPhone.value.trim();
+  if (!phone) return;
+
+  const kh = dbKhachHang.find(k => k.sdt === phone);
+  if (kh) {
+    selectedCustomer.value = kh;
+    ElMessage.success(`Đã áp dụng khách hàng: ${kh.tenKH}`);
+  } else {
+    // Nếu không tìm thấy, tự động tạo khách lẻ mới
+    selectedCustomer.value = { sdt: phone, tenKH: 'Khách hàng mới', hangTV: '' };
+    ElMessage.info('SĐT mới. Sẽ tự động lưu hồ sơ khi thanh toán.');
+  }
+};
+
+const clearCustomer = () => {
+  selectedCustomer.value = null;
+  searchCustomerPhone.value = '';
+};
+
 const formatPrice = (value) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
 
-// Nghiệp vụ 1: Thu ngân TÍT mã vạch hộp máy (Quét Serial maMay)
 const handleScanBarcode = () => {
   const serialScanned = scanInput.value.trim().toUpperCase();
   if (!serialScanned) return;
 
-  // 1. Tìm máy trong Database dựa trên Serial
   const mayTimThay = dbMayTinh.value.find(mt => mt.maMay === serialScanned);
-  
-  if (!mayTimThay) {
-    ElMessage.error(`Không tìm thấy máy tính nào có Serial: ${serialScanned}`);
-    scanInput.value = ''; return;
-  }
+  if (!mayTimThay) { ElMessage.error(`Không tìm thấy Serial: ${serialScanned}`); scanInput.value = ''; return; }
+  if (mayTimThay.maHoaDon !== null) { ElMessage.error(`Máy này đã bán trong hóa đơn ${mayTimThay.maHoaDon}!`); scanInput.value = ''; return; }
 
-  if (mayTimThay.maHoaDon !== null) {
-    ElMessage.error(`Máy này đã được xuất bán trong hóa đơn ${mayTimThay.maHoaDon}!`);
-    scanInput.value = ''; return;
-  }
-
-  // 2. Kiểm tra xem Serial này đã bị quét vào giỏ hàng trước đó chưa
   let isAlreadyInCart = false;
   cart.value.forEach(item => { if (item.serials.includes(serialScanned)) isAlreadyInCart = true; });
-  if (isAlreadyInCart) {
-    ElMessage.warning(`Mã Serial ${serialScanned} đã nằm trong giỏ hàng!`);
-    scanInput.value = ''; return;
-  }
+  if (isAlreadyInCart) { ElMessage.warning(`Mã Serial ${serialScanned} đã có trong giỏ hàng!`); scanInput.value = ''; return; }
 
-  // 3. Lấy thông tin Sản phẩm tương ứng
   const thongTinSP = dbSanPham.find(sp => sp.maSP === mayTimThay.maSP);
-
-  // 4. Thêm vào giỏ hàng
   addItemToCart(thongTinSP, mayTimThay.maMay);
   
   ElMessage.success(`Đã tít thành công: ${serialScanned}`);
-  scanInput.value = ''; // Xóa trắng để tít máy tiếp theo
+  scanInput.value = ''; 
   if (scanInputRef.value) scanInputRef.value.focus();
 };
 
-// Nghiệp vụ 2: Thu ngân BẤM trực tiếp vào Lưới sản phẩm (Tự động bốc 1 Serial trong kho)
 const autoPickSerialAndAdd = (product) => {
   if (product.soLuongTonThucTe <= 0) return;
-
-  // Tìm toàn bộ Serial của mã SP này trong kho
   const cacMayTrongKho = dbMayTinh.value.filter(mt => mt.maSP === product.maSP && mt.maHoaDon === null);
-  
-  // Lọc ra Serial ĐẦU TIÊN chưa nằm trong giỏ hàng
   const itemTrongGio = cart.value.find(c => c.maSP === product.maSP);
   const serialsDaChon = itemTrongGio ? itemTrongGio.serials : [];
-  
   const mayAvailable = cacMayTrongKho.find(mt => !serialsDaChon.includes(mt.maMay));
-
-  if (mayAvailable) {
-    addItemToCart(product, mayAvailable.maMay);
-  }
+  if (mayAvailable) addItemToCart(product, mayAvailable.maMay);
 };
 
-// Hàm hỗ trợ: Đẩy vào giỏ (Gộp chung maSP, liệt kê danh sách Serial)
 const addItemToCart = (sanPham, maMay) => {
   let item = cart.value.find(c => c.maSP === sanPham.maSP);
-  if (item) {
-    item.serials.push(maMay);
-  } else {
-    cart.value.push({ 
-      maSP: sanPham.maSP, 
-      tenSP: sanPham.tenSP, 
-      cauHinhSP: sanPham.cauHinhSP,
-      giaBan: sanPham.giaBan, 
-      serials: [maMay] // Mảng chứa các Serial
-    });
-  }
+  if (item) item.serials.push(maMay);
+  else cart.value.push({ maSP: sanPham.maSP, tenSP: sanPham.tenSP, cauHinhSP: sanPham.cauHinhSP, giaBan: sanPham.giaBan, serials: [maMay] });
 };
 
-// Nghiệp vụ 3: Khách đổi ý, bỏ 1 máy ra khỏi giỏ
 const removeSerialFromCart = (cartIndex, serialToRemove) => {
   const item = cart.value[cartIndex];
   item.serials = item.serials.filter(s => s !== serialToRemove);
-  
-  // Nếu xóa hết serial của mã đó thì xóa luôn dòng đó khỏi giỏ
-  if (item.serials.length === 0) {
-    cart.value.splice(cartIndex, 1);
-  }
+  if (item.serials.length === 0) cart.value.splice(cartIndex, 1);
 };
 
-// Tiến hành Lưu Hóa Đơn
+// SỬ LÝ ĐẨY DỮ LIỆU & BẬT HÓA ĐƠN
 const processCheckout = () => {
   ElMessageBox.confirm(
-    `Xuất bán <b>${totalMachines.value} máy</b>. Thu của khách: <b class="text-blue-600">${formatPrice(cartTotal.value)}</b>?`,
+    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng tiền: <b class="text-blue-600">${formatPrice(cartTotal.value)}</b>?`,
     'TẠO HÓA ĐƠN XUẤT',
     {
-      confirmButtonText: 'Lưu Hóa Đơn',
+      confirmButtonText: 'Lưu Hóa Đơn & In',
       cancelButtonText: 'Hủy',
       type: 'success',
       dangerouslyUseHTMLString: true,
     }
   ).then(() => {
-    // TẠO PAYLOAD ĐẨY XUỐNG API:
-    const payload = {
-      tongTien: cartTotal.value,
-      danhSachXuat: []
-    };
-    cart.value.forEach(item => {
-      // Quan trọng: Gửi danh sách các maMay (Serial) xuống Backend để Update trangThai và maHoaDon
-      item.serials.forEach(serial => {
-        payload.danhSachXuat.push({ maSP: item.maSP, maMay: serial, giaBanDoiChieu: item.giaBan });
+    const fakeMaHD = 'HD-' + Math.floor(100000 + Math.random() * 900000);
+
+    // 1. CẬP NHẬT KHO GIẢ LẬP
+    cart.value.forEach(cartItem => {
+      cartItem.serials.forEach(serial => {
+        const may = dbMayTinh.value.find(m => m.maMay === serial);
+        if (may) {
+          may.maHoaDon = fakeMaHD;
+          may.trangThai = 'Đã bán';
+        }
       });
     });
 
-    console.log("DỮ LIỆU ĐẨY LÊN BACKEND KHI THANH TOÁN:", payload);
+    // 2. CHUẨN BỊ PAYLOAD CHO BACKEND (Giờ đã có thêm thông tin Khách)
+    const payloadBackend = {
+      tongTien: cartTotal.value,
+      khachHang: selectedCustomer.value ? selectedCustomer.value.sdt : 'Khách vãng lai', // <--- Thêm dòng này
+      chiTiet: cart.value.map(item => ({
+        maSP: item.maSP,
+        giaBan: item.giaBan,
+        serials: item.serials
+      }))
+    };
+    console.log("PAYLOAD API BACKEND:", payloadBackend);
 
-    ElMessage.success('Tạo hóa đơn thành công! Kho đã được cập nhật.');
-    cart.value = [];
+    // 3. GỌI CỬA SỔ IN HÓA ĐƠN
+    if (billDialogRef.value) {
+      billDialogRef.value.openBill({
+        maHoaDon: fakeMaHD,
+        items: JSON.parse(JSON.stringify(cart.value)), 
+        tongTien: cartTotal.value,
+        giamGia: 0,
+        khachDua: parseInt(customerMoneyRaw.value) || cartTotal.value,
+        tenKhachHang: selectedCustomer.value ? selectedCustomer.value.tenKH : 'Khách lẻ' // <--- Truyền tên để in lên giấy
+      });
+    }
+
+    // 4. RESET GIỎ HÀNG
+    ElMessage.success('Thanh toán thành công! Đang tạo lệnh in...');
+    cart.value = []; 
+    customerMoneyRaw.value = '';
   }).catch(() => {});
 };
 </script>
