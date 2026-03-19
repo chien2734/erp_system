@@ -20,6 +20,12 @@ const routes = [
             path: '/hr/employees',
             name: 'Quản lý nhân viên',
             component: () => import('../modules/hr/NhanVien.vue')
+        },
+        // Thêm vào ngay dưới route hr/employees
+        {
+            path: '/sales/pos', 
+            name: 'Bán hàng (POS)',
+            component: () => import('../modules/sales/Pos.vue')
         }
         // Các trang khác của phân hệ HR, Sales... sẽ khai báo thêm ở đây
         ],
