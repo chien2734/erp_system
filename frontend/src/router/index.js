@@ -41,7 +41,11 @@ const routes = [
             name: 'Danh mục Sản phẩm',
             component: () => import('../modules/inventory/SanPham.vue')
         },
-        
+        {
+            path: '/inventory/serial',
+            name: 'Quản lý Serial',
+            component: () => import('../modules/inventory/Serial.vue')
+        }
         // Các trang khác của phân hệ HR, Sales... sẽ khai báo thêm ở đây
         ],
         meta: { requiresAuth: true }

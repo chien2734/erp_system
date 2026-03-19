@@ -15,36 +15,37 @@
             router :default-active="$route.path"
         >
             <el-sub-menu index="sales">
-            <template #title>
-                <el-icon><ShoppingCart /></el-icon>
-                <span>Bán Hàng & POS</span>
-            </template>
-            <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
-            <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
+                <template #title>
+                    <el-icon><ShoppingCart /></el-icon>
+                    <span>Bán Hàng & POS</span>
+                </template>
+                <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
+                <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
             </el-sub-menu>
 
             <el-sub-menu index="inventory">
-            <template #title>
-                <el-icon><Box /></el-icon>
-                <span>Kho & Sản phẩm</span>
-            </template>
-            <el-menu-item index="/inventory/products">Danh sách Laptop</el-menu-item>
-            <el-menu-item index="/inventory/stock">Nhập kho</el-menu-item>
+                <template #title>
+                    <el-icon><Box /></el-icon>
+                    <span>Kho & Sản phẩm</span>
+                </template>
+                <el-menu-item index="/inventory/products">Danh sách Laptop</el-menu-item>
+                <el-menu-item index="/inventory/stock">Nhập kho</el-menu-item>
+                <el-menu-item index="/inventory/serial">Quản lý Serial</el-menu-item>
             </el-sub-menu>
 
             <el-sub-menu index="hr">
-            <template #title>
-                <el-icon><UserFilled /></el-icon>
-                <span>Nhân Sự & Lương</span>
-            </template>
-            <el-menu-item index="/hr/employees">Quản lý nhân viên</el-menu-item>
-            <el-menu-item index="/hr/attendance">Chấm công</el-menu-item>
-            <el-menu-item index="/hr/payroll">Bảng tính lương</el-menu-item>
+                <template #title>
+                    <el-icon><UserFilled /></el-icon>
+                    <span>Nhân Sự & Lương</span>
+                </template>
+                <el-menu-item index="/hr/employees">Quản lý nhân viên</el-menu-item>
+                <el-menu-item index="/hr/attendance">Chấm công</el-menu-item>
+                <el-menu-item index="/hr/payroll">Bảng tính lương</el-menu-item>
             </el-sub-menu>
 
             <el-menu-item index="/settings">
-            <el-icon><Setting /></el-icon>
-            <span>Cấu hình hệ thống</span>
+                <el-icon><Setting /></el-icon>
+                <span>Cấu hình hệ thống</span>
             </el-menu-item>
         </el-menu>
 

@@ -302,7 +302,7 @@ const handleSubmit = async (formEl) => {
         
         // Mô phỏng Backend tự tạo Mã NV khi thêm mới
         if (!isEditMode.value) {
-          const fakeMaNV = 'NV' + Math.floor(1000 + Math.random() * 9000);
+          const fakeMaNV = Math.floor(1000 + Math.random() * 9000);
           hrStore.employees.unshift({ ...formData, id: Date.now(), maNV: fakeMaNV });
         } else {
           // Logic update cho Store (Tạm thời)
