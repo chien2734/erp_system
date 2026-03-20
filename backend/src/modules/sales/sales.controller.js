@@ -27,7 +27,7 @@ const SalesController = {
                     message: 'Vui lòng nhập tên và số điện thoại khách hàng' 
                 });
             }
-            const newId = await SalesModel.createKhachHang({ tenKH, sdt, diaChi });
+            const newId = await SalesModel.themKhachHang({ tenKH, sdt, diaChi });
             res.status(201).json({ 
                 success: true, 
                 message: 'Thêm khách hàng thành công', maKH: newId 

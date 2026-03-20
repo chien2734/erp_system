@@ -25,7 +25,12 @@ const SalesModel = {
         const [rows] = await db.query(sql, values);
         return {
             data: rows,
-            pagination: { page: Number(page), limit: Number(limit), totalRecords, totalPages: Math.ceil(totalRecords / limit) }
+            pagination: { 
+                page: Number(page), 
+                limit: Number(limit), 
+                totalRecords, 
+                totalPages: Math.ceil(totalRecords / limit) 
+            }
         };
     },
 

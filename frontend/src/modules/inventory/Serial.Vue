@@ -14,7 +14,7 @@
         :prefix-icon="FullScreen"
         class="!w-72 font-mono"
         clearable
-      />
+    />
       
       <el-select v-model="filterSP" placeholder="Lọc theo Sản phẩm" clearable class="!w-64" filterable>
         <el-option v-for="sp in dbSanPham" :key="sp.maSP" :label="sp.tenSP" :value="sp.maSP" />
