@@ -90,6 +90,9 @@ const AuthController = {
                 });
             }
             const user = await AuthModel.getAccountById(maNhanVien);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Tài khoản không tồn tại' });
+            }
             if (oldPassword !== user.password) {
                 return res.status(400).json({
                     success: false,

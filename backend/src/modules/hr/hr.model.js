@@ -2,7 +2,7 @@ const db = require('../../config/db');
 
 const HrModel = {
     // ===================================
-    // Phan 1: Quan ly nhan vien
+    // Phan 1: Quản lý nhân viên
     //====================================
 
     // Lấy danh sách nhân viên (Kèm filter)
@@ -15,27 +15,22 @@ const HrModel = {
             WHERE nv.trangThai = 1
         `;
         let values = [];
-
         if (keyword) {
             sql += ` AND (nv.hoTen LIKE ? OR nv.sdt LIKE ?)`;
             values.push(`%${keyword}%`, `%${keyword}%`);
         }
-
         if (maChucVu) {
             sql += ` AND nv.maChucVu = ?`;
             values.push(maChucVu);
         }
-
         // Đếm tổng số bản ghi
         const countSql = `SELECT COUNT(*) as total FROM (${sql}) as temp`;
         const [countResult] = await db.query(countSql, values);
         const totalRecords = countResult[0].total;
-
         // Phân trang
         const offset = (page - 1) * limit;
         sql += ` ORDER BY nv.maNhanVien DESC LIMIT ? OFFSET ?`;
         values.push(Number(limit), Number(offset));
-
         const [rows] = await db.query(sql, values);
         return {
             data: rows,
@@ -48,7 +43,6 @@ const HrModel = {
         const [rows] = await db.query(sql, [id]);
         return rows[0];
     },
-
     // Thêm mới nhân viên
     createNhanVien: async (data) => {
         const sql = `
@@ -59,7 +53,6 @@ const HrModel = {
         const [result] = await db.query(sql, values);
         return result.insertId;
     },
-
     // Cập nhật thông tin nhân viên
     updateNhanVien: async (id, data) => {
         const sql = `
@@ -71,14 +64,12 @@ const HrModel = {
         const [result] = await db.query(sql, values);
         return result.affectedRows;
     },
-
     // Xóa nhân viên (chuyển trangThai = 0)
     deleteNhanVien: async (id) => {
         const sql = `UPDATE nhanvien SET trangThai = 0 WHERE maNhanVien = ?`;
         const [result] = await db.query(sql, [id]);
         return result.affectedRows;
     },
-
     // Thay đổi chức vụ -> lịch sử công tác
     changeChucVu: async (id, maChucVuMoi, ngayHieuLuc) => {
         // Lấy một kết nối riêng biệt từ Pool để chạy Transaction
@@ -110,33 +101,34 @@ const HrModel = {
             connection.release();
         }
     },
-
     // Lay lich su cong tac cua nhan vien
-    getLichSuCongTac: async (id) => {
-        const sql = `
-            SELECT td.maNhanVien, td.maChucVu, cv.tenChucVu, td.ngayBatDau, td.ngayKetThuc
-            FROM thaydoichucvu td
-            JOIN chucvu cv ON td.maChucVu = cv.maChucVu
-            WHERE td.maNhanVien = ?
-            ORDER BY td.ngayBatDau DESC
-        `;
-        const [rows] = await db.query(sql, [id]);
-        return rows;
-    },
+    // getLichSuCongTac: async (id) => {
+    //     const sql = `
+    //         SELECT td.maNhanVien, td.maChucVu, cv.tenChucVu, td.ngayBatDau, td.ngayKetThuc
+    //         FROM thaydoichucvu td
+    //         JOIN chucvu cv ON td.maChucVu = cv.maChucVu
+    //         WHERE td.maNhanVien = ?
+    //         ORDER BY td.ngayBatDau DESC
+    //     `;
+    //     const [rows] = await db.query(sql, [id]);
+    //     return rows;
+    // },
+    //================================
 
-    //=========================
+    //================================
     // Phan 2: Quan ly chuc vu
-    // ========================
+    // ===============================
     //  Lay danh sach chuc vu
     getAllChucVu: async () => {
         const sql = `SELECT * FROM chucvu`;
         const [rows] = await db.query(sql);
         return rows;
     },
+    //=======================================
 
-    //==========================
-    // Phan 3: Quản lý chấm công và Tiền lương
-    // ==========================
+    // ==============================================
+    // PHẦN 3: CHẤM CÔNG & TIỀN LƯƠNG 
+    // ==============================================
     // 1. Chấm công
     checkIn: async (maNhanVien, ngayLamViec, gioVao, trangThai) => {
         const sql = `
@@ -151,7 +143,7 @@ const HrModel = {
     checkOut: async (maNhanVien, ngayLamViec, gioRa, trangThai) => {
         const sql = `
             UPDATE chamcong
-            SET gioRa = ?, trangThai = trangThai + ?
+            SET gioRa = ?, trangThai = ?
             WHERE maNhanVien = ? AND ngayLamViec = ?
         `;
         const values = [gioRa, trangThai, maNhanVien, ngayLamViec];
@@ -159,21 +151,12 @@ const HrModel = {
         return result.affectedRows;
     },
     // 2. Lịch sử chấm công trong tháng
-    getLichSuChamCong: async (filters) => {
-        const {thang, nam, maNhanVien} = filters;
+    getLichSuChamCong: async (thang, nam, maNhanVien) => {
         let sql = `
             SELECT * from chamcong
+            WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?  AND maNhanVien = ?
             `;
-        let values = [];
-        if (thang && nam) {
-            sql += ` WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?`;
-            values.push(thang, nam);
-        }
-        if (maNhanVien) {
-            sql += values.length > 0 ? ` AND maNhanVien = ?` : ` WHERE maNhanVien = ?`;
-            values.push(maNhanVien);
-        }
-        const [rows] = await db.query(sql, values);
+        const [rows] = await db.query(sql, [thang, nam, maNhanVien]);
         return rows;
     },
     // Kiem tra xem nhan vien da check in chua trong ngay
@@ -184,9 +167,6 @@ const HrModel = {
     },
 
     // 3. Tính lương
-    // ==============================================
-    // PHẦN 3: CHẤM CÔNG & TIỀN LƯƠNG (CẬP NHẬT THEO CẤU TRÚC MỚI)
-    // ==============================================
     // Lay cau hinh tinh luong (tien phat di tre moi phut, he so tang ca)
     getCauHinh: async () => {
         const sql = `SELECT * FROM cauhinhluong WHERE trangThai = 1 LIMIT 1`;
@@ -263,22 +243,23 @@ const HrModel = {
                 // Trừ bảo hiểm (Ví dụ 10.5% trên Lương cơ bản thực tế)
                 const truBaoHiem = Math.round(luongCoBanThucTe * (BHXH + BHYT));
                 // Tính Thực Lãnh
-                const thucLanh = luongCoBanThucTe + tongTienTangCa + phuCapChucVu + phuCapKhac - tongTienPhat - truBaoHiem;
+                const thuong = 0;
+                const thucLanh = luongCoBanThucTe + tongTienTangCa + phuCapChucVu + phuCapKhac + thuong - tongTienPhat - truBaoHiem;
 
                 const sqlInsertLuong = `
                     INSERT INTO bangluong (
                         maNhanVien, thang, nam, luongTheoGio, soGioLamBinhThuong, 
                         luongCoBan, soGioTangCa, heSoTangCa, tongTienTangCa, 
                         soPhutDiTre, tienPhatDiTre, tongTienPhat, 
-                        phuCapChucVu, phuCapKhac, truBaoHiem, thucLanh, ngayTao, trangThai
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'Chưa thanh toán')
+                        phuCapChucVu, phuCapKhac, truBaoHiem, thuong, thucLanh, ngayTao, trangThai
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'Chưa thanh toán')
                 `;
 
                 const values = [
                     nv.maNhanVien, thang, nam, LUONG_THEO_GIO, soGioLamBinhThuong,
                     luongCoBanThucTe, soGioTangCa, HE_SO_TANG_CA, tongTienTangCa,
                     soPhutDiTre, TIEN_PHAT_MOI_PHUT, tongTienPhat,
-                    phuCapChucVu, phuCapKhac, truBaoHiem, thucLanh
+                    phuCapChucVu, phuCapKhac, truBaoHiem, thuong, thucLanh
                 ];
 
                 await connection.query(sqlInsertLuong, values);
@@ -345,20 +326,143 @@ const HrModel = {
         return rows;
     },
 
-    // Update bang Luong (Thuong / phat)
-    updateBangLuong: async (thang, nam, dsNhanVien, thuong, phat) => {
-        for(let nv of dsNhanVien){
+    // Update bang Luong (Thuong )
+    updateBangLuong: async (thang, nam, dsNhanVien, thuong) => {
+        let totalAffected = 0;
+        for (let nv of dsNhanVien) {
             const sql = `
                 UPDATE bangluong
-                SET thuong = ?, tienTruKhac = ?, tongTienTru = tongTienTru + ?
+                SET thuong = ? , thucLanh = thucLanh + ?
                 WHERE nam = ? AND thang = ? AND maNhanVien = ? 
             `;
-
-            const values = [thuong, phat, phat, nam, thang, nv];
-            const result = await db.query(sql, values);
-            return result.affectedRows
+            const values = [thuong, thuong, nam, thang, nv];
+            const [result] = await db.query(sql, values);
+            totalAffected += result.affectedRows;
         }
+        return totalAffected;
+    },
+    //================================
+
+    // ==============================================
+    // PHẦN 4: QUẢN LÝ ĐƠN NGHỈ PHÉP
+    // ==============================================
+
+    // 1. Nhân viên: Nộp đơn xin nghỉ
+   createLeaveRequest: async (maNhanVien, data) => {
+        const sql = `
+            INSERT INTO dontu (maNhanVien, loaiDon, lyDo, ngayBatDau, ngayKetThuc, trangThai) 
+            VALUES (?, ?, ?, ?, ?, 'Chờ duyệt')
+        `;
+        const values = [maNhanVien, data.loaiDon, data.lyDo, data.ngayBatDau, data.ngayKetThuc];
+        const [result] = await db.query(sql, values);
+        return result.insertId;
+    },
+
+    // 2. Nhân viên: Xem danh sách đơn mình đã nộp
+    getLeaveRequestById: async (maNhanVien) => {
+        const sql = `
+            SELECT * FROM dontu 
+            WHERE maNhanVien = ? 
+            ORDER BY ngayBatDau DESC
+        `;
+        const [rows] = await db.query(sql, [maNhanVien]);
+        return rows;
+    },
+
+    // 3. Quản lý/HR: Xem toàn bộ đơn xin nghỉ của cả công ty (Có bộ lọc)
+    getAllLeaveRequest: async (filters) => {
+        const { trangThai, thang, nam } = filters;
+        let sql = `
+            SELECT dt.*, nv.hoTen, cv.tenChucVu, nd.hoTen as tenNguoiDuyet
+            FROM dontu dt
+            JOIN nhanvien nv ON dt.maNhanVien = nv.maNhanVien
+            JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN nhanvien nd ON dt.maNguoiDuyet = nd.maNhanVien
+            WHERE 1=1
+        `;
+        let values = [];
+
+        if (trangThai) {
+            sql += ` AND dt.trangThai = ?`;
+            values.push(trangThai);
+        }
+        if (thang && nam) {
+            sql += ` AND MONTH(dt.ngayBatDau) = ? AND YEAR(dt.ngayBatDau) = ?`;
+            values.push(thang, nam);
+        }
+        sql += ` ORDER BY dt.ngayTao DESC`;
+        const [rows] = await db.query(sql, values);
+        return rows;
+    },
+
+    // 4. Quản lý/HR: Duyệt hoặc Từ chối đơn (TÍCH HỢP TỰ ĐỘNG CHẤM CÔNG)
+    handleLeaveRequest: async (maDon, trangThaiMoi, nguoiDuyet) => {
+        // Lấy một kết nối riêng biệt để chạy Transaction
+        const connection = await db.getConnection(); 
+
+        try {
+            // Bắt đầu khóa an toàn
+            await connection.beginTransaction();
+
+            // BƯỚC 1: Cập nhật trạng thái duyệt vào bảng dontu
+            const sqlUpdateDon = `
+                UPDATE dontu
+                SET trangThai = ?, maNguoiDuyet = ? 
+                WHERE maDon = ?
+            `;
+            const [result] = await connection.query(sqlUpdateDon, [trangThaiMoi, nguoiDuyet, maDon]);
+            // BƯỚC 2: Nếu quản lý "Đã duyệt" -> Tự động sinh ra các ngày chấm công
+            if (trangThaiMoi === 'Đã duyệt') {
+                // 2.1: Lấy thông tin chi tiết của đơn này (Ai nghỉ, từ ngày nào đến ngày nào)
+                // Giả định bảng dontu của bạn có các cột: maNhanVien, tuNgay, denNgay, loaiDon
+                const sqlGetDon = `SELECT maNhanVien, ngayBatDau, ngayKetThuc, loaiDon FROM dontu WHERE maDon = ?`;
+                const [donInfo] = await connection.query(sqlGetDon, [maDon]);
+
+                if (donInfo.length > 0) {
+                    const { maNhanVien, tuNgay, denNgay, loaiDon } = donInfo[0];
+                    // 2.2: Dùng vòng lặp duyệt qua từng ngày từ 'tuNgay' đến 'denNgay'
+                    let currentDate = new Date(tuNgay);
+                    const endDate = new Date(denNgay);
+                    while (currentDate <= endDate) {
+                        // Cắt lấy chuỗi YYYY-MM-DD chuẩn của MySQL
+                        const dateString = currentDate.toISOString().split('T')[0];
+                        const trangThaiNghi = `Nghỉ có phép`;
+                        // 2.3: Chèn vào bảng chamcong. 
+                        // Dùng ON DUPLICATE KEY UPDATE để lỡ nhân viên sáng check-in rồi trưa xin nghỉ ốm về thì hệ thống sẽ ghi đè lại trạng thái.
+                        const sqlChamCong = `
+                            INSERT INTO chamcong (maNhanVien, ngayLamViec, trangThai) 
+                            VALUES (?, ?, ?)
+                            ON DUPLICATE KEY UPDATE trangThai = ?
+                        `;
+                        await connection.query(sqlChamCong, [
+                            maNhanVien, dateString, trangThaiNghi, 
+                            trangThaiNghi
+                        ]);
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                }
+            }
+            // Nếu mọi thứ trơn tru (Không có lỗi DB) -> Lưu vĩnh viễn
+            await connection.commit();
+            return result.affectedRows;
+        } catch (error) {
+            // Có lỗi xảy ra -> Hủy bỏ, trả dữ liệu về như cũ, tránh sinh ra data rác
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
+    },
+    updateLeaveRequest: async (maDon, data) => {
+        const sql = `
+            UPDATE dontu
+            SET ngayBatDau = ?, ngayKetThuc = ?, lyDo = ?
+            WHERE maDon = ? 
+        `;
+        const [result] = await db.query(sql, [data.ngayBatDau, data.ngayKetThuc, data.lyDo, maDon]);
+        return result.affectedRows; 
     }
+    
 };
 
 module.exports = HrModel;

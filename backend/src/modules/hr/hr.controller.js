@@ -91,7 +91,7 @@ const HrController = {
             });
         }
     },
-    // Xử lý API Thăng/giang chức
+    // Xử lý API Thăng/giáng chức
     changeChucVu: async (req, res) => {
         try {
             const { id } = req.params;
@@ -102,7 +102,7 @@ const HrController = {
                     message: 'Vui lòng cung cấp mã chức vụ mới và ngày bắt đầu'
                 });
             }
-            await HrModel.thangChuc(id, maChucVuMoi, ngayHieuLuc);
+            await HrModel.changeChucVu(id, maChucVuMoi, ngayHieuLuc);
             res.status(200).json({
                 success: true,
                 message: 'Đã cập nhật chức vụ và lưu lịch sử thành công!'
@@ -130,6 +130,20 @@ const HrController = {
         }
     },
 
+    // getLichSuCongTac: async (req, res) => {
+    //     try{
+    //         const { id } = req.params;
+    //         const result = await HrModel.getLichSuCongTac(id);
+    //         result
+    //     }catch(error) {
+    //         console.log('Loi API getLichSuCongTac', error);
+
+    //     }
+    // },
+    //===============================
+    // CHAM CONG VA TINH LUONG
+    //===============================
+
     // Cham cong - Nhân viên tự chấm công cho mình
     ghiNhanChamCong: async (req, res) => {
         try {
@@ -142,10 +156,9 @@ const HrController = {
             const GIO_VAO_CHUAN = '08:00:00';
             const GIO_RA_CHUAN = '17:00:00';
             const chamCongHomNay = await HrModel.getChamCongNgayHienTai(maNhanVien, ngayHienTai);
-            // chua cham cong
+            // chưa chấm công -> thực hiện check-in
             if (!chamCongHomNay) {
-                // =============== XỬ LÝ CHECK-IN ===============
-                let trangThaiChot = (gioHienTai > GIO_VAO_CHUAN) ? 'Đi trễ' : 'Đúng giờ';
+                const trangThaiChot = (gioHienTai > GIO_VAO_CHUAN) ? 'Đi trễ' : 'Đúng giờ';
                 await HrModel.checkIn(maNhanVien, ngayHienTai, gioHienTai, trangThaiChot);
                 return res.status(200).json({
                     success: true,
@@ -157,8 +170,10 @@ const HrController = {
                 if (chamCongHomNay.gioRa) {
                     return res.status(400).json({ success: false, message: 'Bạn đã hoàn tất chấm công ra về cho ngày hôm nay rồi!' });
                 }
+                // lấy trạng thái hiện tại và có thể thêm thông tin tăng ca
+                let trangThaiChot = chamCongHomNay.trangThai || '';
                 if (gioHienTai > GIO_RA_CHUAN) {
-                    trangThaiChot += 'và Tăng ca';
+                    trangThaiChot = (trangThaiChot ? (trangThaiChot + ' và Tăng ca') : 'Tăng ca');
                 }
                 await HrModel.checkOut(maNhanVien, ngayHienTai, gioHienTai, trangThaiChot);
 
@@ -174,10 +189,27 @@ const HrController = {
         }
     },
 
+    // Lich su cham cong
+    getHistoryChamCong: async (req, res) => {
+        try{
+            const {thang, nam} = req.query;
+            // hỗ trợ lấy maNhanVien từ query, params hoặc token
+            const maNhanVien = req.query.maNhanVien || req.params.id || req.user?.maNhanVien;
+            const lichSuBangChamCong = await HrModel.getLichSuChamCong(thang, nam, maNhanVien);
+            res.status(200).json({ 
+                success: true,
+                tongSoNgay: lichSuBangChamCong.length,
+                data: lichSuBangChamCong
+            });
+        } catch(error){
+            console.log(error);
+            res.status(500).json({ success: false, message: 'Lỗi trong quá trình lọc bảng chấm công'})
+        }       
+    },
     // Tính lương
     TinhLuong: async (req, res) => {
         try {
-            const { thang, nam } = req.body;
+            const { thang, nam } = req.query;
             const cauhinh = await HrModel.getCauHinh();
             const dsNhanVien = await HrModel.chotBangLuongThang(thang, nam, cauhinh);
             if (dsNhanVien === 0) {
@@ -203,20 +235,19 @@ const HrController = {
     // Cap nhat bảng lương: thuong/phat (Admin)
     updateBangLuong: async (req, res) => {
         try {
-            const { thang, nam, dsNhanVien, thuong, phat } = req.body;
-            if (!thang || !nam || (thuong === 0 && phat === 0)) {
+            const { thang, nam, dsNhanVien, thuong } = req.body;
+            if (!thang || !nam || !thuong) {
                 return res.status(400).json({
                     success: false,
-                    massage: 'Dữ liệu không hợp lệ, vui lòng nhập lại!'
+                    message: 'Dữ liệu không hợp lệ, vui lòng nhập lại!'
                 });
             }
             if (!dsNhanVien) {
                 return res.status(400).json({
                     success: false,
-                    massage: 'Không hợp lệ, vui lòng chọn nhân viên!'
+                    message: 'Không hợp lệ, vui lòng chọn nhân viên!'
                 });
             }
-
             const affectedRow = await HrModel.updateBangLuong(thang, nam, dsNhanVien, thuong, phat)
             if (affectedRow === 0) return res.status(404).json({
                 success: false,
@@ -225,7 +256,7 @@ const HrController = {
 
             return res.status(200).json({
                 success: true,
-                message: 'Đã thêm tiền thưởng/phạt thành công!'
+                message: 'Đã thêm tiền thưởng thành công!'
             });
         } catch(error) {
             console.log(error)
@@ -236,6 +267,127 @@ const HrController = {
         }
     },
 
+    // lay danh sach bang luong (Admin)
+    getBangLuong: async (req, res) => {
+        try{
+            const {thang, nam, maNhanVien, maChucVu} = req.query;
+            const result = await HrModel.getBangLuong({thang, nam, maNhanVien, maChucVu});
+            res.status(200).json({success: true, data: result});
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({
+                success: false,
+                message: ''
+            });
+        }      
+    },
+
+    // Xem bang luong(User)
+    xemLuong: async (req, res) => {
+        try{
+            const maNhanVien = req.params.id || req.user?.maNhanVien;
+            const {thang, nam} = req.query;
+            const bangLuong = await HrModel.xemLuong(thang, nam, maNhanVien);
+            res.status(200).json({success: true, data: bangLuong});
+        } catch(error){
+            console.log(error);
+            res.status(500).json({success: false, message: 'Lỗi khi lấy bảng lương'});
+        }
+    },
+
+
+    //=================================
+    // QUAN LY DON TU
+    //=================================
+
+    // --- LUỒNG NHÂN VIÊN ---
+    createLeaveRequest: async (req, res) => {
+        try {
+            const maNhanVien = req.user.maNhanVien; // Tự động lấy ID của người đang đăng nhập
+            const { loaiDon, ngayBatDau, ngayKetThuc, lyDo } = req.body;
+
+            if (!loaiDon || !ngayBatDau || !ngayKetThuc || !lyDo) {
+                return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin đơn nghỉ phép' });
+            }
+            // Có thể check thêm logic: tuNgay không được lớn hơn denNgay
+            if (new Date(tuNgay) > new Date(denNgay)) {
+                return res.status(400).json({ success: false, message: 'Ngày bắt đầu không thể lớn hơn ngày kết thúc' });
+            }
+            await HrModel.taoDonNghiPhep(maNhanVien, req.body);
+            res.status(201).json({ success: true, message: 'Đã gửi đơn xin nghỉ phép thành công. Vui lòng chờ quản lý duyệt!' });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi tạo đơn nghỉ phép' });
+        }
+    },
+
+    getLeaveRequestById: async (req, res) => {
+        try {
+            const maNhanVien = req.user.maNhanVien;
+            const data = await HrModel.getLeaveRequestById(maNhanVien);
+            res.status(200).json({ success: true, data: data });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách đơn cá nhân' });
+        }
+    },
+
+    updateLeaveRequest: async (req, res) => {
+        try{
+            const {id} = req.params;
+            const {ngayBatDau, ngayKetThuc, lyDo, trangThai} = req.body;
+            if (new Date(ngayBatDau) > new Date(ngayKetThuc)) {
+                return res.status(400).json({ success: false, message: 'Ngày bắt đầu không thể lớn hơn ngày kết thúc' });
+            }
+            if (!lyDo) {
+                 return res.status(400).json({ success: false, message: 'Vui lòng ghi rõ lý do!' });
+            }
+            if (!['Chờ duyệt'].includes(trangThai)) {
+                return res.status(400).json({ success: false, message: 'Trạng thái xử lý không hợp lệ' });
+            }
+            const affectedRows = await HrModel.updateLeaveRequest(id, {ngayBatDau, ngayKetThuc, lyDo});
+            if(affectedRows === 0){
+                res.status(404).json({success: false, message: 'Không tìm thấy mã đơn'});
+            }
+                res.status(200).json({success: true, message: 'Cập nhật thành công'});
+        } catch(error) {
+            console.log(error);
+            res.status(500).json({success: false, message: 'Lỗi khi cập nhật đơn từ'})
+        }
+    },
+
+    // --- LUỒNG QUẢN LÝ ---
+    getAllLeaveRequest: async (req, res) => {
+        try {
+            const { trangThai, thang, nam } = req.query;
+            const data = await HrModel.getAllLeaveRequest({ trangThai, thang, nam });
+            res.status(200).json({ success: true, tongSoDon: data.length, data: data });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách tổng hợp đơn nghỉ phép' });
+        }
+    },
+
+    handleLeaveRequest: async (req, res) => {
+        try {
+            const nguoiDuyet = req.user.maNhanVien; // ID của quản lý đang thao tác
+            const { id } = req.params; // maDon
+            const { trangThai } = req.body; // 'Đã duyệt' hoặc 'Từ chối'
+
+            if (!['Đã duyệt', 'Từ chối'].includes(trangThai)) {
+                return res.status(400).json({ success: false, message: 'Trạng thái xử lý không hợp lệ' });
+            }
+            const affectedRows = await HrModel.handleLeaveRequest(id, trangThai, nguoiDuyet);
+            if (affectedRows === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nghỉ phép này' });
+            }
+
+            res.status(200).json({ success: true, message: `Đã ${trangThai.toLowerCase()} đơn nghỉ phép!` });
+        } catch (error) {
+            console.error("Lỗi duyệt đơn:", error);
+            res.status(500).json({ success: false, message: 'Lỗi hệ thống khi xử lý đơn' });
+        }
+    }
 };
 
 module.exports = HrController;
