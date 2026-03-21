@@ -61,6 +61,16 @@ const routes = [
             name: 'Portal Chấm Công',
             component: () => import('../modules/hr/CheckIn.vue')
         },
+        {
+            path: '/hr/payroll',
+            name: 'Bảng Tính Lương',
+            component: () => import('../modules/hr/BangLuong.vue')
+        },
+        {
+            path: '/settings',
+            name: 'Cấu hình Hệ thống',
+            component: () => import('../modules/settings/Settings.vue')
+        },
         // Các trang khác của phân hệ HR, Sales... sẽ khai báo thêm ở đây
         ],
         meta: { requiresAuth: true }
