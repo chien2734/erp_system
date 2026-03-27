@@ -41,7 +41,7 @@
         <el-table-column prop="tenSP" label="Tên Sản Phẩm" min-width="250">
           <template #default="scope">
             <p class="font-bold text-slate-800 line-clamp-1">{{ scope.row.tenSP }}</p>
-            <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ scope.row.cauHinhSP }}</p>
+            <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ scope.row.cauHinh }}</p>
           </template>
         </el-table-column>
         
@@ -131,13 +131,13 @@
               <el-input v-model="formData.tenSP" placeholder="VD: Dell XPS 13 Plus 9320" />
             </el-form-item>
 
-            <el-form-item label="Cấu hình (CPU/RAM/SSD)" prop="cauHinhSP" class="col-span-2">
-              <el-input v-model="formData.cauHinhSP" placeholder="VD: Core i7 12th / 16GB RAM / 512GB SSD" />
+            <el-form-item label="Cấu hình (CPU/RAM/SSD)" prop="cauHinh" class="col-span-2">
+              <el-input v-model="formData.cauHinh" placeholder="VD: Core i7 12th / 16GB RAM / 512GB SSD" />
             </el-form-item>
 
-            <el-form-item label="Giá Nhập (VND)" prop="giaNhap">
+            <!-- <el-form-item label="Giá Nhập (VND)" prop="giaNhap">
               <el-input-number v-model="formData.giaNhap" :min="0" :step="1000000" class="!w-full" controls-position="right" />
-            </el-form-item>
+            </el-form-item> -->
 
             <el-form-item label="Giá Bán (VND)" prop="giaBan">
               <el-input-number v-model="formData.giaBan" :min="0" :step="1000000" class="!w-full" controls-position="right" />
@@ -175,29 +175,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, Edit, Monitor } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import api from '../../services/api'; // Import xe chở hàng Axios
 
-// --- MOCK DATABASE (maSP là INT) ---
-const dbHangSP = ref([
-  { maHang: 1, tenHang: 'Apple' }, { maHang: 2, tenHang: 'Dell' }, { maHang: 3, tenHang: 'Asus' }, { maHang: 4, tenHang: 'HP' },
-]);
+// --- STATE: DỮ LIỆU TỪ API ---
+const dbHangSP = ref([]);
+const dbSanPham = ref([]);
+const dbMayTinh = ref([]);
 
-const dbSanPham = ref([
-  { 
-    maSP: 1, maHang: 1, tenSP: 'MacBook Air M2 13 inch', 
-    cauHinhSP: 'Apple M2 / 8GB / 256GB', moTa: 'Laptop mỏng nhẹ...', hinhAnh: '',
-    soLuongTon: 15, giaNhap: 22000000, giaBan: 26490000, trangThai: 1 
-  },
-  { 
-    maSP: 2, maHang: 2, tenSP: 'Dell XPS 13 Plus 9320', 
-    cauHinhSP: 'Core i7 / 16GB / 512GB', moTa: 'Laptop doanh nhân...', hinhAnh: '',
-    soLuongTon: 3, giaNhap: 38000000, giaBan: 45000000, trangThai: 1 
-  },
-]);
-
-// --- STATE ---
+// --- STATE: UI & FORM ---
 const loading = ref(false);
 const saving = ref(false);
 const searchQuery = ref('');
@@ -207,7 +195,7 @@ const isEditMode = ref(false);
 const formRef = ref(null);
 
 const initialForm = {
-  maSP: null, maHang: null, tenSP: '', moTa: '', cauHinhSP: '', 
+  maSP: null, maHang: null, tenSP: '', moTa: '', cauHinh: '', 
   hinhAnh: '', soLuongTon: 0, giaNhap: 0, giaBan: 0, trangThai: 1
 };
 const formData = ref({ ...initialForm });
@@ -218,18 +206,68 @@ const rules = {
   giaBan: [{ required: true, message: 'Vui lòng nhập Giá Bán', trigger: 'blur' }],
 };
 
-// --- COMPUTED (Sửa lỗi tìm kiếm với maSP là INT) ---
+// ==========================================
+// 1. TẢI DỮ LIỆU TỪ BACKEND
+// ==========================================
+const loadData = async () => {
+  loading.value = true;
+  try {
+    // Kéo thêm API maytinh để lấy số lượng thực tế
+    const [resHang, resSP, resMayTinh] = await Promise.all([
+      api.get('/inventory/hangsp'),
+      api.get('/inventory/sanpham?limit=1000'),
+      api.get('/inventory/maytinh?limit=10000') 
+    ]);
+
+    dbHangSP.value = resHang.result || [];
+    dbMayTinh.value = resMayTinh.data || [];
+    
+    const rawProducts = resSP.data || [];
+
+    // GHI ĐÈ SỐ LƯỢNG TỒN: Bỏ qua DB, tự đếm số máy tính có trạng thái 'Trong kho'
+    dbSanPham.value = rawProducts.map(sp => {
+      const realCount = dbMayTinh.value.filter(mt => 
+        Number(mt.maSP) === Number(sp.maSP) && 
+        mt.trangThai && 
+        mt.trangThai.toString().trim() === 'Trong kho'
+      ).length;
+
+      return {
+        ...sp,
+        soLuongTon: realCount // Ép số lượng tồn hiển thị bằng đúng số đếm thực tế
+      };
+    });
+
+  } catch (error) {
+    ElMessage.error('Không thể tải dữ liệu từ máy chủ!');
+    console.error("Lỗi tải dữ liệu:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Chạy hàm loadData ngay khi mở trang
+onMounted(() => {
+  loadData();
+});
+
+// ==========================================
+// 2. TÍNH TOÁN & TÌM KIẾM
+// ==========================================
 const filteredProducts = computed(() => {
   return dbSanPham.value.filter(sp => {
-    // Ép maSP về String để dùng hàm .includes() tìm kiếm
-    const matchQuery = sp.tenSP.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                       sp.maSP.toString().includes(searchQuery.value); 
+    // Đảm bảo maSP không bị null/undefined khi gõ tìm kiếm
+    const maSanPham = sp.maSP ? sp.maSP.toString() : '';
+    const tenSanPham = sp.tenSP ? sp.tenSP.toLowerCase() : '';
+    const keyword = searchQuery.value.toLowerCase();
+
+    const matchQuery = tenSanPham.includes(keyword) || maSanPham.includes(keyword); 
     const matchHang = filterHang.value ? sp.maHang === filterHang.value : true;
+    
     return matchQuery && matchHang;
   });
 });
 
-// --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
 const getTenHang = (maHang) => {
@@ -237,24 +275,25 @@ const getTenHang = (maHang) => {
   return hang ? hang.tenHang : 'Khác';
 };
 
-// XỬ LÝ CHỌN FILE ẢNH (MỚI & QUAN TRỌNG)
+// ==========================================
+// 3. XỬ LÝ ẢNH BASE64 (Dành cho việc lưu db tạm)
+// ==========================================
 const handleFileChange = (uploadFile) => {
-  // 1. Kiểm tra dung lượng (VD: < 2MB)
   if (uploadFile.size / 1024 / 1024 > 2) {
     ElMessage.error('Dung lượng ảnh không được vượt quá 2MB!');
     return false;
   }
-
-  // 2. GIẢ LẬP: Vì chưa có Backend, ta chuyển file ảnh thành chuỗi Base64
-  // để hiển thị ngay lập tức (Preview)
   const reader = new FileReader();
-  reader.readAsDataURL(uploadFile.raw); // Đọc file vật lý
+  reader.readAsDataURL(uploadFile.raw);
   reader.onload = () => {
-    formData.value.hinhAnh = reader.result; // Chuỗi Base64 dài ngoằng sẽ được gán vào đây
-    ElMessage.success('Đã tải ảnh lên thành công (Giả lập)');
+    formData.value.hinhAnh = reader.result;
+    ElMessage.success('Tải ảnh lên thành công!');
   };
 };
 
+// ==========================================
+// 4. MỞ DIALOG THÊM / SỬA
+// ==========================================
 const openAddModal = () => {
   isEditMode.value = false;
   formData.value = { ...initialForm };
@@ -269,34 +308,61 @@ const openEditModal = (row) => {
   dialogVisible.value = true;
 };
 
-const toggleStatus = (row) => {
-  const statusText = row.trangThai === 1 ? 'Đang kinh doanh' : 'Ngừng kinh doanh';
-  ElMessage.success(`Đã chuyển trạng thái ${row.maSP} thành: ${statusText}`);
-};
-
+// ==========================================
+// 5. GỌI API THÊM / SỬA / CẬP NHẬT TRẠNG THÁI
+// ==========================================
 const saveProduct = async () => {
   if (!formRef.value) return;
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (valid) {
       saving.value = true;
-      setTimeout(() => {
+      try {
         if (isEditMode.value) {
-          // UPDATE
-          const index = dbSanPham.value.findIndex(sp => sp.maSP === formData.value.maSP);
-          if (index !== -1) dbSanPham.value[index] = { ...formData.value };
-          ElMessage.success('Cập nhật thành công!');
+          // GỌI API PUT (CẬP NHẬT)
+          await api.put(`/inventory/sanpham/${formData.value.maSP}`, formData.value);
+          ElMessage.success('Cập nhật sản phẩm thành công!');
         } else {
-          // INSERT - Tạo maSP tự tăng (INT)
-          const newId = dbSanPham.value.length > 0 ? Math.max(...dbSanPham.value.map(s => s.maSP)) + 1 : 1;
-          formData.value.maSP = newId;
-          dbSanPham.value.unshift({ ...formData.value });
+          // GỌI API POST (THÊM MỚI)
+          await api.post('/inventory/sanpham', formData.value);
           ElMessage.success('Tạo sản phẩm mới thành công!');
         }
-        saving.value = false;
         dialogVisible.value = false;
-      }, 600);
+        
+        // Cập nhật xong thì tải lại dữ liệu mới nhất từ CSDL
+        loadData();
+      } catch (error) {
+        ElMessage.error(error.response?.data?.message || 'Lỗi khi lưu sản phẩm!');
+      } finally {
+        saving.value = false;
+      }
     }
   });
+};
+
+const toggleStatus = async (row) => {
+  const previousStatus = row.trangThai === 1 ? 0 : 1; 
+
+  try {
+    // Sửa lại payload cho chuẩn 100% với Database
+    const payload = {
+      maHang: row.maHang,
+      tenSP: row.tenSP,
+      cauHinh: row.cauHinh, // <-- Đã sửa thành row.cauHinh
+      moTa: row.moTa,
+      hinhAnh: row.hinhAnh,
+      giaBan: row.giaBan || 0,
+      trangThai: row.trangThai
+    };
+
+    await api.put(`/inventory/sanpham/${row.maSP}`, payload);
+    
+    const statusText = row.trangThai === 1 ? 'Đang kinh doanh' : 'Ngừng kinh doanh';
+    ElMessage.success(`Cập nhật trạng thái thành: ${statusText}`);
+    
+  } catch (error) {
+    row.trangThai = previousStatus; 
+    ElMessage.error('Lỗi Server: Không thể lưu trạng thái!');
+  }
 };
 </script>
 
@@ -333,4 +399,3 @@ const saveProduct = async () => {
   object-fit: contain; /* Giữ nguyên tỷ lệ ảnh */
 }
 </style>
-

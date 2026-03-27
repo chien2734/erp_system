@@ -196,7 +196,7 @@ const InventoryController = {
         try {
             const { keyword, maSP, trangThai, page, limit } = req.query;
 
-            const result = await InventoryModel.getDanhSachMayTinh({ 
+            const result = await InventoryModel.getAllMayTinh({ 
                 keyword, 
                 maSP, 
                 trangThai, 

@@ -21,7 +21,7 @@
         <h3 class="text-center text-lg font-bold mb-2">HÓA ĐƠN BÁN HÀNG</h3>
         <p><strong>Mã HĐ:</strong> {{ billData.maHoaDon }}</p>
         <p><strong>Ngày:</strong> {{ getCurrentDateTime() }}</p>
-        <p><strong>Thu ngân:</strong> Nguyễn Văn Admin</p>
+        <p><strong>Thu ngân:</strong> {{ authStore.getUserName }}</p> 
         <p><strong>Khách hàng:</strong> {{ billData.tenKhachHang }}</p>
       </div>
 
@@ -95,6 +95,9 @@
 <script setup>
 import { ref } from 'vue';
 import { Printer } from '@element-plus/icons-vue';
+import { useAuthStore } from '../auth/auth.store';
+
+const authStore = useAuthStore(); // Khởi tạo authStore để lấy tên nhân viên
 
 // Khai báo state để quản lý ẩn/hiện và dữ liệu
 const isVisible = ref(false);

@@ -191,29 +191,16 @@
 <script setup>
 import BillPrintDialog from './BillPrintDialog.vue';
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { Search, ShoppingCart, UserFilled, Monitor, Money, FullScreen, Delete, Medal } from '@element-plus/icons-vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search, ShoppingCart, UserFilled, Monitor, Money, FullScreen, Delete } from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
+import api from '../../services/api'; // Gọi 'xe chở hàng' Axios
 
-// --- MOCK DATABASE ---
-const dbSanPham = [
-  { maSP: 1, tenSP: 'MacBook Air M2 13 inch', cauHinhSP: 'Apple M2 / 8GB / 256GB', giaBan: 26490000 },
-  { maSP: 2, tenSP: 'Asus ROG Strix G15', cauHinhSP: 'Ryzen 7 / 16GB / RTX 3060', giaBan: 32990000 },
-  { maSP: 3, tenSP: 'Dell XPS 13 Plus 9320', cauHinhSP: 'Core i7 / 16GB / 512GB', giaBan: 45000000 },
-];
+// --- STATE: DỮ LIỆU TỪ API ---
+const dbSanPham = ref([]);
+const dbMayTinh = ref([]);
+const dbKhachHang = ref([]);
 
-const dbMayTinh = ref([
-  { maMay: 'SN-MAC-001', maSP: 1, maHoaDon: null },
-  { maMay: 'SN-MAC-002', maSP: 1, maHoaDon: null },
-  { maMay: 'SN-ASUS-999', maSP: 2, maHoaDon: null },
-]);
-
-// Giả lập DB Khách hàng 
-const dbKhachHang = ref([
-  { maKH: 1, sdt: '0901234567', tenKH: 'Trương Vô Kỵ', diaChi: 'Quận 1' },
-  { maKH: 2, sdt: '0988777666', tenKH: 'Triệu Mẫn', diaChi: 'Quận 7' }
-]);
-
-// --- STATE ---
+// --- STATE: GIAO DIỆN & GIỎ HÀNG ---
 const scanInput = ref('');
 const searchQuery = ref('');
 const cart = ref([]); 
@@ -223,7 +210,7 @@ const billDialogRef = ref(null);
 const searchCustomerPhone = ref('');
 const selectedCustomer = ref(null);
 
-// State cho Dialog thêm khách mới
+// Dialog Khách hàng mới
 const dialogNewCustomerVisible = ref(false);
 const newCustomerForm = ref({ sdt: '', tenKH: '', diaChi: '' });
 const newCustomerNameRef = ref(null);
@@ -234,26 +221,60 @@ const customerMoney = computed({
   set: (val) => { customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); }
 });
 
+// ==========================================
+// 1. HÀM GỌI API KHỞI TẠO DỮ LIỆU BAN ĐẦU
+// ==========================================
+const loadInitialData = async () => {
+  const loading = ElLoading.service({ lock: true, text: 'Đang tải dữ liệu quầy thu ngân...', background: 'rgba(255, 255, 255, 0.8)' });
+  try {
+    // Ép Backend trả về tối đa số lượng, bỏ qua phân trang ở màn POS
+    const [resSP, resMayTinh, resKH] = await Promise.all([
+      api.get('/inventory/sanpham?limit=10000'), 
+      api.get('/inventory/maytinh?limit=10000'), 
+      api.get('/sales/khachhang?limit=10000')
+    ]);
+
+    const tatCaSanPham = resSP.data || [];
+    dbSanPham.value = tatCaSanPham.filter(sp => sp.trangThai === 1);
+    
+    // Tinh chỉnh nhẹ chỗ này: Tránh lỗi trim() khoảng trắng từ Database (VD: 'Trong kho ')
+    const allMayTinh = resMayTinh.data || [];
+    dbMayTinh.value = allMayTinh.filter(m => 
+        m.trangThai && 
+        m.trangThai.toString().trim() !== 'Đã bán' && 
+        m.trangThai.toString().trim() !== '0'
+    );
+    
+    dbKhachHang.value = resKH.data || [];
+
+  } catch (error) {
+    console.error("Lỗi tải dữ liệu:", error);
+    ElMessage.error('Không thể tải dữ liệu từ máy chủ!');
+  } finally {
+    loading.close();
+    if (scanInputRef.value) scanInputRef.value.focus();
+  }
+};
+
 onMounted(() => {
-  if (scanInputRef.value) scanInputRef.value.focus();
+  loadInitialData();
 });
 
-// --- TÍNH TOÁN TIỀN BẠC ---
-const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
-const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.giaBan * item.serials.length), 0));
-
-const changeMoney = computed(() => {
-  const moneyGiven = parseInt(customerMoneyRaw.value) || 0;
-  return moneyGiven - cartTotal.value; // Chú ý: Trừ bằng FinalTotal đã giảm giá
-});
-
+// ==========================================
+// 2. TÍNH TOÁN HIỂN THỊ SẢN PHẨM & KHO
+// ==========================================
 const filteredProducts = computed(() => {
-  return dbSanPham.filter(sp => {
-    const matchSearch = sp.tenSP.toLowerCase().includes(searchQuery.value.toLowerCase()) || sp.maSP.toString().includes(searchQuery.value);
+  return dbSanPham.value.filter(sp => {
+    const matchSearch = sp.tenSP?.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                        sp.maSP?.toString().includes(searchQuery.value);
+    
     if (matchSearch) {
-      const cacMayTrongKho = dbMayTinh.value.filter(mt => mt.maSP === sp.maSP && mt.maHoaDon === null);
-      const itemTrongGio = cart.value.find(c => c.maSP === sp.maSP);
+      // 🚨 DÙNG Number() ĐỂ ĐẢM BẢO 1 LUÔN BẰNG "1"
+      const cacMayTrongKho = dbMayTinh.value.filter(mt => Number(mt.maSP) === Number(sp.maSP));
+      
+      const itemTrongGio = cart.value.find(c => Number(c.maSP) === Number(sp.maSP));
       const soLuongDaChon = itemTrongGio ? itemTrongGio.serials.length : 0;
+      
       sp.soLuongTonThucTe = cacMayTrongKho.length - soLuongDaChon;
       return true;
     }
@@ -261,7 +282,22 @@ const filteredProducts = computed(() => {
   });
 });
 
-// --- METHODS TÌM & THÊM KHÁCH ---
+// ==========================================
+// 3. TÍNH TOÁN TIỀN BẠC
+// ==========================================
+const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
+const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.giaBan * item.serials.length), 0));
+const finalTotal = computed(() => cartTotal.value); // Chưa có VIP thì Final = CartTotal
+const changeMoney = computed(() => {
+  const moneyGiven = parseInt(customerMoneyRaw.value) || 0;
+  return moneyGiven - finalTotal.value; 
+});
+
+const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
+
+// ==========================================
+// 4. KHÁCH HÀNG (TÌM KIẾM & THÊM API)
+// ==========================================
 const handleSearchCustomer = () => {
   const phone = searchCustomerPhone.value.trim();
   if (!phone) return;
@@ -271,36 +307,36 @@ const handleSearchCustomer = () => {
     selectedCustomer.value = kh;
     ElMessage.success(`Đã áp dụng khách hàng: ${kh.tenKH}`);
   } else {
-    // SĐT chưa tồn tại -> Mở popup thêm mới ngay lập tức
     newCustomerForm.value = { sdt: phone, tenKH: '', diaChi: '' };
     dialogNewCustomerVisible.value = true;
-    
-    // Tự động focus con trỏ chuột vào ô Tên khách hàng
-    nextTick(() => {
-      if (newCustomerNameRef.value) newCustomerNameRef.value.focus();
-    });
+    nextTick(() => { if (newCustomerNameRef.value) newCustomerNameRef.value.focus(); });
   }
 };
 
-const saveNewCustomer = () => {
+const saveNewCustomer = async () => {
   if (!newCustomerForm.value.tenKH.trim()) {
-    ElMessage.error("Vui lòng nhập Tên khách hàng!"); 
-    return;
+    ElMessage.error("Vui lòng nhập Tên khách hàng!"); return;
   }
   
-  // 1. Lưu thẳng vào CSDL
-  const newKh = {
-    maKH: Date.now(), // Sinh ID tạm
-    sdt: newCustomerForm.value.sdt,
-    tenKH: newCustomerForm.value.tenKH,
-    diaChi: newCustomerForm.value.diaChi
-  };
-  dbKhachHang.value.push(newKh);
-  
-  // 2. Gán luôn vào đơn hàng hiện tại
-  selectedCustomer.value = newKh;
-  dialogNewCustomerVisible.value = false;
-  ElMessage.success("Đã lưu và áp dụng khách hàng mới!");
+  try {
+    // Gọi API thêm khách hàng xuống Backend
+    const res = await api.post('/sales/khachhang', newCustomerForm.value);
+    
+    const newKh = {
+      maKH: res.maKH, // Lấy ID vừa được tạo từ Backend
+      sdt: newCustomerForm.value.sdt,
+      tenKH: newCustomerForm.value.tenKH,
+      diaChi: newCustomerForm.value.diaChi
+    };
+    
+    dbKhachHang.value.push(newKh); // Cập nhật danh sách local
+    selectedCustomer.value = newKh; // Áp dụng ngay vào giỏ hàng
+    
+    dialogNewCustomerVisible.value = false;
+    ElMessage.success("Thêm khách hàng thành công!");
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi khi thêm khách hàng');
+  }
 };
 
 const clearCustomer = () => {
@@ -308,34 +344,45 @@ const clearCustomer = () => {
   searchCustomerPhone.value = '';
 };
 
-// --- CÁC HÀM XỬ LÝ SẢN PHẨM & THANH TOÁN ---
-const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-
+// ==========================================
+// 5. XỬ LÝ QUÉT MÃ VẠCH (SERIAL)
+// ==========================================
 const handleScanBarcode = () => {
   const serialScanned = scanInput.value.trim().toUpperCase();
   if (!serialScanned) return;
 
   const mayTimThay = dbMayTinh.value.find(mt => mt.maMay === serialScanned);
-  if (!mayTimThay) { ElMessage.error(`Không tìm thấy Serial: ${serialScanned}`); scanInput.value = ''; return; }
-  if (mayTimThay.maHoaDon !== null) { ElMessage.error(`Máy này đã bán!`); scanInput.value = ''; return; }
+  if (!mayTimThay) { 
+    ElMessage.error(`Không tìm thấy Serial: ${serialScanned} hoặc máy đã bán!`); 
+    scanInput.value = ''; return; 
+  }
 
   let isAlreadyInCart = false;
   cart.value.forEach(item => { if (item.serials.includes(serialScanned)) isAlreadyInCart = true; });
-  if (isAlreadyInCart) { ElMessage.warning(`Mã Serial ${serialScanned} đã có trong giỏ hàng!`); scanInput.value = ''; return; }
+  if (isAlreadyInCart) { 
+    ElMessage.warning(`Serial ${serialScanned} đang có trong giỏ hàng!`); 
+    scanInput.value = ''; return; 
+  }
 
-  const thongTinSP = dbSanPham.find(sp => sp.maSP === mayTimThay.maSP);
+  const thongTinSP = dbSanPham.value.find(sp => sp.maSP === mayTimThay.maSP);
+  if(!thongTinSP) {
+      ElMessage.error(`Lỗi dữ liệu: Không tìm thấy thông tin Sản phẩm của Serial này.`);
+      scanInput.value = ''; return; 
+  }
+
   addItemToCart(thongTinSP, mayTimThay.maMay);
-  
-  ElMessage.success(`Đã quét thành công: ${serialScanned}`);
+  ElMessage.success(`Đã thêm: ${serialScanned}`);
   scanInput.value = ''; 
   if (scanInputRef.value) scanInputRef.value.focus();
 };
 
 const autoPickSerialAndAdd = (product) => {
   if (product.soLuongTonThucTe <= 0) return;
-  const cacMayTrongKho = dbMayTinh.value.filter(mt => mt.maSP === product.maSP && mt.maHoaDon === null);
+  const cacMayTrongKho = dbMayTinh.value.filter(mt => mt.maSP === product.maSP);
   const itemTrongGio = cart.value.find(c => c.maSP === product.maSP);
   const serialsDaChon = itemTrongGio ? itemTrongGio.serials : [];
+  
+  // Tìm 1 máy chưa nằm trong giỏ hàng
   const mayAvailable = cacMayTrongKho.find(mt => !serialsDaChon.includes(mt.maMay));
   if (mayAvailable) addItemToCart(product, mayAvailable.maMay);
 };
@@ -343,7 +390,7 @@ const autoPickSerialAndAdd = (product) => {
 const addItemToCart = (sanPham, maMay) => {
   let item = cart.value.find(c => c.maSP === sanPham.maSP);
   if (item) item.serials.push(maMay);
-  else cart.value.push({ maSP: sanPham.maSP, tenSP: sanPham.tenSP, cauHinhSP: sanPham.cauHinhSP, giaBan: sanPham.giaBan, serials: [maMay] });
+  else cart.value.push({ maSP: sanPham.maSP, tenSP: sanPham.tenSP, giaBan: sanPham.giaBan, serials: [maMay] });
 };
 
 const removeSerialFromCart = (cartIndex, serialToRemove) => {
@@ -352,38 +399,66 @@ const removeSerialFromCart = (cartIndex, serialToRemove) => {
   if (item.serials.length === 0) cart.value.splice(cartIndex, 1);
 };
 
+// ==========================================
+// 6. THANH TOÁN (GỌI API BÁN HÀNG)
+// ==========================================
 const processCheckout = () => {
+  // Ràng buộc nếu bán cho khách lẻ nhưng chưa có thông tin
+  if (!selectedCustomer.value) {
+    ElMessage.warning('Vui lòng chọn hoặc nhập khách hàng trước khi thanh toán!');
+    if (scanInputRef.value) scanInputRef.value.focus();
+    return;
+  }
+
   ElMessageBox.confirm(
-    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng phải thu: <b class="text-blue-600">${formatPrice(cartTotal.value)}</b>?`,
+    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng phải thu: <b class="text-blue-600">${formatPrice(finalTotal.value)}</b>?`,
     'TẠO HÓA ĐƠN XUẤT',
     { confirmButtonText: 'Lưu & In', cancelButtonText: 'Hủy', type: 'success', dangerouslyUseHTMLString: true }
-  ).then(() => {
-    const fakeMaHD = 'HD-' + Math.floor(100000 + Math.random() * 900000);
-
-    // Chuẩn bị Dữ liệu để gửi cho Backend (Khớp 100% với Schema của bạn)
-    const payloadBackend = {
-      tongTien: cartTotal.value,
-      maKH: selectedCustomer.value ? selectedCustomer.value.maKH : null, // Gửi maKH (INT) lên
-      chiTiet: cart.value.map(item => ({ maSP: item.maSP, giaBan: item.giaBan, serials: item.serials }))
-    };
+  ).then(async () => {
     
-    console.log("GỬI API LƯU HÓA ĐƠN:", payloadBackend);
+    // Gom tất cả Serial trong giỏ hàng thành 1 mảng dẹt [ "SN001", "SN002" ]
+    const mangSerial = cart.value.flatMap(item => item.serials);
 
-    if (billDialogRef.value) {
-      billDialogRef.value.openBill({
-        maHoaDon: fakeMaHD,
-        items: JSON.parse(JSON.stringify(cart.value)), 
-        tongTien: cartTotal.value,
-        khachDua: parseInt(customerMoneyRaw.value) || cartTotal.value,
-        tenKhachHang: selectedCustomer.value ? selectedCustomer.value.tenKH : 'Khách lẻ'
-      });
+    // Chuẩn bị Payload khớp 100% với Backend
+    const payloadBackend = {
+      maKH: selectedCustomer.value.maKH,
+      giamGia: 0, // Đã bỏ chức năng giảm giá
+      mangSerial: mangSerial
+    };
+
+    try {
+      const loading = ElLoading.service({ lock: true, text: 'Đang xử lý hóa đơn...' });
+      
+      // Gọi API POST tạo hóa đơn
+      const response = await api.post('/sales/hoadon', payloadBackend);
+      
+      loading.close();
+
+      // Nếu Backend trả về thành công
+      ElMessage.success('Thanh toán thành công!');
+
+      // In Bill (nếu có form in)
+      if (billDialogRef.value) {
+        billDialogRef.value.openBill({
+          maHoaDon: response.data?.maHD || 'HD-NEW',
+          items: JSON.parse(JSON.stringify(cart.value)), 
+          tongTien: finalTotal.value,
+          khachDua: parseInt(customerMoneyRaw.value) || finalTotal.value,
+          tenKhachHang: selectedCustomer.value.tenKH
+        });
+      }
+
+      // Reset quầy và Tải lại dữ liệu (Để trừ kho)
+      cart.value = []; 
+      customerMoneyRaw.value = '';
+      clearCustomer(); 
+      loadInitialData(); // Load lại kho để cập nhật số lượng tồn
+
+    } catch (error) {
+      // Backend bắn lỗi (VD: Máy đã bán, không tồn tại)
+      ElMessage.error(error.response?.data?.message || 'Lỗi hệ thống khi tạo hóa đơn');
     }
-
-    ElMessage.success('Thanh toán thành công! Đang tạo lệnh in...');
-    cart.value = []; 
-    customerMoneyRaw.value = '';
-    clearCustomer(); 
-  }).catch(() => {});
+  }).catch(() => {}); // Hủy confirm
 };
 </script>
 

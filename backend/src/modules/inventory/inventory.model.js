@@ -80,7 +80,7 @@ const InventoryModel = {
             SELECT sp.*, h.tenHang 
             FROM sanpham sp
             JOIN hangsp h ON sp.maHang = h.maHang
-            WHERE sp.trangThai = 1
+            WHERE 1=1
         `;
         let values = [];
         // 2. Thêm điều kiện Tìm kiếm
@@ -114,31 +114,45 @@ const InventoryModel = {
             }
         };
     },
+
     // Lấy chi tiết 1 sản phẩm theo ID
     getProductById: async (id) => {
         const sql = `SELECT * FROM sanpham WHERE maSP = ? AND trangThai = 1`;
         const [rows] = await db.query(sql, [id]);
         return rows[0];
     },
-    // Thêm mới sản phẩm
+
+    // Thêm mới sản phẩm (Bỏ giaNhap, giữ giaBan)
     createProduct: async (data) => {
+        const cauHinh = data.cauHinhSP || data.cauHinh || ''; 
+        
         const sql = `
-            INSERT INTO sanpham (maHang, tenSP, moTa, cauHinh, hinhAnh, soLuongTon, trangThai) 
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO sanpham (maHang, tenSP, moTa, cauHinh, hinhAnh, soLuongTon, giaBan, trangThai) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         `;
-        const values = [data.maHang, data.tenSP, data.moTa, data.cauHinh, data.hinhAnh, data.soLuongTon || 0];
+        const values = [
+            data.maHang, 
+            data.tenSP, 
+            data.moTa, 
+            cauHinh, 
+            data.hinhAnh, 
+            data.soLuongTon || 0,
+            data.giaBan || 0   // Chỉ lưu giá bán
+        ];
         const [result] = await db.query(sql, values);
         return result.insertId;
     },
 
-    // Cập nhật thông tin sản phẩm
+    // Cập nhật thông tin sản phẩm (Bỏ giaNhap, giữ giaBan và trangThai)
     updateProduct: async (id, data) => {
+        const cauHinh = data.cauHinhSP || data.cauHinh || '';
         const sql = `
             UPDATE sanpham 
-            SET maHang = ?, tenSP = ?, moTa = ?, cauHinh = ?, hinhAnh = ?
+            SET maHang = ?, tenSP = ?, moTa = ?, cauHinh = ?, hinhAnh = ?, giaBan = ?, trangThai = ? 
             WHERE maSP = ?
         `;
-        const values = [data.maHang, data.tenSP, data.moTa, data.cauHinh, data.hinhAnh, id];
+        // BẮT BUỘC MẢNG VALUES PHẢI CÓ data.trangThai
+        const values = [data.maHang, data.tenSP, data.moTa, cauHinh, data.hinhAnh, data.giaBan || 0, data.trangThai, id];
         const [result] = await db.query(sql, values);
         return result.affectedRows;
     },

@@ -53,10 +53,9 @@ const SalesModel = {
             // Dùng dấu ? lặp lại tùy theo số lượng máy trong mảng
             const placeholders = mangSerial.map(() => '?').join(','); 
             const sqlGiaBan = `
-                SELECT mt.maMay, mt.maSP, sp.tenSP, ctpn.donGiaNhap 
+                SELECT mt.maMay, mt.maSP, sp.tenSP, sp.giaBan 
                 FROM maytinh mt
                 JOIN sanpham sp ON mt.maSP = sp.maSP
-                JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
                 WHERE mt.maMay IN (${placeholders}) AND mt.trangThai = 'Trong kho'
             `;
             const [danhSachMay] = await connection.query(sqlGiaBan, mangSerial);
@@ -71,12 +70,12 @@ const SalesModel = {
             const chiTietGomNhom = {}; 
 
             danhSachMay.forEach(may => {
-                const donGiaBan = may.donGiaNhap * 1.2; // Lãi 20%
+                const donGiaBan = may.giaBan ; // Lãi 20%
                 tongTien += donGiaBan;
 
                 // Gom nhóm theo maSP để insert vào bảng chitiethoadon
                 if (!chiTietGomNhom[may.maSP]) {
-                    chiTietGomNhom[may.maSP] = { soLuong: 0, donGia: donGiaBan, donGiaGoc: may.donGiaNhap };
+                    chiTietGomNhom[may.maSP] = { soLuong: 0, donGia: donGiaBan};
                 }
                 chiTietGomNhom[may.maSP].soLuong += 1;
             });
@@ -94,8 +93,8 @@ const SalesModel = {
                 const thanhTienChiTiet = item.soLuong * item.donGia;
                 
                 // 3.1 Lưu bảng chitiethoadon
-                const sqlCTHD = `INSERT INTO chitiethoadon (maHoaDon, maSP, soLuong, donGia, donGiaGoc, thanhTien) VALUES (?, ?, ?, ?, ?, ?)`;
-                await connection.query(sqlCTHD, [maHoaDon, maSP, item.soLuong, item.donGia, item.donGiaGoc, thanhTienChiTiet]);
+                const sqlCTHD = `INSERT INTO chitiethoadon (maHoaDon, maSP, soLuong, donGia, thanhTien) VALUES (?, ?, ?, ?, ?)`;
+                await connection.query(sqlCTHD, [maHoaDon, maSP, item.soLuong, item.donGia, thanhTienChiTiet]);
 
                 // 3.2 Trừ số lượng tồn kho
                 const sqlTruTonKho = `UPDATE sanpham SET soLuongTon = soLuongTon - ? WHERE maSP = ?`;

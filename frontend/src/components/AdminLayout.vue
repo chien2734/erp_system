@@ -14,44 +14,51 @@
             text-color="#94a3b8"
             router :default-active="$route.path"
         >
-            <el-sub-menu index="sales">
+            <el-menu-item index="/hr/checkin">
+                <el-icon><Location /></el-icon>
+                <span class="font-bold text-emerald-400">Chấm Công Hàng Ngày</span>
+            </el-menu-item>
+
+            <el-sub-menu index="sales" v-if="[1, 2, 3].includes(authStore.getUserRole)">
                 <template #title>
                     <el-icon><ShoppingCart /></el-icon>
                     <span>Bán Hàng & POS</span>
                 </template>
                 <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
                 <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
-                <el-menu-item index="/sales/customers">Quản lý khách hàng</el-menu-item>
+                
+                <el-menu-item index="/sales/customers" v-if="[1, 2].includes(authStore.getUserRole)">
+                    Quản lý khách hàng
+                </el-menu-item>
             </el-sub-menu>
 
-            <el-sub-menu index="inventory">
+            <el-sub-menu index="inventory" v-if="[1, 2, 4].includes(authStore.getUserRole)">
                 <template #title>
                     <el-icon><Box /></el-icon>
                     <span>Kho & Sản phẩm</span>
                 </template>
-                <el-menu-item index="/inventory/products">Danh sách Laptop</el-menu-item>
+                <el-menu-item index="/inventory/products">Danh mục Sản phẩm</el-menu-item>
                 <el-menu-item index="/inventory/stock">Nhập kho</el-menu-item>
                 <el-menu-item index="/inventory/serial">Quản lý Serial</el-menu-item>
             </el-sub-menu>
 
-            <el-sub-menu index="hr">
+            <el-sub-menu index="hr" v-if="[1, 2].includes(authStore.getUserRole)">
                 <template #title>
                     <el-icon><UserFilled /></el-icon>
                     <span>Nhân Sự & Lương</span>
                 </template>
-                <el-menu-item index="/hr/checkin">Chấm công</el-menu-item>
                 <el-menu-item index="/hr/employees">Quản lý nhân viên</el-menu-item>
                 <el-menu-item index="/hr/attendance">Quản lý chấm công</el-menu-item>
                 <el-menu-item index="/hr/payroll">Bảng tính lương</el-menu-item>
-                <el-menu-item index="/hr/leaves"><span>Quản lý Đơn từ</span></el-menu-item>
+                <el-menu-item index="/hr/leaves">Quản lý Đơn từ</el-menu-item>
             </el-sub-menu>
 
-            <el-menu-item index="/settings">
+            <el-menu-item index="/settings" v-if="authStore.getUserRole === 1">
                 <el-icon><Setting /></el-icon>
                 <span>Cấu hình hệ thống</span>
             </el-menu-item>
 
-            <el-menu-item index="/auth/accounts">
+            <el-menu-item index="/auth/accounts" v-if="authStore.getUserRole === 1">
                 <el-icon><User /></el-icon>
                 <span>Quản lý Tài khoản</span>
             </el-menu-item>
@@ -71,7 +78,11 @@
                 <div class="flex items-center gap-4">
                     <div class="text-right mr-2">
                         <p class="text-sm font-bold text-gray-700">{{ authStore.getUserName }}</p>
-                        <p class="text-xs text-gray-400">Quản trị viên</p>
+                        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">
+                            {{ authStore.getUserRole === 1 ? 'Ban Giám Đốc' : 
+                               authStore.getUserRole === 2 ? 'Quản Lý' : 
+                               authStore.getUserRole === 3 ? 'Thu Ngân' : 'Kho & Kỹ Thuật' }}
+                        </p>
                     </div>
                     <el-dropdown trigger="click">
                         <el-avatar :size="40" class="cursor-pointer bg-blue-500 font-bold text-white">
@@ -108,7 +119,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../modules/auth/auth.store';
-import { Monitor, ShoppingCart, Box, UserFilled, Setting, User } from '@element-plus/icons-vue';
+import { Monitor, ShoppingCart, Box, UserFilled, Setting, User, Location } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

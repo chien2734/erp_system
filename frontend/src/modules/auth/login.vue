@@ -148,14 +148,29 @@ const handleLogin = async (formEl) => {
         
         ElMessage.success(`Đăng nhập thành công! Chào mừng ${authStore.user?.hoTen || ''}`);
         
-        // 2. Logic điều hướng thông minh theo Nhóm Quyền (Role)
+        // 2. Logic điều hướng thông minh theo Nhóm Quyền (Database thực tế)
         const role = authStore.user?.maNhomQuyen;
-        if (role === 2) { // Giả sử 2 là Thu ngân
-          router.push('/pos');
-        } else if (role === 3) { // Giả sử 3 là Kho
-          router.push('/inventory/stock');
-        } else {
-          router.push('/'); // Admin thì về Dashboard
+        
+        if (role === 1) { 
+          // 1. Ban Giám Đốc -> Vào trang Tổng quan (Dashboard)
+          router.push('/'); 
+        }
+        else if (role === 2) { 
+          // 2. Quản Lý -> Vào trang Tổng quan (Hoặc bạn có thể đổi thành '/hr/employees' nếu muốn)
+          router.push('/'); 
+        }
+        else if (role === 3) { 
+          // 3. Bán Hàng & Thu Ngân -> Đẩy thẳng ra màn hình POS
+          router.push('/sales/pos'); 
+        } 
+        else if (role === 4) { 
+          // 4. Kho & Kỹ thuật -> Đẩy thẳng vào trang Nhập kho
+          router.push('/inventory/stock'); 
+        } 
+        else {
+          // Xử lý ngoại lệ: Nếu user không có mã quyền hợp lệ, bắt đăng nhập lại
+          ElMessage.error('Tài khoản chưa được phân quyền hợp lệ!');
+          authStore.logout();
         }
 
       } catch (error) {

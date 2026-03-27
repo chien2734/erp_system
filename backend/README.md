@@ -57,7 +57,7 @@ Tạo một file **.env** ở thư mục gốc của backend và cấu hình cá
     DB_USER=root
     DB_PASSWORD=
     DB_NAME=erp_system
-    JWT_SECRET=YourSuperSecretKeyHere_2026 # ghi qq gi cung duoc
+    JWT_SECRET=YourSuperSecretKeyHere_2026 # ghi gi cung duoc
 
 ### 5. Khởi chạy Server
 Để chạy server trong môi trường phát triển (tự động reload khi sửa code):
