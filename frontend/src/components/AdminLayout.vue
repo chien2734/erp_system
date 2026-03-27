@@ -21,6 +21,7 @@
                 </template>
                 <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
                 <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
+                <el-menu-item index="/sales/customers">Quản lý khách hàng</el-menu-item>
             </el-sub-menu>
 
             <el-sub-menu index="inventory">

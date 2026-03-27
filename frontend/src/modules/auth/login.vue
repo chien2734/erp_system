@@ -68,6 +68,7 @@
         >
           <el-form-item label="Tài khoản hệ thống" prop="username">
             <el-input 
+              ref="usernameInput"
               v-model="loginForm.username" 
               placeholder="Nhập username nhân viên" 
               :prefix-icon="User"
@@ -86,9 +87,8 @@
             />
           </el-form-item>
 
-          <div class="flex items-center justify-between text-sm">
-            <el-checkbox v-model="rememberMe" label="Ghi nhớ phiên đăng nhập" />
-            <a href="#" class="font-bold text-blue-600 hover:text-blue-700 transition-colors">Quên mật khẩu?</a>
+          <div class="flex items-center text-sm mb-2">
+            <el-checkbox v-model="rememberMe" label="Ghi nhớ phiên đăng nhập trên máy này" class="font-medium text-slate-600" />
           </div>
 
           <el-button 
@@ -110,9 +110,9 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from './auth.store';
+import { useAuthStore } from './auth.store'; // Đảm bảo đường dẫn này đúng
 import { ElMessage } from 'element-plus';
 import { Monitor, User, Lock } from '@element-plus/icons-vue';
 
@@ -129,17 +129,38 @@ const rules = reactive({
   password: [{ required: true, message: 'Vui lòng nhập mật khẩu', trigger: 'blur' }]
 });
 
+// Tối ưu UX: Lấy tham chiếu đến ô input Username để focus
+const usernameInput = ref(null);
+onMounted(() => {
+  if (usernameInput.value) {
+    usernameInput.value.focus();
+  }
+});
+
 const handleLogin = async (formEl) => {
   if (!formEl) return;
   await formEl.validate(async (valid) => {
     if (valid) {
       isLoading.value = true;
       try {
-        await authStore.login(loginForm.username, loginForm.password);
-        ElMessage.success('Đăng nhập thành công!');
-        router.push('/');
+        // 1. Đã truyền thêm rememberMe vào store
+        await authStore.login(loginForm.username, loginForm.password, rememberMe.value);
+        
+        ElMessage.success(`Đăng nhập thành công! Chào mừng ${authStore.user?.hoTen || ''}`);
+        
+        // 2. Logic điều hướng thông minh theo Nhóm Quyền (Role)
+        const role = authStore.user?.maNhomQuyen;
+        if (role === 2) { // Giả sử 2 là Thu ngân
+          router.push('/pos');
+        } else if (role === 3) { // Giả sử 3 là Kho
+          router.push('/inventory/stock');
+        } else {
+          router.push('/'); // Admin thì về Dashboard
+        }
+
       } catch (error) {
-        ElMessage.error(error.response?.data?.message || 'Lỗi đăng nhập!');
+        // Xử lý lỗi an toàn hơn, tránh crash nếu error.response không tồn tại
+        ElMessage.error(error.response?.data?.message || error.message || 'Sai tài khoản hoặc mật khẩu!');
       } finally {
         isLoading.value = false;
       }

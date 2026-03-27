@@ -86,6 +86,11 @@ const routes = [
             name: 'Quản lý Đơn từ',
             component: () => import('../modules/hr/DonTu.vue')
         },
+        {
+            path: '/sales/customers', // Đã đổi theo ý bạn
+            name: 'Quản lý Khách Hàng',
+            component: () => import('../modules/sales/KhachHang.vue') // Trỏ về thư mục sales
+        },
         // Các trang khác của phân hệ HR, Sales... sẽ khai báo thêm ở đây
         ],
         meta: { requiresAuth: true }
