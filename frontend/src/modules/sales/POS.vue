@@ -225,31 +225,30 @@ const customerMoney = computed({
 // 1. HÀM GỌI API KHỞI TẠO DỮ LIỆU BAN ĐẦU
 // ==========================================
 const loadInitialData = async () => {
-  const loading = ElLoading.service({ lock: true, text: 'Đang tải dữ liệu quầy thu ngân...', background: 'rgba(255, 255, 255, 0.8)' });
+  const loading = ElLoading.service({ lock: true, text: 'Đang chuẩn bị quầy thu ngân...', background: 'rgba(255, 255, 255, 0.8)' });
   try {
-    // Ép Backend trả về tối đa số lượng, bỏ qua phân trang ở màn POS
     const [resSP, resMayTinh, resKH] = await Promise.all([
       api.get('/inventory/sanpham?limit=10000'), 
       api.get('/inventory/maytinh?limit=10000'), 
       api.get('/sales/khachhang?limit=10000')
     ]);
 
+    // 1. Chỉ lấy các Sản phẩm đang Kinh doanh
     const tatCaSanPham = resSP.data || [];
     dbSanPham.value = tatCaSanPham.filter(sp => sp.trangThai === 1);
     
-    // Tinh chỉnh nhẹ chỗ này: Tránh lỗi trim() khoảng trắng từ Database (VD: 'Trong kho ')
-    const allMayTinh = resMayTinh.data || [];
-    dbMayTinh.value = allMayTinh.filter(m => 
+    // 2. CHỐT CHẶN QUAN TRỌNG: Chỉ nạp lên quầy thu ngân những Serial có trạng thái "Trong kho"
+    const tatCaMayTinh = resMayTinh.data || [];
+    dbMayTinh.value = tatCaMayTinh.filter(m => 
         m.trangThai && 
-        m.trangThai.toString().trim() !== 'Đã bán' && 
-        m.trangThai.toString().trim() !== '0'
+        m.trangThai.toString().trim() === 'Trong kho'
     );
     
     dbKhachHang.value = resKH.data || [];
 
   } catch (error) {
     console.error("Lỗi tải dữ liệu:", error);
-    ElMessage.error('Không thể tải dữ liệu từ máy chủ!');
+    ElMessage.error('Không thể kết nối với máy chủ!');
   } finally {
     loading.close();
     if (scanInputRef.value) scanInputRef.value.focus();

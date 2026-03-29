@@ -27,41 +27,58 @@
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-blue-200 relative overflow-hidden">
           <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-          <h3 class="font-bold text-slate-800 mb-4">Chi tiết hàng nhập</h3>
+          <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <el-icon class="text-blue-500"><Monitor /></el-icon> Chi tiết hàng nhập
+          </h3>
           
-          <div class="flex gap-4 items-end mb-6">
-            <div class="flex-1">
-              <label class="block text-sm font-semibold text-slate-600 mb-2">1. Chọn sản phẩm cần nhập</label>
+          <div class="flex flex-col md:flex-row gap-4 items-start mb-6">
+            <div class="flex-1 w-full">
+              <label class="block text-sm font-semibold text-slate-600 mb-2">
+                1. Chọn sản phẩm cần nhập 
+                <span v-if="!phieuNhap.maNCC" class="text-red-500 font-normal italic text-xs ml-2">(Vui lòng chọn Nhà cung cấp trước)</span>
+              </label>
               <el-select 
                 v-model="currentItem.maSP" 
-                placeholder="Tìm theo tên hoặc mã SP..." 
+                :placeholder="phieuNhap.maNCC ? 'Tìm theo tên hoặc mã SP...' : 'Khóa: Đợi chọn Nhà cung cấp'" 
                 class="w-full custom-select" 
                 size="large" filterable @change="handleSelectProduct"
+                :disabled="!phieuNhap.maNCC" 
               >
                 <el-option v-for="sp in dbSanPham" :key="sp.maSP" :label="sp.tenSP" :value="sp.maSP">
                   <span class="float-left font-bold">{{ sp.tenSP }}</span>
-                  <span class="float-right text-slate-400 text-sm pl-4 font-mono">{{ sp.maSP }}</span>
+                  <span class="float-right text-slate-400 text-sm pl-4 font-mono">Mã: {{ sp.maSP }}</span>
                 </el-option>
               </el-select>
             </div>
-            <div class="w-40">
-              <label class="block text-sm font-semibold text-slate-600 mb-2">Đơn giá nhập</label>
-              <el-input v-model="currentItem.giaNhap" size="large" readonly>
-                <template #append>₫</template>
-              </el-input>
+
+            <div class="w-full md:w-48">
+              <label class="block text-sm font-semibold text-slate-600 mb-2">2. Đơn giá nhập</label>
+              <el-input-number 
+                v-model="currentItem.giaNhap" 
+                size="large" 
+                class="w-full !text-left" 
+                :min="0" 
+                :step="100000"
+                controls-position="right"
+                :disabled="!currentItem.maSP"
+              />
             </div>
           </div>
 
-          <div v-if="currentItem.maSP" class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <label class="block text-sm font-semibold text-slate-700 mb-2">2. Quét mã Serial (maMay) trên từng hộp máy</label>
+          <div v-if="currentItem.maSP" class="p-4 bg-slate-50 border border-slate-200 rounded-xl transition-all">
+            <label class="block text-sm font-semibold text-slate-700 mb-2">3. Quét mã Serial (maMay) trên từng hộp máy</label>
+            
+            <el-alert v-if="currentItem.giaNhap <= 0" title="Vui lòng nhập Đơn giá nhập lớn hơn 0 để bắt đầu quét mã!" type="warning" show-icon :closable="false" class="mb-4" />
+
             <div class="flex gap-3 mb-4">
               <el-input 
                 v-model="scanSerial" 
                 placeholder="Quét mã vạch Serial và nhấn Enter..." 
                 size="large" class="flex-1 font-mono" @keyup.enter="addSerial" :prefix-icon="FullScreen"
+                :disabled="currentItem.giaNhap <= 0"
               />
-              <el-button type="success" plain size="large" @click="addSerial">Thêm Serial</el-button>
-              <el-button type="warning" plain size="large" @click="generateRandomSerials">Tạo 5 mã (Test)</el-button>
+              <el-button type="success" plain size="large" @click="addSerial" :disabled="currentItem.giaNhap <= 0">Thêm Serial</el-button>
+              <el-button type="warning" plain size="large" @click="generateRandomSerials" :disabled="currentItem.giaNhap <= 0">Tạo 5 mã (Test)</el-button>
             </div>
 
             <div class="min-h-[80px] bg-white border border-dashed border-slate-300 rounded-lg p-3">
@@ -132,38 +149,49 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { Box, FullScreen, DocumentAdd, Delete, Check, List } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { useRouter } from 'vue-router';
+import api from '../../services/api';
 
-// --- MOCK DATABASE ---
-const dbSanPham = [
-  { maSP: 1, tenSP: 'MacBook Air M2 13 inch', giaNhap: 22000000 },
-  { maSP: 2, tenSP: 'Asus ROG Strix G15', giaNhap: 28000000 },
-  { maSP: 3, tenSP: 'Dell XPS 13 Plus 9320', giaNhap: 38000000 },
-];
-
-const dbNhaCungCap = [
-  { maNCC: 1, tenNCC: 'Công ty TNHH Dell Việt Nam' },
-  { maNCC: 2, tenNCC: 'Apple Vietnam LLC' },
-  { maNCC: 3, tenNCC: 'Nhà phân phối Digiworld' }
-];
+const router = useRouter();
 
 // --- STATE ---
+const dbSanPham = ref([]);
+const dbNhaCungCap = ref([]);
+
 const phieuNhap = reactive({ maNCC: null, items: [] });
 const currentItem = reactive({ maSP: '', tenSP: '', giaNhap: 0, serials: [] });
 const scanSerial = ref('');
+const isSubmitting = ref(false);
 
-// --- COMPUTED ---
+// --- TẢI DỮ LIỆU THẬT TỪ API ---
+const loadInitialData = async () => {
+  try {
+    const [resSP, resNCC] = await Promise.all([
+      api.get('/inventory/sanpham?limit=1000'),
+      api.get('/inventory/ncc')
+    ]);
+    dbSanPham.value = resSP.data || [];
+    dbNhaCungCap.value = resNCC.data || [];
+  } catch (error) {
+    ElMessage.error('Lỗi khi tải dữ liệu Sản phẩm / NCC!');
+  }
+};
+
+onMounted(() => {
+  loadInitialData();
+});
+
+// --- COMPUTED & LOGIC THÊM SẢN PHẨM ---
 const totalMachines = computed(() => phieuNhap.items.reduce((sum, item) => sum + item.serials.length, 0));
 const totalCost = computed(() => phieuNhap.items.reduce((sum, item) => sum + (item.giaNhap * item.serials.length), 0));
-
-// --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
 
 const handleSelectProduct = (maSP) => {
-  const sp = dbSanPham.find(s => s.maSP === maSP);
-  if (sp) { currentItem.tenSP = sp.tenSP; currentItem.giaNhap = sp.giaNhap; currentItem.serials = []; }
+  const sp = dbSanPham.value.find(s => s.maSP === maSP); // Đổi dbSanPham thành dbSanPham.value
+  if (sp) { currentItem.tenSP = sp.tenSP; currentItem.giaNhap = sp.giaNhap || 0; currentItem.serials = []; }
 };
 
 const addSerial = () => {
@@ -195,50 +223,48 @@ const saveItemToPhieu = () => {
 
 const removeItemFromPhieu = (index) => phieuNhap.items.splice(index, 1);
 
-// CHỐT PAYLOAD KHỚP 100% DATABASE
+// --- ĐƯA API LƯU PHIẾU NHẬP VÀO DATABASE ---
 const submitPhieuNhap = () => {
   ElMessageBox.confirm(
     `Xác nhận nhập <b>${totalMachines.value} máy</b>. Tổng giá trị: <b class="text-blue-600">${formatPrice(totalCost.value)} đ</b>?`,
     'Chốt Phiếu Nhập Kho',
     { confirmButtonText: 'Xác nhận Nhập kho', cancelButtonText: 'Xem lại', type: 'warning', dangerouslyUseHTMLString: true }
-  ).then(() => {
+  ).then(async () => {
     
-    // TẠO MÃ PHIẾU NHẬP LÀ SỐ NGUYÊN (INT)
-    const fakeMaPhieu = Math.floor(100000 + Math.random() * 900000);
-
-    const payloadBackend = {
-      phieuNhap: {
-        maPhieuNhap: fakeMaPhieu,
+    isSubmitting.value = true;
+    try {
+      // Đóng gói Payload theo đúng yêu cầu của Backend mới
+      const payload = {
         maNCC: phieuNhap.maNCC,
         maNhanVien: 1, 
-        ngayNhap: new Date().toISOString(),
-        tongTien: totalCost.value
-      },
-      chiTietPhieuNhap: phieuNhap.items.map(item => ({
-        maPhieuNhap: fakeMaPhieu,  // Thêm maPhieuNhap
-        maSP: item.maSP,
-        soLuong: item.serials.length,
-        donGiaNhap: item.giaNhap
-      })),
-      mayTinh: []
-    };
-
-    phieuNhap.items.forEach(item => {
-      item.serials.forEach(sn => {
-        payloadBackend.mayTinh.push({
-          maMay: sn,
+        tongTien: totalCost.value,
+        danhSachSanPham: phieuNhap.items.map(item => ({
           maSP: item.maSP,
-          maPhieuNhap: fakeMaPhieu, // Thêm maPhieuNhap
-          maHoaDon: null,           // Bắt buộc null vì chưa bán
-          trangThai: 'Sẵn sàng'
-        });
-      });
-    });
+          soLuong: item.serials.length,
+          donGiaNhap: item.giaNhap,
+          serials: item.serials 
+        }))
+      };
 
-    console.log("PAYLOAD API HOÀN HẢO CHO BACKEND:", payloadBackend);
+      // Gọi API POST
+      await api.post('/inventory/nhapkho', payload);
 
-    ElMessage.success({ message: `Đã nhập kho thành công!`, duration: 3000 });
-    phieuNhap.maNCC = null; phieuNhap.items = [];
+      ElMessage.success({ message: `Đã nhập kho thành công!`, duration: 3000 });
+      
+      // Reset Form
+      phieuNhap.maNCC = null; 
+      phieuNhap.items = [];
+      
+      // Chuyển hướng sang trang Lịch sử nhập để xem thành quả
+      router.push('/inventory/history');
+
+    } catch (error) {
+      ElMessage.error(error.response?.data?.message || 'Lỗi khi lưu phiếu nhập!');
+      console.error(error);
+    } finally {
+      isSubmitting.value = false;
+    }
+
   }).catch(() => {});
 };
 </script>

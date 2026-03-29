@@ -168,43 +168,40 @@ const InventoryModel = {
     // NHAP KHO
     //================================
 
-    // Tao phieu nhap kho
-    createNhapKho: async (maNCC, maNhanVien, tongTien, daSachSanPham) => {
+    // Tạo phiếu nhập kho 
+    createNhapKho: async (maNCC, maNhanVien, tongTien, danhSachSanPham) => {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
-            // Tao phieu nhap
-            const sqlPhieuNhap = `
-                INSERT INTO phieunhap (maNCC, maNhanVien, ngayNhap, tongTien)
-                VALUES (?, ?, NOW(), ?)
-            `;
+            
+            // 1. Tạo phiếu nhập
+            const sqlPhieuNhap = `INSERT INTO phieunhap (maNCC, maNhanVien, ngayNhap, tongTien) VALUES (?, ?, NOW(), ?)`;
             const [resultPhieuNhap] = await connection.query(sqlPhieuNhap, [maNCC, maNhanVien, tongTien]);
             const maPhieuNhap = resultPhieuNhap.insertId;
 
-            // Duyet qua danh sach san pham 
-            for (let item of daSachSanPham) {
-                // chi tiet phieu nhap
-                const sqlChiTiet = `
-                    INSERT INTO chitietphieunhap (maPhieuNhap, maSP, soLuong, donGiaNhap)
-                    VALUES (?, ?, ?, ?)
-                `;
+            // 2. Duyệt qua danh sách sản phẩm 
+            for (let item of danhSachSanPham) {
+                // Thêm chi tiết phiếu nhập
+                const sqlChiTiet = `INSERT INTO chitietphieunhap (maPhieuNhap, maSP, soLuong, donGiaNhap) VALUES (?, ?, ?, ?)`;
                 await connection.query(sqlChiTiet, [maPhieuNhap, item.maSP, item.soLuong, item.donGiaNhap]);
-                // cap nhat so luong ton kho
+
                 const sqlUpdateTonKho = `
                     UPDATE sanpham 
                     SET soLuongTon = soLuongTon + ?
                     WHERE maSP = ?
                 `;
                 await connection.query(sqlUpdateTonKho, [item.soLuong, item.maSP]);
-
-                // Tao ma serial cho tung san pham
-                for (let i = 0; i < item.soLuong; i++) {
-                    const maMay = `SP${item.maSP}-PN${maPhieuNhap}-${i}`;
-                    const sqlMayTinh = `
-                        INSERT INTO maytinh (maMay, maSP, maPhieuNhap, trangThai)
-                        VALUES (?, ?, ?, 1)
-                    `;
-                    await connection.query(sqlMayTinh, [maMay, item.maSP, maPhieuNhap]);
+                
+                // 3. LƯU SERIAL THỰC TẾ (Do Frontend gửi lên)
+                if (item.serials && item.serials.length > 0) {
+                    for (let serial of item.serials) {
+                        const sqlMayTinh = `
+                            INSERT INTO maytinh (maMay, maSP, maPhieuNhap, trangThai)
+                            VALUES (?, ?, ?, 'Trong kho')
+                        `;
+                        // Lưu đúng chữ 'Trong kho' để khớp với POS và màn hình Serial
+                        await connection.query(sqlMayTinh, [serial, item.maSP, maPhieuNhap]);
+                    }
                 }
             }
             await connection.commit();
@@ -217,38 +214,65 @@ const InventoryModel = {
         }
     },
 
-    getAllPhieuNhapKho: async (filters) => {
+    // Lấy danh sách phiếu nhập (Thêm JOIN Nhà cung cấp)
+    getAllPhieuNhapKho: async (filters = {}) => {
         const { maPhieuNhap, tuNgay, denNgay, page = 1, limit = 10 } = filters;
-        // Tính toán vị trí bắt đầu lấy dữ liệu
         const offset = (page - 1) * limit;
-        let sql = `SELECT * FROM phieunhap WHERE 1 = 1`;
+        
+        // Đã sửa thành pn.* và thêm ncc.tenNCC
+        let sql = `
+            SELECT pn.*, ncc.tenNCC, nv.hoTen AS tenNhanVien 
+            FROM phieunhap pn
+            LEFT JOIN nhacungcap ncc ON pn.maNCC = ncc.maNCC
+            LEFT JOIN nhanvien nv ON pn.maNhanVien = nv.maNhanVien
+            WHERE 1 = 1
+        `;
         let values = [];
+
         if (maPhieuNhap) {
-            sql += ` AND maPhieuNhap = ?`;
+            sql += ` AND pn.maPhieuNhap = ?`;
             values.push(maPhieuNhap);
         }
         if (tuNgay) {
-            sql += ` AND ngayNhap >= ?`;
+            sql += ` AND pn.ngayNhap >= ?`;
             values.push(tuNgay);
         }
-        if(denNgay){
-            sql += ` AND ngayNhap <= ?`;
+        if (denNgay) {
+            sql += ` AND pn.ngayNhap <= ?`;
             values.push(denNgay);
         }
-        sql += ` ORDER BY ngayNhap DESC`;
+        sql += ` ORDER BY pn.ngayNhap DESC`;
 
-        // 3. Thêm Phân trang (Pagination)
+        // Thêm Phân trang (Pagination)
         sql += ` LIMIT ? OFFSET ?`;
         values.push(parseInt(limit), parseInt(offset));
 
         const [rows] = await db.query(sql, values);
         return rows;
     },
-    // lay chi tiet phieu nhap
+
+    // Lấy chi tiết phiếu nhập (Gộp thêm Tên SP và Mảng Serial)
     getCTPhieuNhapById: async (maPN) => {
-        const sql = `select * from chitietphieunhap where maPhieuNhap = ? `;
-        const [rows] = await db.query(sql, maPN);
-        return rows;
+        // 1. Lấy chi tiết nhập kèm Tên sản phẩm
+        const sqlChiTiet = `
+            SELECT ct.*, sp.tenSP 
+            FROM chitietphieunhap ct
+            JOIN sanpham sp ON ct.maSP = sp.maSP
+            WHERE ct.maPhieuNhap = ?
+        `;
+        const [chiTietRows] = await db.query(sqlChiTiet, [maPN]);
+
+        // 2. Lấy toàn bộ Serial đã sinh ra của phiếu nhập này
+        const sqlSerial = `SELECT maMay, maSP FROM maytinh WHERE maPhieuNhap = ?`;
+        const [serialRows] = await db.query(sqlSerial, [maPN]);
+
+        // 3. Gắn mảng Serial tương ứng vào từng dòng Chi tiết sản phẩm
+        return chiTietRows.map(ct => {
+            return {
+                ...ct,
+                serials: serialRows.filter(s => s.maSP === ct.maSP).map(s => s.maMay)
+            };
+        });
     },
     // Quan ly SERIAL
     // ==============================================
@@ -258,9 +282,10 @@ const InventoryModel = {
     getAllMayTinh: async (filters) => {
         const { keyword, maSP, trangThai, page = 1, limit = 10 } = filters;      
         let sql = `
-            SELECT mt.maMay, mt.maSP, mt.maPhieuNhap, mt.maHoaDon, mt.trangThai, sp.tenSP 
+            SELECT mt.maMay, mt.maSP, mt.maPhieuNhap, mt.maHoaDon, mt.trangThai, sp.tenSP, ctpn.donGiaNhap 
             FROM maytinh mt
             JOIN sanpham sp ON mt.maSP = sp.maSP
+            LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
             WHERE 1=1
         `;
         let values = [];
@@ -298,6 +323,17 @@ const InventoryModel = {
                 totalPages: Math.ceil(totalRecords / limit) 
             }
         };
+    },
+
+    // Cập nhật trạng thái của 1 máy tính cụ thể (Serial)
+    updateMayTinh: async (maMay, trangThai) => {
+        const sql = `
+            UPDATE maytinh 
+            SET trangThai = ? 
+            WHERE maMay = ?
+        `;
+        const [result] = await db.query(sql, [trangThai, maMay]);
+        return result.affectedRows;
     },
 };
 

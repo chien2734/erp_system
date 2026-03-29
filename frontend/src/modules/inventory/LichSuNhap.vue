@@ -55,6 +55,17 @@
           </template>
         </el-table-column>
 
+        <el-table-column prop="tenNhanVien" label="Người Lập Phiếu" min-width="160">
+          <template #default="scope">
+            <div class="flex items-center gap-2">
+              <el-avatar :size="24" class="bg-blue-100 text-blue-600 font-bold text-xs">
+                {{ scope.row.tenNhanVien ? scope.row.tenNhanVien.charAt(0).toUpperCase() : '?' }}
+              </el-avatar>
+              <span class="font-semibold text-slate-700">{{ scope.row.tenNhanVien || 'Admin' }}</span>
+            </div>
+          </template>
+        </el-table-column>
+
         <el-table-column prop="tongTien" label="Tổng Giá Trị" min-width="180" align="right">
           <template #default="scope">
             <span class="font-bold text-emerald-600">{{ formatPrice(scope.row.tongTien) }}</span>
@@ -81,7 +92,7 @@
     >
       <div v-if="selectedPhieu" class="space-y-6">
         
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-4 text-sm">
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-3 gap-4 text-sm">
           <div>
             <p class="text-slate-500 mb-1">Mã phiếu nhập:</p>
             <p class="font-bold text-lg text-blue-600 font-mono">PN-{{ selectedPhieu.maPhieuNhap }}</p>
@@ -90,7 +101,14 @@
             <p class="text-slate-500 mb-1">Ngày lập phiếu:</p>
             <p class="font-bold text-slate-800">{{ formatDate(selectedPhieu.ngayNhap) }}</p>
           </div>
-          <div class="col-span-2 border-t border-slate-200 pt-3">
+          <div>
+            <p class="text-slate-500 mb-1">Người lập phiếu:</p>
+            <p class="font-bold text-slate-800 flex items-center gap-1">
+              <el-icon class="text-blue-500"><User /></el-icon> 
+              {{ selectedPhieu.tenNhanVien || 'Admin' }}
+            </p>
+          </div>
+          <div class="col-span-3 border-t border-slate-200 pt-3">
             <p class="text-slate-500 mb-1">Nhà cung cấp:</p>
             <p class="font-bold text-slate-800">{{ selectedPhieu.tenNCC }}</p>
           </div>
@@ -174,71 +192,58 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { Search, Calendar, Back, FullScreen, Printer } from '@element-plus/icons-vue';
-
-// --- MOCK DATABASE (Dữ liệu đã được Backend Join từ các bảng PhieuNhap, NhaCungCap, ChiTiet, MayTinh) ---
-const dbPhieuNhap = ref([
-  {
-    maPhieuNhap: 827364,
-    ngayNhap: '2026-03-18T08:30:00Z',
-    maNCC: 1,
-    tenNCC: 'Công ty TNHH Dell Việt Nam', // Đã join từ bảng NhaCungCap
-    tongTien: 114000000,
-    chiTiet: [
-      {
-        maSP: '3',
-        tenSP: 'Dell XPS 13 Plus 9320',
-        soLuong: 3,
-        donGiaNhap: 38000000,
-        // Backend trả về mảng Serial gom nhóm theo từng mã SP
-        serials: ['SN-DELL-11111', 'SN-DELL-22222', 'SN-DELL-33333'] 
-      }
-    ]
-  },
-  {
-    maPhieuNhap: 192837,
-    ngayNhap: '2026-03-19T10:15:00Z',
-    maNCC: 2,
-    tenNCC: 'Apple Vietnam LLC',
-    tongTien: 110000000,
-    chiTiet: [
-      {
-        maSP: '1',
-        tenSP: 'MacBook Air M2 13 inch',
-        soLuong: 5,
-        donGiaNhap: 22000000,
-        serials: ['SN-MAC-98765', 'SN-MAC-98766', 'SN-MAC-98767', 'SN-MAC-98768', 'SN-MAC-98769']
-      }
-    ]
-  }
-]);
+import { ref, computed, onMounted } from 'vue';
+import { Search, Calendar, Back, FullScreen, Printer, User } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import api from '../../services/api';
 
 // --- STATE ---
+const dbPhieuNhap = ref([]);
+const loading = ref(false);
+const detailLoading = ref(false);
+
 const searchQuery = ref('');
 const dateRange = ref('');
 const dialogVisible = ref(false);
 const selectedPhieu = ref(null);
 
+// --- LOAD DATA TỪ API ---
+const loadData = async () => {
+  loading.value = true;
+  try {
+    const res = await api.get('/inventory/nhapkho');
+    dbPhieuNhap.value = res.data || [];
+  } catch (error) {
+    ElMessage.error('Không thể tải lịch sử nhập kho');
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadData();
+});
+
 // --- COMPUTED ---
 const filteredPhiếu = computed(() => {
   return dbPhieuNhap.value.filter(phieu => {
-    // Lọc theo Mã phiếu (Ép kiểu về chuỗi để tìm kiếm)
     const matchSearch = phieu.maPhieuNhap.toString().includes(searchQuery.value);
-    
-    // Tạm bỏ qua logic lọc DateRange cho đỡ phức tạp phần Mock, 
-    // thực tế bạn sẽ so sánh dateRange[0] và dateRange[1] với phieu.ngayNhap
-    
+    // Tích hợp lọc theo Ngày (nếu có chọn DateRange)
+    if (dateRange.value && dateRange.value.length === 2) {
+      const pDate = new Date(phieu.ngayNhap).getTime();
+      const start = new Date(dateRange.value[0]).getTime();
+      const end = new Date(dateRange.value[1]).setHours(23, 59, 59, 999);
+      return matchSearch && (pDate >= start && pDate <= end);
+    }
     return matchSearch;
   });
 });
 
 // --- METHODS ---
-const formatPrice = (value) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
-};
+const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
 const formatDate = (isoString) => {
+  if (!isoString) return '';
   const date = new Date(isoString);
   return date.toLocaleString('vi-VN', { 
     day: '2-digit', month: '2-digit', year: 'numeric', 
@@ -246,13 +251,26 @@ const formatDate = (isoString) => {
   });
 };
 
-const openDetail = (phieu) => {
-  selectedPhieu.value = phieu;
+// Gọi API lấy chi tiết mỗi khi bấm "Xem chi tiết" (Tối ưu hiệu năng, không tải nặng từ đầu)
+const openDetail = async (phieu) => {
   dialogVisible.value = true;
+  selectedPhieu.value = { ...phieu, chiTiet: [] }; // Hiển thị khung sườn trước
+  detailLoading.value = true;
+
+  try {
+    const res = await api.get(`/inventory/ctnhapkho/${phieu.maPhieuNhap}`);
+    // Đắp data chi tiết vào phiếu đang chọn
+    selectedPhieu.value.chiTiet = res.data || [];
+  } catch (error) {
+    ElMessage.error('Lỗi khi tải chi tiết phiếu nhập!');
+    dialogVisible.value = false;
+  } finally {
+    detailLoading.value = false;
+  }
 };
 
 const handlePrint = () => {
-  window.print(); // Gọi lệnh in cơ bản của trình duyệt
+  window.print(); 
 };
 </script>
 
