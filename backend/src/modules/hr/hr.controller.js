@@ -130,16 +130,15 @@ const HrController = {
         }
     },
 
-    // getLichSuCongTac: async (req, res) => {
-    //     try{
-    //         const { id } = req.params;
-    //         const result = await HrModel.getLichSuCongTac(id);
-    //         result
-    //     }catch(error) {
-    //         console.log('Loi API getLichSuCongTac', error);
-
-    //     }
-    // },
+    getLichSu: async (req, res) => {
+        try {
+            const data = await HrModel.getLichSuCongTac(req.params.id);
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi lấy lịch sử công tác' });
+        }
+    },
+    
     //===============================
     // CHAM CONG VA TINH LUONG
     //===============================
@@ -248,7 +247,7 @@ const HrController = {
                     message: 'Không hợp lệ, vui lòng chọn nhân viên!'
                 });
             }
-            const affectedRow = await HrModel.updateBangLuong(thang, nam, dsNhanVien, thuong, phat)
+            const affectedRow = await HrModel.updateBangLuong(thang, nam, dsNhanVien, thuong)
             if (affectedRow === 0) return res.status(404).json({
                 success: false,
                 message: 'Không tìm thấy nhân viên hợp lệ!'
@@ -309,8 +308,8 @@ const HrController = {
             if (!loaiDon || !ngayBatDau || !ngayKetThuc || !lyDo) {
                 return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin đơn nghỉ phép' });
             }
-            // Có thể check thêm logic: tuNgay không được lớn hơn denNgay
-            if (new Date(tuNgay) > new Date(denNgay)) {
+            // Có thể check thêm logic: ngayBatDau không được lớn hơn ngayKetThuc
+            if (new Date(ngayBatDau) > new Date(ngayKetThuc)) {
                 return res.status(400).json({ success: false, message: 'Ngày bắt đầu không thể lớn hơn ngày kết thúc' });
             }
             await HrModel.taoDonNghiPhep(maNhanVien, req.body);
