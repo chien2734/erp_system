@@ -140,22 +140,30 @@ const InventoryController = {
     // Nhap kho
     nhapKho: async (req, res) => {
         try {
-            const maNhanVien = req.user.maNhanVien || req.user.id; // Lấy ID nhân viên từ token
+            // Lấy ID nhân viên từ token (Thêm dấu ? để không bị crash app nếu đang test mà quên gửi Token)
+            const maNhanVien = req.user?.maNhanVien || req.user?.id || 1; 
+            
             const { maNCC, danhSachSanPham } = req.body;
-            // kiem tra du lieu dau vao
+
+            // Kiểm tra dữ liệu đầu vào
             if (!maNCC || !danhSachSanPham || danhSachSanPham.length === 0) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Dữ liệu phiếu nhập không hợp lệ'
+                    message: 'Dữ liệu phiếu nhập không hợp lệ hoặc giỏ hàng trống!'
                 });
             }
-            // Tính tổng tiền
+
+            // Tính tổng tiền 
             let tongTien = 0;
             for (const item of danhSachSanPham) {
-                tongTien += (item.donGia || item.donGiaNhap || 0) * (item.soLuong || 0);
+                // Đảm bảo số lượng phải đúng bằng số lượng Serial gửi lên
+                const soLuongThucTe = item.serials ? item.serials.length : (item.soLuong || 0);
+                tongTien += (item.donGia || item.donGiaNhap || 0) * soLuongThucTe;
             }
+
             // Thực hiện tạo phiếu nhập kho
             const maPhieuNhapKho = await InventoryModel.createNhapKho(maNCC, maNhanVien, tongTien, danhSachSanPham);
+            
             res.status(201).json({
                 success: true,
                 message: 'Tạo phiếu nhập kho thành công',
@@ -163,9 +171,10 @@ const InventoryController = {
                 tongTien: tongTien
             });
         } catch (error) {
+            console.error("Lỗi API Nhập kho:", error);
             res.status(500).json({
                 success: false,
-                message: 'Lỗi khi tạo phiếu nhập kho'
+                message: 'Lỗi khi tạo phiếu nhập kho trên Server'
             });
         }
     },
@@ -173,22 +182,29 @@ const InventoryController = {
     getAllPhieuNhapKho: async (req, res) => {
         try {
             const { maPhieuNhap, tuNgay, denNgay, page, limit } = req.query;
-            const data = InventoryModel.getAllPhieuNhapKho({ maPhieuNhap, tuNgay, denNgay, page, limit });
+            
+            // ĐÃ THÊM AWAIT Ở ĐÂY (Rất quan trọng!)
+            const data = await InventoryModel.getAllPhieuNhapKho({ maPhieuNhap, tuNgay, denNgay, page, limit });
+            
             res.status(200).json({ success: true, data });
         } catch (error) {
             console.log(error);
-            res.status(500).json({ success: false, meesage: 'Lỗi khi lấy danh sách phiếu nhập' })
+            res.status(500).json({ success: false, message: 'Lỗi khi lấy danh sách phiếu nhập' });
         }
     },
 
     getCTPhieuNhapById: async (req, res) => {
         try {
-            const { maPhieuNhap } = req.params;
-            const data = InventoryModel.getCTPhieuNhapById(maPhieuNhap);
+            // Đổi maPhieuNhap thành id để khớp với route '/ctnhapkho/:id'
+            const { id } = req.params; 
+            
+            // ĐÃ THÊM AWAIT Ở ĐÂY (Rất quan trọng!)
+            const data = await InventoryModel.getCTPhieuNhapById(id);
+            
             res.status(200).json({ success: true, data });
         } catch (error) {
             console.log(error);
-            res.status(500).json({ success: false, message: ' Lỗi API lấy chi tiết phiếu nhập' });
+            res.status(500).json({ success: false, message: 'Lỗi API lấy chi tiết phiếu nhập' });
         }
     },
 
@@ -214,6 +230,29 @@ const InventoryController = {
                 success: false, 
                 message: 'Lỗi máy chủ khi lấy danh sách Serial máy tính' 
             });
+        }
+    },
+
+    updateMayTinh: async (req, res) => {
+        try {
+            const { maMay } = req.params; // Lấy mã máy từ URL (VD: /maytinh/SN-MAC-111)
+            const { trangThai } = req.body; // Lấy trạng thái mới từ Frontend gửi lên
+
+            if (!trangThai) {
+                return res.status(400).json({ success: false, message: 'Vui lòng cung cấp trạng thái mới!' });
+            }
+
+            const affectedRows = await InventoryModel.updateMayTinh(maMay, trangThai);
+
+            if (affectedRows === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy Serial này trong hệ thống!' });
+            }
+
+            res.status(200).json({ success: true, message: 'Cập nhật trạng thái máy thành công!' });
+
+        } catch (error) {
+            console.error("Lỗi API Cập nhật trạng thái Serial:", error);
+            res.status(500).json({ success: false, message: 'Lỗi máy chủ khi cập nhật trạng thái!' });
         }
     },
 
