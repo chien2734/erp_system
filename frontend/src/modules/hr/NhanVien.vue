@@ -20,11 +20,11 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <el-table :data="filteredEmployees" v-loading="hrStore.loading" style="width: 100%" size="large">
+      <el-table :data="filteredEmployees" v-loading="loading" :row-class-name="tableRowClassName" style="width: 100%" size="large">
         
-        <el-table-column prop="maNV" label="Mã NV" width="100" fixed="left">
+        <el-table-column prop="maNhanVien" label="Mã NV" width="100" fixed="left">
           <template #default="scope">
-            <span class="font-bold text-blue-600">{{ scope.row.maNV || 'Đang chờ' }}</span>
+            <span class="font-bold text-blue-600">{{ scope.row.maNhanVien || 'Đang chờ' }}</span>
           </template>
         </el-table-column>
 
@@ -41,7 +41,7 @@
                   <el-icon v-if="scope.row.gioiTinh === 'Nữ'" class="text-pink-500 text-xs ml-1"><Female /></el-icon>
                 </p>
                 <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                  <el-icon><Phone /></el-icon> {{ scope.row.soDienThoai }}
+                  <el-icon><Phone /></el-icon> {{ scope.row.sdt }}
                 </p>
               </div>
             </div>
@@ -54,15 +54,21 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="phongBan" label="Phòng ban" min-width="160">
+        <el-table-column prop="ngaySinh" label="Ngày sinh" min-width="120" align="center">
+          <template #default="scope">
+            <span class="text-slate-600">{{ formatDate(scope.row.ngaySinh) }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- <el-table-column prop="phongBan" label="Phòng ban" min-width="160">
           <template #default="scope">
             <el-tag :type="getDepartmentTag(scope.row.phongBan)" effect="light" round>
               {{ scope.row.phongBan }}
             </el-tag>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
-        <el-table-column prop="chucVu" label="Chức vụ" min-width="140" />
+        <el-table-column prop="tenChucVu" label="Chức vụ" min-width="140" />
         
         <el-table-column prop="ngayVaoLam" label="Ngày vào làm" min-width="130">
           <template #default="scope">
@@ -86,7 +92,6 @@
         <el-table-column label="Thao tác" width="120" align="center" fixed="right">
           <template #default="scope">
             <el-button :icon="Edit" circle size="small" type="primary" plain @click="openEditDialog(scope.row)" />
-            <el-button :icon="Delete" circle size="small" type="danger" plain @click="handleDelete(scope.row)" />
           </template>
         </el-table-column>
       </el-table>
@@ -102,7 +107,7 @@
         
         <el-alert 
           v-if="isEditMode" 
-          :title="`Mã Nhân Viên: ${formData.maNV}`" 
+          :title="`Mã Nhân Viên: ${formData.maNhanVien}`" 
           type="info" 
           show-icon 
           :closable="false" 
@@ -121,29 +126,33 @@
             </el-radio-group>
           </el-form-item>
 
-          <el-form-item label="Số điện thoại" prop="soDienThoai">
-            <el-input v-model="formData.soDienThoai" placeholder="VD: 0901234567" :prefix-icon="Phone" />
+          <el-form-item label="Ngày sinh" prop="ngaySinh">
+            <el-date-picker
+              v-model="formData.ngaySinh"
+              type="date"
+              placeholder="Chọn ngày sinh"
+              format="DD/MM/YYYY"
+              value-format="YYYY-MM-DD"
+              class="w-full"
+            />
           </el-form-item>
+
+          <el-form-item label="Số điện thoại" prop="sdt">
+              <el-input v-model="formData.sdt" placeholder="VD: 0901234567" :prefix-icon="Phone" />
+            </el-form-item>
 
           <el-form-item label="Email cá nhân/Công việc" prop="email">
             <el-input v-model="formData.email" placeholder="VD: nguyenvan@laptop.com" :prefix-icon="Message" />
           </el-form-item>
 
-          <el-form-item label="Phòng ban" prop="phongBan">
-            <el-select v-model="formData.phongBan" placeholder="Chọn phòng ban" class="w-full">
-              <el-option label="Ban Giám Đốc" value="Ban Giám Đốc" />
-              <el-option label="Kinh doanh" value="Kinh doanh" />
-              <el-option label="Tài chính - Kế toán" value="Tài chính - Kế toán" />
-              <el-option label="Kỹ thuật & Bảo hành" value="Kỹ thuật & Bảo hành" />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="Chức vụ" prop="chucVu">
-            <el-select v-model="formData.chucVu" placeholder="Chọn chức vụ" class="w-full">
-              <el-option label="Giám đốc" value="Giám đốc" />
-              <el-option label="Trưởng phòng" value="Trưởng phòng" />
-              <el-option label="Nhân viên" value="Nhân viên" />
-              <el-option label="Thực tập sinh" value="Thực tập sinh" />
+          <el-form-item label="Chức vụ đảm nhiệm" prop="maChucVu" class="md:col-span-2">
+            <el-select v-model="formData.maChucVu" placeholder="Chọn chức vụ cho nhân viên" class="w-full" size="large">
+              <el-option 
+                v-for="cv in dbChucVu" 
+                :key="cv.maChucVu" 
+                :label="cv.tenChucVu" 
+                :value="cv.maChucVu" 
+              />
             </el-select>
           </el-form-item>
 
@@ -193,144 +202,156 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
-import { useHrStore } from './hr.store';
-import { Search, Plus, Edit, Delete, User, Phone, Message, Male, Female } from '@element-plus/icons-vue';
+import { Search, Plus, Edit, User, Phone, Message, Male, Female } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
+import api from '../../services/api'; // Import api từ thư mục services
 
-const hrStore = useHrStore();
+// --- STATE QUẢN LÝ DỮ LIỆU ---
+const employees = ref([]);
+const dbChucVu = ref([]); 
+const loading = ref(false);
 const searchQuery = ref('');
 
-// Trạng thái Dialog
+// --- STATE QUẢN LÝ DIALOG ---
 const dialogVisible = ref(false);
 const isEditMode = ref(false);
 const isSubmitting = ref(false);
 const formRef = ref(null);
 
-// Dữ liệu Form cập nhật thêm các trường mới
+// --- FORM DATA KHỚP DATABASE ---
 const formData = reactive({
-  id: null,
-  maNV: '',
+  maNhanVien: null,
   hoTen: '',
-  gioiTinh: 'Nam', // Giá trị mặc định
+  gioiTinh: 'Nam',
+  ngaySinh: '', 
   ngayVaoLam: '',
-  soDienThoai: '',
+  sdt: '',
   email: '',
   diaChi: '',
-  phongBan: '',
-  chucVu: '',
-  trangThai: true
+  maChucVu: null, // Dùng maChucVu thay vì chuỗi phongBan/chucVu
+  trangThai: true // Database lưu 1 hoặc 0, ta sẽ convert lúc gửi API
 });
 
-// Rules Validate
+// --- RULES VALIDATE ---
 const rules = reactive({
   hoTen: [{ required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' }],
   gioiTinh: [{ required: true, message: 'Vui lòng chọn giới tính', trigger: 'change' }],
   ngayVaoLam: [{ required: true, message: 'Vui lòng chọn ngày vào làm', trigger: 'change' }],
-  soDienThoai: [
+  sdt: [
     { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },
     { pattern: /(84|0[3|5|7|8|9])+([0-9]{8})\b/, message: 'SĐT không hợp lệ', trigger: 'blur' }
   ],
-  phongBan: [{ required: true, message: 'Vui lòng chọn phòng ban', trigger: 'change' }],
-  chucVu: [{ required: true, message: 'Vui lòng chọn chức vụ', trigger: 'change' }]
+  maChucVu: [{ required: true, message: 'Vui lòng chọn chức vụ', trigger: 'change' }]
 });
 
-// Fetch dữ liệu
+// --- FETCH DATA TỪ BACKEND ---
+const loadInitialData = async () => {
+  loading.value = true;
+  try {
+    // Gọi song song 2 API: Lấy Nhân viên & Lấy Chức vụ
+    const [resNV, resCV] = await Promise.all([
+      api.get('/hr/nhanvien?limit=1000'), // Lấy nhiều xíu vì có search local
+      api.get('/hr/chucvu')
+    ]);
+    
+    employees.value = resNV.data?.data || resNV.data || [];
+    dbChucVu.value = resCV.data?.data || resCV.data || [];
+  } catch (error) {
+    ElMessage.error('Không thể tải dữ liệu từ máy chủ!');
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(() => {
-  hrStore.fetchEmployees();
+  loadInitialData();
 });
 
-// Lọc dữ liệu tìm kiếm (Tìm theo Tên, SĐT hoặc Mã NV)
+// --- LỌC DỮ LIỆU HIỂN THỊ ---
 const filteredEmployees = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  return hrStore.employees.filter(emp => 
+  return employees.value.filter(emp => 
     emp.hoTen?.toLowerCase().includes(query) ||
-    emp.soDienThoai?.includes(query) ||
-    emp.maNV?.toLowerCase().includes(query)
+    emp.sdt?.includes(query) ||
+    emp.maNhanVien?.toString().includes(query)
   );
 });
 
-// Format hiển thị Ngày
+// --- FORMATTERS ---
 const formatDate = (dateString) => {
   if (!dateString) return 'Chưa cập nhật';
   const date = new Date(dateString);
   return date.toLocaleDateString('vi-VN');
 };
 
-// Helper: Màu sắc cho Tag Phòng ban
-const getDepartmentTag = (dept) => {
-  const map = {
-    'Ban Giám Đốc': 'danger',
-    'Kinh doanh': 'success',
-    'Tài chính - Kế toán': 'warning',
-    'Kỹ thuật & Bảo hành': 'info'
-  };
-  return map[dept] || 'primary';
+const getDepartmentTag = (chucVuName) => {
+  if (!chucVuName) return 'info';
+  const cv = chucVuName.toLowerCase();
+  if (cv.includes('giám đốc')) return 'danger';
+  if (cv.includes('kinh doanh') || cv.includes('bán hàng')) return 'success';
+  if (cv.includes('kế toán')) return 'warning';
+  return 'primary';
 };
 
-// Reset Form
+// --- QUẢN LÝ FORM ---
 const resetForm = () => {
   if (formRef.value) formRef.value.resetFields();
   Object.assign(formData, {
-    id: null, maNV: '', hoTen: '', gioiTinh: 'Nam', ngayVaoLam: '', soDienThoai: '', email: '', diaChi: '', phongBan: '', chucVu: '', trangThai: true
+    maNhanVien: null, hoTen: '', gioiTinh: 'Nam', ngaySinh: '', ngayVaoLam: '', sdt: '', email: '', diaChi: '', maChucVu: null, trangThai: true
   });
 };
 
-// Mở Dialog Thêm mới
 const openAddDialog = () => {
   isEditMode.value = false;
   resetForm();
   dialogVisible.value = true;
 };
 
-// Mở Dialog Chỉnh sửa
 const openEditDialog = (row) => {
   isEditMode.value = true;
-  Object.assign(formData, { ...row });
+  // Convert trangThai từ số (1/0) sang boolean (true/false) cho cái switch
+  Object.assign(formData, { ...row, trangThai: row.trangThai === 1 });
   dialogVisible.value = true;
 };
 
-// Xử lý Submit Form
+const tableRowClassName = ({ row }) => {
+  // Nếu trạng thái là 0 (Đã nghỉ), thêm class 'inactive-row'
+  if (row.trangThai === 0) {
+    return 'inactive-row';
+  }
+  return '';
+};
+
+// --- GỌI API THÊM/SỬA NHÂN VIÊN ---
 const handleSubmit = async (formEl) => {
   if (!formEl) return;
   await formEl.validate(async (valid) => {
     if (valid) {
       isSubmitting.value = true;
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        ElMessage.success(isEditMode.value ? 'Cập nhật thành công!' : 'Đã thêm nhân viên mới!');
-        
-        // Mô phỏng Backend tự tạo Mã NV khi thêm mới
-        if (!isEditMode.value) {
-          const fakeMaNV = Math.floor(1000 + Math.random() * 9000);
-          hrStore.employees.unshift({ ...formData, id: Date.now(), maNV: fakeMaNV });
+        // Format lại payload cho chuẩn Database
+        const payload = {
+          ...formData,
+          trangThai: formData.trangThai ? 1 : 0
+        };
+
+        if (isEditMode.value) {
+          await api.put(`/hr/nhanvien/${formData.maNhanVien}`, payload);
+          ElMessage.success('Cập nhật thông tin nhân viên thành công!');
         } else {
-          // Logic update cho Store (Tạm thời)
-          const index = hrStore.employees.findIndex(e => e.id === formData.id);
-          if(index !== -1) hrStore.employees[index] = { ...formData };
+          await api.post('/hr/nhanvien', payload);
+          ElMessage.success('Đã thêm nhân viên mới vào hệ thống!');
         }
         
+        loadInitialData(); // Load lại data từ Server
         dialogVisible.value = false;
       } catch (error) {
-        ElMessage.error('Có lỗi xảy ra!');
+        ElMessage.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu dữ liệu!');
       } finally {
         isSubmitting.value = false;
       }
     }
   });
-};
-
-// Xóa nhân viên
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`Xóa nhân viên <b class="text-red-500">${row.hoTen} (${row.maNV})</b>?`, 'Cảnh báo', {
-    confirmButtonText: 'Xóa nhân viên',
-    cancelButtonText: 'Hủy bỏ',
-    type: 'warning',
-    dangerouslyUseHTMLString: true,
-  }).then(() => {
-    hrStore.employees = hrStore.employees.filter(e => e.id !== row.id);
-    ElMessage.success('Đã xóa thành công');
-  }).catch(() => {});
 };
 </script>
 
@@ -356,5 +377,14 @@ const handleDelete = (row) => {
 /* Tuỳ chỉnh Radio button cho đẹp hơn */
 :deep(.el-radio.is-bordered) {
   border-radius: 8px;
+}
+:deep(.el-table .inactive-row) {
+  background-color: #f1f5f9; /* Màu nền xám nhạt */
+  color: #94a3b8; /* Chữ mờ đi */
+}
+:deep(.el-table .inactive-row img), 
+:deep(.el-table .inactive-row .el-avatar) {
+  filter: grayscale(100%); /* Avatar cũng xám luôn */
+  opacity: 0.6;
 }
 </style>

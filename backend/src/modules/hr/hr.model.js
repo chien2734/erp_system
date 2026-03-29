@@ -12,7 +12,7 @@ const HrModel = {
             SELECT nv.*, cv.tenChucVu 
             FROM nhanvien nv
             LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
-            WHERE nv.trangThai = 1
+            WHERE 1 = 1
         `;
         let values = [];
         if (keyword) {
@@ -39,30 +39,92 @@ const HrModel = {
     },
     // Lấy chi tiết 1 nhân viên theo ID
     getNhanVienById: async (id) => {
-        const sql = `SELECT * FROM nhanvien WHERE maNhanVien = ? AND trangThai = 1`;
+        const sql = `SELECT * FROM nhanvien WHERE maNhanVien = ?`;
         const [rows] = await db.query(sql, [id]);
         return rows[0];
     },
     // Thêm mới nhân viên
     createNhanVien: async (data) => {
-        const sql = `
-            INSERT INTO nhanvien (hoTen, ngaySinh, gioiTinh, sdt, email, diaChi, ngayVaoLam, maChucVu, trangThai) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-        `;
-        const values = [data.hoTen, data.ngaySinh, data.gioiTinh, data.sdt, data.email, data.diaChi, data.ngayVaoLam, data.maChucVu];
-        const [result] = await db.query(sql, values);
-        return result.insertId;
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 1. Thêm nhân viên vào bảng chính
+            const sqlNV = `
+                INSERT INTO nhanvien (hoTen, ngaySinh, gioiTinh, sdt, email, diaChi, ngayVaoLam, maChucVu, trangThai) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            `;
+            const [result] = await connection.query(sqlNV, [
+                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt, 
+                data.email, data.diaChi, data.ngayVaoLam, data.maChucVu
+            ]);
+            const newId = result.insertId;
+
+            // 2. GHI NHẬN LỊCH SỬ CHỨC VỤ ĐẦU TIÊN
+            const sqlHistory = `
+                INSERT INTO thaydoichucvu (maNhanVien, maChucVu, ngayBatDau, ngayKetThuc)
+                VALUES (?, ?, ?, NULL)
+            `;
+            await connection.query(sqlHistory, [newId, data.maChucVu, data.ngayVaoLam]);
+
+            await connection.commit();
+            return newId;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
-    // Cập nhật thông tin nhân viên
+    // Cập nhật thông tin nhân viên (Bổ sung Ngày vào làm & Fix lỗi Date)
     updateNhanVien: async (id, data) => {
-        const sql = `
-            UPDATE nhanvien 
-            SET hoTen = ?, ngaySinh = ?, gioiTinh = ?, sdt = ?, email = ?, diaChi = ?
-            WHERE maNhanVien = ?
-        `;
-        const values = [data.hoTen, data.ngaySinh, data.gioiTinh, data.sdt, data.email, data.diaChi, id];
-        const [result] = await db.query(sql, values);
-        return result.affectedRows;
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            // 1. Lấy chức vụ HIỆN TẠI của nhân viên trong DB để so sánh
+            const [currentInfo] = await connection.query(
+                `SELECT maChucVu FROM nhanvien WHERE maNhanVien = ?`, [id]
+            );
+            const oldMaChucVu = currentInfo[0]?.maChucVu;
+
+            // 2. Nếu chức vụ bị thay đổi -> Ghi nhận vào bảng thaydoichucvu
+            if (oldMaChucVu && oldMaChucVu != data.maChucVu) {
+                const ngayThayDoi = new Date().toISOString().split('T')[0];
+
+                // Chốt ngày kết thúc chức vụ cũ
+                await connection.query(
+                  `UPDATE thaydoichucvu SET ngayKetThuc = ? WHERE maNhanVien = ? AND ngayKetThuc IS NULL`,
+                  [ngayThayDoi, id]
+                );
+
+                // Thêm dòng lịch sử cho chức vụ mới
+                await connection.query(
+                  `INSERT INTO thaydoichucvu (maNhanVien, maChucVu, ngayBatDau) VALUES (?, ?, ?)`,
+                  [id, data.maChucVu, ngayThayDoi]
+                );
+            }
+
+            // 3. Cập nhật bảng chính nhanvien
+            const sqlUpdate = `
+                UPDATE nhanvien 
+                SET hoTen = ?, ngaySinh = ?, gioiTinh = ?, sdt = ?, email = ?, diaChi = ?, ngayVaoLam = ?, maChucVu = ?, trangThai = ?
+                WHERE maNhanVien = ?
+            `;
+            const values = [
+                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt, 
+                data.email, data.diaChi, data.ngayVaoLam || null, data.maChucVu, data.trangThai, id
+            ];
+            await connection.query(sqlUpdate, values);
+
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
     // Xóa nhân viên (chuyển trangThai = 0)
     deleteNhanVien: async (id) => {
@@ -102,18 +164,17 @@ const HrModel = {
         }
     },
     // Lay lich su cong tac cua nhan vien
-    // getLichSuCongTac: async (id) => {
-    //     const sql = `
-    //         SELECT td.maNhanVien, td.maChucVu, cv.tenChucVu, td.ngayBatDau, td.ngayKetThuc
-    //         FROM thaydoichucvu td
-    //         JOIN chucvu cv ON td.maChucVu = cv.maChucVu
-    //         WHERE td.maNhanVien = ?
-    //         ORDER BY td.ngayBatDau DESC
-    //     `;
-    //     const [rows] = await db.query(sql, [id]);
-    //     return rows;
-    // },
-    //================================
+    getLichSuCongTac: async (id) => {
+        const sql = `
+            SELECT td.*, cv.tenChucVu
+            FROM thaydoichucvu td
+            JOIN chucvu cv ON td.maChucVu = cv.maChucVu
+            WHERE td.maNhanVien = ?
+            ORDER BY td.ngayBatDau DESC
+        `;
+        const [rows] = await db.query(sql, [id]);
+        return rows;
+    },
 
     //================================
     // Phan 2: Quan ly chuc vu

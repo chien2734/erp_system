@@ -21,7 +21,7 @@ router.get('/luong', HrController.getBangLuong);
 router.get('/luong/:id', HrController.xemLuong);
 // Phần quản lý đơn từ
 router.get('/dontu', HrController.getAllLeaveRequest);
-router.get('/dontu/:id', HrController.getLeaveRequestById);
+router.get('/dontu/canhan', HrController.getLeaveRequestById);
 router.put('/dontu/:id', HrController.updateLeaveRequest);
 router.post('/dontu', HrController.createLeaveRequest);
 router.put('/dontu/:id/xuly', HrController.handleLeaveRequest);
