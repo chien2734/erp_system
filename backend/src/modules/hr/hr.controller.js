@@ -149,13 +149,21 @@ const HrController = {
             const maNhanVien = req.user.maNhanVien;
             // Lấy ngày và giờ thực tế từ Server
             const now = new Date();
-            const ngayHienTai = now.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-            const gioHienTai = now.toTimeString().split(' ')[0]; // Format: HH:MM:SS
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            
+            const ngayHienTai = `${year}-${month}-${day}`; // Ra chuẩn YYYY-MM-DD theo giờ VN
+            const gioHienTai = now.toTimeString().split(' ')[0]; // HH:MM:SS
             // Quy định giờ làm việc chuẩn
             const GIO_VAO_CHUAN = '08:00:00';
             const GIO_RA_CHUAN = '17:00:00';
             const chamCongHomNay = await HrModel.getChamCongNgayHienTai(maNhanVien, ngayHienTai);
             // chưa chấm công -> thực hiện check-in
+            if (gioHienTai < '06:00:00') {
+                return res.status(400).json({ success: false, message: 'Chưa đến giờ mở ca. Vui lòng quay lại sau 6h00 sáng!' });
+            }
+
             if (!chamCongHomNay) {
                 const trangThaiChot = (gioHienTai > GIO_VAO_CHUAN) ? 'Đi trễ' : 'Đúng giờ';
                 await HrModel.checkIn(maNhanVien, ngayHienTai, gioHienTai, trangThaiChot);
@@ -174,6 +182,11 @@ const HrController = {
                 if (gioHienTai > GIO_RA_CHUAN) {
                     trangThaiChot = (trangThaiChot ? (trangThaiChot + ' và Tăng ca') : 'Tăng ca');
                 }
+
+                else if (gioHienTai < GIO_RA_CHUAN) {
+                    trangThaiChot = (trangThaiChot ? (trangThaiChot + ' - Về sớm') : 'Về sớm');
+                }
+
                 await HrModel.checkOut(maNhanVien, ngayHienTai, gioHienTai, trangThaiChot);
 
                 return res.status(200).json({

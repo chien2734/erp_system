@@ -222,7 +222,7 @@ const HrModel = {
     },
     // Kiem tra xem nhan vien da check in chua trong ngay
     getChamCongNgayHienTai: async (maNhanVien, ngay) => {
-        const sql = `SELECT * FROM chamcong WHERE maNhanVien = ? AND ngay = ?`;
+        const sql = `SELECT * FROM chamcong WHERE maNhanVien = ? AND ngayLamViec = ?`;
         const [rows] = await db.query(sql, [maNhanVien, ngay]);
         return rows[0];
     },
@@ -257,7 +257,7 @@ const HrModel = {
             const sqlChamCong = `
                 SELECT maNhanVien, gioVao, gioRa 
                 FROM chamcong 
-                WHERE MONTH(ngay) = ? AND YEAR(ngay) = ? AND gioVao IS NOT NULL
+                WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ? AND gioVao IS NOT NULL
             `;
             const [dsChamCong] = await connection.query(sqlChamCong, [thang, nam]);
             // Xóa bảng lương cũ của tháng đó (nếu kế toán muốn chốt lại)
