@@ -47,12 +47,20 @@
           <template #default="scope">
             <div>
               <p class="font-bold text-slate-800">{{ scope.row.tenKH }}</p>
-              <p class="text-xs text-slate-500 font-mono mt-0.5"><el-icon><Phone /></el-icon> {{ scope.row.sdt }}</p>
+              <!-- <p class="text-xs text-slate-500 font-mono mt-0.5"><el-icon><Phone /></el-icon> {{ scope.row.sdt }}</p> -->
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="Thanh Toán (Doanh thu)" width="180" align="right">
+        <el-table-column label="Số điện thoại" min-width="200">
+          <template #default="scope">
+            <div>
+              <p class="font-bold text-slate-500">{{ scope.row.sdt }}</p>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Thanh Toán (Doanh thu)" width="250" align="right">
           <template #default="scope">
             <span class="font-black text-emerald-600">{{ formatPrice(scope.row.thanhTien) }}</span>
           </template>
@@ -94,7 +102,10 @@
           </div>
           <div class="border-t border-slate-200 pt-3">
             <p class="text-slate-500 mb-1">Nhân viên bán hàng:</p>
-            <p class="font-bold text-slate-800">NV01 - Nguyễn Văn Admin</p>
+            <p class="font-bold text-slate-800">
+              <el-icon class="mr-1 text-blue-500"><User /></el-icon> 
+              {{ selectedHoaDon.tenNhanVien || 'Không xác định' }}
+            </p>
           </div>
         </div>
 
@@ -176,85 +187,63 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { Search, Calendar, Phone, FullScreen, Printer } from '@element-plus/icons-vue';
-
-// --- MOCK DATABASE TỔNG HỢP CHO FRONTEND ---
-// Dữ liệu này giả định Backend đã gộp từ KhachHang, HoaDon, ChiTietHoaDon và MayTinh
-const dbHoaDon = ref([
-  {
-    maHoaDon: 1001,
-    ngayLap: '2026-03-20T10:15:00Z',
-    maKH: 1,
-    tenKH: 'Nguyễn Văn A',
-    sdt: '0901234567',
-    tongTien: 26490000,
-    thanhTien: 26490000, // Nếu có giảm giá thì thanhTien sẽ thấp hơn tongTien
-    chiTiet: [
-      {
-        maSP: 1,
-        tenSP: 'MacBook Air M2 13 inch',
-        soLuong: 1,
-        donGia: 26490000,
-        donGiaGoc: 22000000, // Lấy từ ChiTietPhieuNhap lên
-        thanhTien: 26490000,
-        serials: ['SN-MAC-33333'] // Khớp với bảng Máy Tính hôm trước
-      }
-    ]
-  },
-  {
-    maHoaDon: 1002,
-    ngayLap: '2026-03-20T14:30:00Z',
-    maKH: 2,
-    tenKH: 'Trần Thị B',
-    sdt: '0988777666',
-    tongTien: 77990000,
-    thanhTien: 77990000,
-    chiTiet: [
-      {
-        maSP: 3,
-        tenSP: 'Asus ROG Strix G15',
-        soLuong: 1,
-        donGia: 32990000,
-        donGiaGoc: 28000000,
-        thanhTien: 32990000,
-        serials: ['SN-ASUS-999']
-      },
-      {
-        maSP: 2,
-        tenSP: 'Dell XPS 13 Plus 9320',
-        soLuong: 1,
-        donGia: 45000000,
-        donGiaGoc: 38000000,
-        thanhTien: 45000000,
-        serials: ['SN-DELL-555']
-      }
-    ]
-  }
-]);
+import { ref, computed, onMounted } from 'vue';
+import { Search, Calendar, Phone, FullScreen, Printer, User } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import api from '../../services/api';
 
 // --- STATE ---
+const dbHoaDon = ref([]);
+const loading = ref(false);
+const detailLoading = ref(false);
+
 const searchQuery = ref('');
 const dateRange = ref('');
 const dialogVisible = ref(false);
 const selectedHoaDon = ref(null);
 
+// --- FETCH DATA TỪ BACKEND ---
+const loadData = async () => {
+  loading.value = true;
+  try {
+    const res = await api.get('/sales/hoadon');
+    dbHoaDon.value = res.data || [];
+  } catch (error) {
+    ElMessage.error('Lỗi tải danh sách hóa đơn từ máy chủ!');
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadData();
+});
+
 // --- COMPUTED ---
 const filteredHoaDon = computed(() => {
   return dbHoaDon.value.filter(hd => {
     const query = searchQuery.value.toLowerCase();
-    // Tìm theo mã hóa đơn hoặc số điện thoại
-    const matchSearch = hd.maHoaDon.toString().includes(query) || hd.sdt.includes(query);
+    const matchSearch = hd.maHoaDon.toString().includes(query) || 
+                        (hd.sdt && hd.sdt.includes(query)) ||
+                        (hd.tenKH && hd.tenKH.toLowerCase().includes(query));
+                        
+    // Lọc theo ngày (nếu có chọn)
+    if (dateRange.value && dateRange.value.length === 2) {
+      const pDate = new Date(hd.ngayLap).getTime();
+      const start = new Date(dateRange.value[0]).getTime();
+      const end = new Date(dateRange.value[1]).setHours(23, 59, 59, 999);
+      return matchSearch && (pDate >= start && pDate <= end);
+    }
+    
     return matchSearch;
   });
 });
 
 // --- METHODS ---
-const formatPrice = (value) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
-};
+const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
 const formatDate = (isoString) => {
+  if (!isoString) return '';
   const date = new Date(isoString);
   return date.toLocaleString('vi-VN', { 
     day: '2-digit', month: '2-digit', year: 'numeric', 
@@ -262,13 +251,26 @@ const formatDate = (isoString) => {
   });
 };
 
-const openDetail = (hoadon) => {
-  selectedHoaDon.value = hoadon;
+// Gọi API lấy Chi tiết Hóa đơn (Gồm Tên NV, Tên KH và Mảng Serial)
+const openDetail = async (hoadon) => {
   dialogVisible.value = true;
+  // Gán tạm thông tin cơ bản để hiện khung xương
+  selectedHoaDon.value = { ...hoadon, chiTiet: [] }; 
+  detailLoading.value = true;
+
+  try {
+    const res = await api.get(`/sales/hoadon/${hoadon.maHoaDon}`);
+    // Đắp dữ liệu full từ Backend trả về
+    selectedHoaDon.value = res.data || hoadon;
+  } catch (error) {
+    ElMessage.error('Không thể tải chi tiết hóa đơn!');
+    dialogVisible.value = false;
+  } finally {
+    detailLoading.value = false;
+  }
 };
 
 const handlePrint = () => {
-  // Thực tế sẽ gọi lại Component BillPrintDialog giống bên trang POS
   window.print();
 };
 </script>

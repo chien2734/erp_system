@@ -139,33 +139,55 @@
     <el-dialog 
       v-model="invoiceDialogVisible" 
       title="THÔNG TIN HÓA ĐƠN XUẤT" 
-      width="400px" 
+      width="500px" 
       destroy-on-close 
       class="custom-dialog"
     >
-      <div v-loading="loadingInvoice" class="space-y-3 text-sm">
-        <div v-if="currentInvoice" class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div class="flex justify-between border-b border-slate-200 pb-2 mb-2">
+      <div v-loading="loadingInvoice" class="space-y-4 text-sm min-h-[150px]">
+        <div v-if="currentInvoice" class="bg-slate-50 p-5 rounded-xl border border-slate-200">
+          
+          <div class="flex justify-between border-b border-slate-200 pb-3 mb-3">
             <span class="text-slate-500">Mã Hóa Đơn:</span>
-            <span class="font-bold text-blue-600 font-mono">{{ currentInvoice.maHoaDon }}</span>
+            <span class="font-bold text-blue-600 font-mono text-base">HD-{{ currentInvoice.maHoaDon }}</span>
           </div>
-          <div class="flex justify-between mb-2">
-            <span class="text-slate-500">Ngày bán:</span>
-            <span class="font-semibold">{{ currentInvoice.ngayLap }}</span>
+          
+          <div class="space-y-2 mb-4">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Ngày bán:</span>
+              <span class="font-semibold text-slate-800">{{ currentInvoice.ngayLap ? new Date(currentInvoice.ngayLap).toLocaleString('vi-VN') : '' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Người lập đơn:</span>
+              <span class="font-semibold text-slate-800">{{ currentInvoice.tenNhanVien || 'Admin' }}</span>
+            </div>
           </div>
-          <div class="flex justify-between mb-2">
-            <span class="text-slate-500">Khách hàng:</span>
-            <span class="font-semibold">{{ currentInvoice.tenKhachHang || 'Khách lẻ' }}</span>
+
+          <div class="bg-white p-3 rounded-lg border border-slate-100 mb-4">
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Khách hàng</p>
+            <p class="font-bold text-slate-800">{{ currentInvoice.tenKH || 'Khách lẻ' }}</p>
+            <p class="text-slate-600">{{ currentInvoice.sdt || '' }}</p>
           </div>
-          <div class="flex justify-between">
-            <span class="text-slate-500">Tổng tiền HĐ:</span>
-            <span class="font-bold text-emerald-600">{{ formatPrice(currentInvoice.thanhTien) }}</span>
+
+          <div class="flex justify-between items-center bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+            <span class="font-bold text-emerald-800">TỔNG THANH TOÁN:</span>
+            <span class="font-black text-emerald-600 text-lg">
+              {{ new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentInvoice.thanhTien || 0) }}
+            </span>
           </div>
+
         </div>
-        <el-alert v-else-if="!loadingInvoice" title="Không tìm thấy dữ liệu hóa đơn này!" type="error" :closable="false" />
+        
+        <el-alert 
+          v-else-if="!loadingInvoice" 
+          title="Không tìm thấy dữ liệu hóa đơn này!" 
+          type="error" 
+          :closable="false" 
+          show-icon
+        />
       </div>
+      
       <template #footer>
-        <el-button @click="invoiceDialogVisible = false">Đóng lại</el-button>
+        <el-button @click="invoiceDialogVisible = false" size="large" class="w-full">Đóng lại</el-button>
       </template>
     </el-dialog>
   </div>
@@ -305,24 +327,17 @@ const viewInvoice = async (maHoaDon) => {
   currentInvoice.value = null;
 
   try {
-    // TẠM THỜI GIẢ LẬP DỮ LIỆU (Vì chúng ta chưa làm API lấy 1 hóa đơn)
-    // Sau này làm xong Backend phần Hóa đơn, bạn chỉ cần mở comment dòng dưới:
-    // const res = await api.get(`/sales/hoadon/${maHoaDon}`);
-    // currentInvoice.value = res.data;
+    // Gọi API sang phân hệ Sales để lấy chi tiết Hóa đơn
+    const res = await api.get(`/sales/hoadon/${maHoaDon}`);
     
-    // Giả lập độ trễ mạng 0.5s
-    setTimeout(() => {
-      currentInvoice.value = {
-        maHoaDon: maHoaDon,
-        ngayLap: new Date().toLocaleDateString('vi-VN'),
-        tenKhachHang: 'Nguyễn Văn A',
-        thanhTien: 45000000
-      };
-      loadingInvoice.value = false;
-    }, 500);
+    // API của Backend trả về dạng { success: true, data: { ... } }
+    // Nên ta lấy res.data.data
+    currentInvoice.value = res.data.data || res.data; 
 
   } catch (error) {
-    ElMessage.error('Lỗi khi tải thông tin hóa đơn');
+    console.error("Lỗi tra cứu hóa đơn:", error);
+    ElMessage.error('Không thể tải thông tin hóa đơn từ máy chủ!');
+  } finally {
     loadingInvoice.value = false;
   }
 };

@@ -40,6 +40,12 @@ const SalesModel = {
         return result.insertId;
     },
 
+    capNhatKhachHang: async (maKH, data) => {
+        const sql = `UPDATE khachhang SET tenKH = ?, sdt = ?, diaChi = ? WHERE maKH = ?`;
+        const [result] = await db.query(sql, [data.tenKH, data.sdt, data.diaChi, maKH]);
+        return result.affectedRows; // Trả về số dòng bị ảnh hưởng để biết có update thành công không
+    },
+
     // ==============================================
     // PHẦN 2: NGHIỆP VỤ BÁN HÀNG (TẠO HÓA ĐƠN)
     // ==============================================
@@ -114,7 +120,61 @@ const SalesModel = {
         } finally {
             connection.release();
         }
-    }
+    },
+
+    // ==============================================
+    // PHẦN 3: TRA CỨU HÓA ĐƠN
+    // ==============================================
+    getAllHoaDon: async (filters = {}) => {
+        // Join thêm bảng khachhang và nhanvien/taikhoan để lấy tên
+        let sql = `
+            SELECT hd.*, kh.tenKH, kh.sdt , nv.hoTen AS tenNhanVien 
+            FROM hoadon hd
+            LEFT JOIN khachhang kh ON hd.maKH = kh.maKH
+            LEFT JOIN nhanvien nv ON hd.maNhanVien = nv.maNhanVien
+            ORDER BY hd.ngayLap DESC
+        `;
+        
+        const [rows] = await db.query(sql);
+        return rows;
+    },
+
+    getChiTietHoaDonById: async (maHoaDon) => {
+        // 1. Lấy thông tin chung của Hóa đơn (Gồm cả tên KH và tên NV)
+        const sqlHD = `
+            SELECT hd.*, kh.tenKH, kh.sdt, nv.hoTen AS tenNhanVien 
+            FROM hoadon hd
+            LEFT JOIN khachhang kh ON hd.maKH = kh.maKH
+            LEFT JOIN nhanvien nv ON hd.maNhanVien = nv.maNhanVien
+            WHERE hd.maHoaDon = ?
+        `;
+        const [hoaDonRows] = await db.query(sqlHD, [maHoaDon]);
+        if (hoaDonRows.length === 0) throw new Error('Không tìm thấy hóa đơn!');
+        const thongTinChung = hoaDonRows[0];
+
+        // 2. Lấy danh sách sản phẩm (Chi tiết hóa đơn)
+        const sqlCT = `
+            SELECT ct.*, sp.tenSP 
+            FROM chitiethoadon ct
+            JOIN sanpham sp ON ct.maSP = sp.maSP
+            WHERE ct.maHoaDon = ?
+        `;
+        const [chiTietRows] = await db.query(sqlCT, [maHoaDon]);
+
+        // 3. Lấy danh sách Serial của hóa đơn này
+        const sqlSerial = `SELECT maMay, maSP FROM maytinh WHERE maHoaDon = ?`;
+        const [serialRows] = await db.query(sqlSerial, [maHoaDon]);
+
+        // 4. Nhét Serial vào từng dòng sản phẩm tương ứng (Giống hệt bên Nhập kho)
+        thongTinChung.chiTiet = chiTietRows.map(ct => {
+            return {
+                ...ct,
+                serials: serialRows.filter(s => s.maSP === ct.maSP).map(s => s.maMay)
+            };
+        });
+
+        return thongTinChung;
+    },
 };
 
 module.exports = SalesModel;

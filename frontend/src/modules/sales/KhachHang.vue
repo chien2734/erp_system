@@ -95,7 +95,6 @@
             <template #default="scope"><span class="font-bold text-blue-600">HD{{ scope.row.maHD }}</span></template>
           </el-table-column>
           <el-table-column prop="ngayMua" label="Ngày mua" width="120" align="center" />
-          <el-table-column prop="sanPham" label="Sản phẩm tiêu biểu" min-width="200" />
           <el-table-column prop="tongTien" label="Tổng tiền" width="130" align="right">
             <template #default="scope"><span class="font-semibold">{{ formatPrice(scope.row.tongTien) }}</span></template>
           </el-table-column>
@@ -108,22 +107,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, EditPen, ShoppingBag, Avatar } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-
-// --- MOCK DATABASE TỐI GIẢN ---
-const dbKhachHang = ref([
-  { maKH: 1, tenKH: 'Trương Vô Kỵ', sdt: '0901234567', diaChi: 'Quận 1, TP.HCM' },
-  { maKH: 2, tenKH: 'Triệu Mẫn', sdt: '0988654321', diaChi: 'Quận 7, TP.HCM' }
-]);
-
-const dbHoaDon = ref([
-  { maHD: 1001, maKH: 1, ngayMua: '15/01/2026', tongTien: 35000000, sanPham: 'MacBook Pro M3 14-inch' },
-  { maHD: 1003, maKH: 2, ngayMua: '10/03/2026', tongTien: 55000000, sanPham: 'ROG Strix SCAR 16' },
-]);
+import api from '../../services/api'; // Import api kết nối Backend
 
 // --- STATE ---
+const dbKhachHang = ref([]);
+const loading = ref(false);
+const historyLoading = ref(false);
+
 const searchQuery = ref('');
 const dialogVisible = ref(false);
 const isEdit = ref(false);
@@ -132,20 +125,45 @@ const historyVisible = ref(false);
 const selectedCustomer = ref(null);
 const customerInvoices = ref([]);
 
+// --- FETCH DATA TỪ BACKEND ---
+const loadCustomers = async () => {
+  loading.value = true;
+  try {
+    // Thêm limit cao để lấy hết (do backend bạn đang có phân trang)
+    const res = await api.get('/sales/khachhang?limit=1000');
+    // Backend trả về dạng { success: true, data: [...], pagination: {...} }
+    dbKhachHang.value = res.data || [];
+  } catch (error) {
+    ElMessage.error('Không thể tải danh sách khách hàng từ máy chủ!');
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadCustomers();
+});
+
 // --- COMPUTED ---
 const filteredCustomers = computed(() => {
   return dbKhachHang.value.filter(kh => {
-    return kh.tenKH.toLowerCase().includes(searchQuery.value.toLowerCase()) || kh.sdt.includes(searchQuery.value);
+    return kh.tenKH.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+           kh.sdt.includes(searchQuery.value);
   });
 });
 
 // --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
+
 const getInitials = (name) => {
-  const words = name.split(' ');
-  return words.length > 1 ? words[words.length - 2][0] + words[words.length - 1][0] : name.substring(0, 2).toUpperCase();
+  if (!name) return 'KH';
+  const words = name.trim().split(' ');
+  return words.length > 1 
+    ? (words[words.length - 2][0] + words[words.length - 1][0]).toUpperCase() 
+    : name.substring(0, 2).toUpperCase();
 };
 
+// --- QUẢN LÝ MODAL THÊM/SỬA ---
 const openAddModal = () => {
   isEdit.value = false;
   formCustomer.value = { maKH: null, tenKH: '', sdt: '', diaChi: '' };
@@ -158,28 +176,53 @@ const openEditModal = (row) => {
   dialogVisible.value = true;
 };
 
-const saveCustomer = () => {
+// --- GỌI API LƯU KHÁCH HÀNG ---
+const saveCustomer = async () => {
   if (!formCustomer.value.tenKH || !formCustomer.value.sdt) {
     ElMessage.error('Vui lòng nhập Tên và Số điện thoại!');
     return;
   }
   
-  if (isEdit.value) {
-    const index = dbKhachHang.value.findIndex(kh => kh.maKH === formCustomer.value.maKH);
-    if (index !== -1) dbKhachHang.value[index] = { ...formCustomer.value };
-    ElMessage.success('Cập nhật thông tin khách hàng thành công!');
-  } else {
-    const newId = dbKhachHang.value.length > 0 ? Math.max(...dbKhachHang.value.map(kh => kh.maKH)) + 1 : 1;
-    dbKhachHang.value.unshift({ ...formCustomer.value, maKH: newId });
-    ElMessage.success('Đã thêm khách hàng mới!');
+  try {
+    if (isEdit.value) {
+      await api.put(`/sales/khachhang/${formCustomer.value.maKH}`, formCustomer.value);
+      ElMessage.success('Cập nhật thông tin khách hàng thành công!');
+      loadCustomers(); // Load lại danh sách mới nhất từ DB
+    } else {
+      await api.post('/sales/khachhang', formCustomer.value);
+      ElMessage.success('Đã thêm khách hàng mới vào hệ thống!');
+      loadCustomers(); 
+    }
+    dialogVisible.value = false;
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi khi lưu thông tin khách hàng!');
   }
-  dialogVisible.value = false;
 };
 
-const openHistory = (row) => {
+// --- GỌI API LỊCH SỬ MUA HÀNG ---
+const openHistory = async (row) => {
   selectedCustomer.value = row;
-  customerInvoices.value = dbHoaDon.value.filter(hd => hd.maKH === row.maKH);
   historyVisible.value = true;
+  historyLoading.value = true;
+  
+  try {
+    // Tận dụng API Lấy danh sách hóa đơn để lọc ra các hóa đơn của khách này
+    const res = await api.get('/sales/hoadon');
+    const allInvoices = res.data.data || res.data || [];
+    
+    // Lọc và map lại dữ liệu cho khớp với bảng lịch sử
+    customerInvoices.value = allInvoices
+      .filter(hd => hd.maKH === row.maKH)
+      .map(hd => ({
+        maHD: hd.maHoaDon,
+        ngayMua: new Date(hd.ngayLap).toLocaleDateString('vi-VN'),
+        tongTien: hd.thanhTien,
+      }));
+  } catch (error) {
+    ElMessage.error('Không thể tải lịch sử mua hàng!');
+  } finally {
+    historyLoading.value = false;
+  }
 };
 </script>
 
