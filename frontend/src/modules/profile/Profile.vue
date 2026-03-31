@@ -113,10 +113,10 @@
               <template #default="scope"><span class="font-black text-blue-600">{{ scope.row.soGioLam }}h</span></template>
             </el-table-column>
             
-            <el-table-column label="Trạng thái" align="center" width="180">
+            <el-table-column label="Trạng thái" align="center" width="220">
               <template #default="scope">
-                <el-tag :type="getAttendanceTagColor(getResolvedStatus(scope.row))" effect="dark" class="font-bold w-full">
-                  {{ getResolvedStatus(scope.row) }}
+                <el-tag :type="getAttendanceTagColor(scope.row)" effect="dark" class="font-bold w-full">
+                  {{ scope.row.trangThai || 'Chưa xác định' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -185,56 +185,121 @@
 
     <el-dialog v-model="dialogLeaveVisible" title="TẠO ĐƠN XIN NGHỈ PHÉP" width="500px" class="custom-dialog">
       <el-form label-position="top">
-        <el-form-item label="Loại đơn">
-          <el-select v-model="formLeave.loaiDon" class="w-full">
-            <el-option label="Nghỉ phép năm (Có lương)" value="Nghỉ phép" />
-            <el-option label="Nghỉ ốm (Cần giấy tờ)" value="Nghỉ ốm" />
-            <el-option label="Nghỉ thai sản" value="Thai sản" />
-            <el-option label="Nghỉ việc riêng (Không lương)" value="Việc riêng" />
+        <el-form-item label="Loại đơn xin nghỉ">
+          <el-select v-model="formLeave.loaiDon" class="w-full" size="large">
+            <el-option label="Nghỉ phép năm (Hưởng 100% lương)" value="Nghỉ phép năm" />
+            <el-option label="Nghỉ không hưởng lương" value="Nghỉ không lương" />
+            <el-option label="Nghỉ ốm / Khám bệnh (BHXH chi trả)" value="Nghỉ ốm" />
+            <el-option label="Nghỉ thai sản (BHXH chi trả)" value="Nghỉ thai sản" />
+            <el-option label="Nghỉ việc riêng (Hiếu, hỉ - Có lương)" value="Nghỉ việc riêng" />
           </el-select>
         </el-form-item>
+
         <el-form-item label="Thời gian xin nghỉ">
           <el-date-picker v-model="formLeave.dateRange" type="daterange" range-separator="Đến" start-placeholder="Ngày bắt đầu" end-placeholder="Ngày đi làm lại" format="DD/MM/YYYY" value-format="YYYY-MM-DD" class="!w-full" />
         </el-form-item>
+
         <el-form-item label="Lý do chi tiết">
           <el-input v-model="formLeave.lyDo" type="textarea" :rows="3" placeholder="Ghi rõ lý do để Quản lý dễ duyệt..." />
         </el-form-item>
       </el-form>
+  
       <template #footer>
         <el-button @click="dialogLeaveVisible = false">Hủy</el-button>
         <el-button type="primary" @click="submitLeave" class="font-bold">GỬI ĐƠN</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="dialogPayslipVisible" :title="`PHIẾU LƯƠNG THÁNG ${selectedPayslip?.thang}/${selectedPayslip?.nam}`" width="600px" class="custom-dialog payslip-dialog">
-      <div v-if="selectedPayslip" class="p-2 space-y-4">
+    <el-dialog v-model="dialogPayslipVisible" :title="`CHI TIẾT PHIẾU LƯƠNG THÁNG ${selectedPayslip?.thang}/${selectedPayslip?.nam}`" width="650px" class="custom-dialog payslip-dialog">
+      <div v-if="selectedPayslip" class="p-2 space-y-5">
+        
         <div class="text-center border-b border-dashed border-slate-300 pb-4">
-          <h2 class="font-black text-xl text-slate-800 uppercase">Laptop Store ERP</h2>
-          <p class="text-sm text-slate-500">Phiếu Lương Cá Nhân - Bảo Mật</p>
-          <div class="mt-4 text-left bg-slate-50 p-3 rounded-lg flex justify-between">
+          <h2 class="font-black text-2xl text-slate-800 uppercase tracking-wide">Laptop Store ERP</h2>
+          <p class="text-sm text-slate-500 mt-1">Phiếu Lương Cá Nhân - Bảo Mật</p>
+          
+          <div class="mt-5 text-left bg-gradient-to-r from-slate-50 to-blue-50/30 p-4 rounded-xl flex justify-between items-center border border-slate-100">
             <div>
-              <p class="font-bold text-slate-800">{{ currentUser.hoTen }}</p>
-              <p class="text-xs text-slate-500">Mã NV: {{ currentUser.maNhanVien }} • {{ currentUser.tenChucVu }}</p>
+              <p class="font-bold text-lg text-slate-800">{{ currentUser.hoTen }}</p>
+              <p class="text-sm text-slate-500 mt-0.5">Mã NV: <span class="font-semibold text-slate-700">{{ currentUser.maNhanVien }}</span> • {{ currentUser.tenChucVu }}</p>
             </div>
             <div class="text-right">
-              <p class="text-xs text-slate-500">Công chuẩn: <span class="font-bold text-slate-800">{{ selectedPayslip.soGioLamBinhThuong }}h</span></p>
-              <p class="text-xs text-slate-500">Tăng ca: <span class="font-bold text-slate-800">{{ selectedPayslip.soGioTangCa }}h</span></p>
+              <p class="text-xs text-slate-500 mb-1">Mức lương cơ sở:</p>
+              <p class="text-lg font-bold text-blue-600">{{ formatPrice(selectedPayslip.luongTheoGio) }}/h</p>
             </div>
           </div>
         </div>
-        <div class="space-y-2 text-sm">
-          <div class="flex justify-between py-1"><span class="text-slate-600">Lương cơ bản:</span> <span class="font-semibold">{{ formatPrice(selectedPayslip.luongCoBan) }}</span></div>
-          <div class="flex justify-between py-1"><span class="text-slate-600">Tiền tăng ca:</span> <span class="font-semibold">{{ formatPrice(selectedPayslip.tongTienTangCa) }}</span></div>
-          <div class="flex justify-between py-1"><span class="text-slate-600">Phụ cấp chức vụ:</span> <span class="font-semibold">{{ formatPrice(selectedPayslip.phuCapChucVu) }}</span></div>
-          <div class="flex justify-between py-1"><span class="text-slate-600">Phụ cấp khác (Cơm, Xe):</span> <span class="font-semibold">{{ formatPrice(selectedPayslip.phuCapKhac) }}</span></div>
-          <div class="border-t border-slate-100 my-2"></div>
-          <div class="flex justify-between py-1 text-rose-600"><span class="">Trừ phạt đi trễ:</span> <span class="font-semibold">- {{ formatPrice(selectedPayslip.tongTienPhat) }}</span></div>
-          <div class="flex justify-between py-1 text-rose-600"><span class="">Trừ Bảo hiểm (XH, YT):</span> <span class="font-semibold">- {{ formatPrice(selectedPayslip.truBaoHiem) }}</span></div>
+
+        <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+          <h3 class="font-bold text-emerald-800 border-b border-emerald-200 pb-2 mb-3 flex items-center gap-2">
+            <el-icon><Plus /></el-icon> 1. CÁC KHOẢN THU NHẬP 
+          </h3>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="text-slate-700 font-semibold text-sm">Lương hành chính</p>
+                <p class="text-xs text-slate-500 italic mt-0.5">Công thức: {{ selectedPayslip.soGioLamBinhThuong }}h × {{ formatPrice(selectedPayslip.luongTheoGio) }}</p>
+              </div>
+              <span class="font-bold text-slate-800">{{ formatPrice(selectedPayslip.luongCoBan) }}</span>
+            </div>
+            
+            <div class="flex justify-between items-center" v-if="selectedPayslip.soGioTangCa > 0">
+              <div>
+                <p class="text-slate-700 font-semibold text-sm">Tiền tăng ca (OT)</p>
+                <p class="text-xs text-slate-500 italic mt-0.5">Công thức: {{ selectedPayslip.soGioTangCa }}h × {{ formatPrice(selectedPayslip.luongTheoGio) }} × {{ selectedPayslip.heSoTangCa }} (Hệ số)</p>
+              </div>
+              <span class="font-bold text-emerald-600">+ {{ formatPrice(selectedPayslip.tongTienTangCa) }}</span>
+            </div>
+
+            <div class="flex justify-between items-center" v-if="selectedPayslip.phuCapChucVu > 0">
+              <p class="text-slate-700 font-semibold text-sm">Phụ cấp chức vụ</p>
+              <span class="font-bold text-emerald-600">+ {{ formatPrice(selectedPayslip.phuCapChucVu) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <p class="text-slate-700 font-semibold text-sm">Phụ cấp cố định (Cơm, Xăng xe)</p>
+              <span class="font-bold text-emerald-600">+ {{ formatPrice(selectedPayslip.phuCapKhac) }}</span>
+            </div>
+            <div class="flex justify-between items-center" v-if="selectedPayslip.thuong > 0">
+              <p class="text-slate-700 font-semibold text-sm">Thưởng ngoại lệ</p>
+              <span class="font-bold text-emerald-600">+ {{ formatPrice(selectedPayslip.thuong) }}</span>
+            </div>
+          </div>
         </div>
-        <div class="border-t-2 border-slate-800 pt-4 mt-4 flex justify-between items-center">
-          <span class="font-bold text-slate-800 text-lg">THỰC LÃNH:</span>
-          <span class="font-black text-blue-600 text-2xl">{{ formatPrice(selectedPayslip.thucLanh) }}</span>
+
+        <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-100">
+          <h3 class="font-bold text-rose-800 border-b border-rose-200 pb-2 mb-3 flex items-center gap-2">
+            <el-icon><Minus /></el-icon> 2. CÁC KHOẢN KHẤU TRỪ
+          </h3>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="text-slate-700 font-semibold text-sm">Phạt đi trễ</p>
+                <p class="text-xs text-rose-500 italic mt-0.5" v-if="selectedPayslip.soPhutDiTre > 0">
+                  Công thức: {{ selectedPayslip.soPhutDiTre }} phút × {{ formatPrice(selectedPayslip.tienPhatDiTre) }}
+                </p>
+                <p class="text-xs text-emerald-500 italic mt-0.5" v-else>Không có vi phạm</p>
+              </div>
+              <span class="font-bold text-rose-600" v-if="selectedPayslip.tongTienPhat > 0">- {{ formatPrice(selectedPayslip.tongTienPhat) }}</span>
+              <span class="font-bold text-slate-400" v-else>0 ₫</span>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="text-slate-700 font-semibold text-sm">Khấu trừ Bảo hiểm (BHXH, BHYT)</p>
+                <p class="text-xs text-slate-500 italic mt-0.5">Trích % theo mức lương cơ sở quy định</p>
+              </div>
+              <span class="font-bold text-rose-600">- {{ formatPrice(selectedPayslip.truBaoHiem) }}</span>
+            </div>
+          </div>
         </div>
+
+        <div class="bg-blue-600 p-5 rounded-xl text-white mt-4 flex justify-between items-center shadow-md shadow-blue-500/30">
+          <div>
+            <p class="text-blue-100 text-sm font-medium">TỔNG TIỀN THỰC LÃNH</p>
+            <p class="text-xs text-blue-200 mt-1 italic">(Đã làm tròn và trừ các khoản thuế/phí)</p>
+          </div>
+          <span class="font-black text-3xl">{{ formatPrice(selectedPayslip.thucLanh) }}</span>
+        </div>
+        
       </div>
     </el-dialog>
 
@@ -242,112 +307,250 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { User, Medal, Calendar, Key, Money, DocumentAdd, CircleCheck, Warning, Remove } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import api from '../../services/api';
 
-// --- MOCK DATA ---
-const currentUser = ref({
-  maNhanVien: 2, hoTen: 'Trần Thị Sales', tenChucVu: 'Nhân viên Bán hàng',
-  sdt: '0988123456', email: 'sales.tran@laptopstore.com', diaChi: 'Quận 1, TP.HCM', ngayVaoLam: '2025-01-15',
-});
+// --- STATE QUẢN LÝ TÀI KHOẢN ---
+const currentUser = ref({});
+const activeTab = ref('attendance');
 
-// THÊM DATA THÁNG 2 ĐỂ TEST CHỨC NĂNG LỌC
-const myAttendance = ref([
-  { ngayLamViec: '2026-02-28', gioVao: '07:58:00', gioRa: '17:00:00', soGioLam: 8, trangThai: 'Đi làm' }, // T2
-  { ngayLamViec: '2026-03-24', gioVao: '07:55:00', gioRa: '17:05:00', soGioLam: 8, trangThai: 'Đi làm' }, // T3 Đúng giờ
-  { ngayLamViec: '2026-03-25', gioVao: '08:15:00', gioRa: '17:00:00', soGioLam: 7.7, trangThai: 'Đi làm' }, // T3 Đi trễ
-  { ngayLamViec: '2026-03-26', gioVao: null, gioRa: null, soGioLam: 0, trangThai: 'Nghỉ phép' }, // T3 Nghỉ phép
-]);
-
-const myPayslips = ref([
-  { maLuong: 202, thang: 2, nam: 2026, luongCoBan: 4875000, soGioLamBinhThuong: 195, soGioTangCa: 5, tongTienTangCa: 187500, phuCapChucVu: 0, phuCapKhac: 1030000, tongTienPhat: 60000, truBaoHiem: 444600, thucLanh: 5587900 },
-  { maLuong: 102, thang: 1, nam: 2026, luongCoBan: 5000000, soGioLamBinhThuong: 200, soGioTangCa: 0, tongTienTangCa: 0, phuCapChucVu: 0, phuCapKhac: 1030000, tongTienPhat: 0, truBaoHiem: 444600, thucLanh: 5585400 }
-]);
-
-const myLeaves = ref([
-  { maDon: 1, loaiDon: 'Nghỉ phép', ngayBatDau: '2026-03-26', ngayKetThuc: '2026-03-26', lyDo: 'Nhà có việc gia đình đột xuất', trangThai: 'Đã duyệt' },
-  { maDon: 2, loaiDon: 'Nghỉ ốm', ngayBatDau: '2026-04-05', ngayKetThuc: '2026-04-06', lyDo: 'Sốt xuất huyết, có giấy viện', trangThai: 'Chờ duyệt' },
-]);
-
-// --- STATE MỚI ---
-const activeTab = ref('attendance'); // Đổi tab mặc định qua Lịch sử để bạn dễ test
-const selectedAttendanceMonth = ref('2026-03'); // Tháng mặc định
-
+// Form Đổi thông tin
 const updatingInfo = ref(false);
-const formProfile = ref({ sdt: currentUser.value.sdt, email: currentUser.value.email, diaChi: currentUser.value.diaChi });
+const formProfile = ref({ sdt: '', email: '', diaChi: '' });
 
+// Form Đổi mật khẩu
 const changingPass = ref(false);
 const formPassword = ref({ oldPass: '', newPass: '', confirmPass: '' });
 
-const dialogLeaveVisible = ref(false);
-const formLeave = ref({ loaiDon: 'Nghỉ phép', dateRange: [], lyDo: '' });
+// State cho các Tab khác
+const myAttendance = ref([]);
+const selectedAttendanceMonth = ref(''); // Sẽ tự set là tháng hiện tại khi mounted
 
+const myPayslips = ref([]);
 const dialogPayslipVisible = ref(false);
 const selectedPayslip = ref(null);
 
+const myLeaves = ref([]);
+const dialogLeaveVisible = ref(false);
+const formLeave = ref({ loaiDon: 'Nghỉ phép năm', dateRange: [], lyDo: '' });
 
-// --- LOGIC LỌC THÁNG VÀ XỬ LÝ TRẠNG THÁI (ĐÃ FIX) ---
+// ==========================================
+// 1. TẢI DỮ LIỆU BAN ĐẦU
+// ==========================================
+const loadAllData = async () => {
+  try {
+    // A. Lấy thông tin cá nhân
+    const resProfile = await api.get('/hr/profile/me');
+    const profileData = resProfile.data?.data || resProfile.data;
+    currentUser.value = profileData;
+    formProfile.value = { sdt: profileData.sdt, email: profileData.email, diaChi: profileData.diaChi };
 
-// 1. Hàm tính toán trạng thái CHÍNH XÁC dựa vào giờ vào
-const getResolvedStatus = (row) => {
-  if (row.trangThai !== 'Đi làm') return row.trangThai; // Nếu là Nghỉ phép, Nghỉ ốm thì giữ nguyên
-  
-  // Nếu là "Đi làm" thì xét giờ
-  if (row.gioVao && row.gioVao > '08:00:00') {
-    return 'Đi trễ';
+    // Set mặc định tháng chấm công là tháng hiện tại
+    const today = new Date();
+    selectedAttendanceMonth.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    // Tải các phần khác
+    await fetchAttendance();
+    await fetchPayslips();
+    await fetchLeaves();
+
+  } catch (error) {
+    console.error("Lỗi tải Profile:", error);
+    ElMessage.error('Không thể tải dữ liệu cá nhân');
   }
+};
+
+onMounted(() => {
+  loadAllData();
+});
+
+
+// ==========================================
+// 2. TAB THÔNG TIN & BẢO MẬT
+// ==========================================
+const updateProfile = async () => {
+  updatingInfo.value = true;
+  try {
+    const res = await api.put('/hr/profile/update-info', formProfile.value);
+    if (res.data?.success || res.success) {
+      ElMessage.success('Cập nhật thông tin thành công!');
+      // Cập nhật lại UI tạm thời
+      currentUser.value.sdt = formProfile.value.sdt;
+      currentUser.value.email = formProfile.value.email;
+      currentUser.value.diaChi = formProfile.value.diaChi;
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi cập nhật');
+  } finally {
+    updatingInfo.value = false;
+  }
+};
+
+const changePassword = async () => {
+  if (formPassword.value.newPass.length < 6) {
+    ElMessage.error('Mật khẩu mới phải từ 6 ký tự!'); return;
+  }
+  if (formPassword.value.newPass !== formPassword.value.confirmPass) {
+    ElMessage.error('Mật khẩu xác nhận không khớp!'); return;
+  }
+  
+  changingPass.value = true;
+  try {
+    const res = await api.put('/hr/profile/change-password', {
+      oldPass: formPassword.value.oldPass,
+      newPass: formPassword.value.newPass
+    });
+    if (res.data?.success || res.success) {
+      ElMessage.success('Đổi mật khẩu thành công!');
+      formPassword.value = { oldPass: '', newPass: '', confirmPass: '' };
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi đổi mật khẩu');
+  } finally {
+    changingPass.value = false;
+  }
+};
+
+
+// ==========================================
+// 3. TAB LỊCH SỬ CHẤM CÔNG
+// ==========================================
+const fetchAttendance = async () => {
+  if (!selectedAttendanceMonth.value) return;
+  const [nam, thang] = selectedAttendanceMonth.value.split('-');
+  
+  try {
+    // Gọi API bạn đã có: getLichSuChamCong
+    const res = await api.get(`/hr/chamcong?thang=${thang}&nam=${nam}&maNhanVien=${currentUser.value.maNhanVien}`);
+    
+    // Bóc tách lưới 3 lớp (chuẩn như mình đã làm ở trang trước)
+    let ds = [];
+    const raw = res.data || res;
+    if (raw?.data?.data && Array.isArray(raw.data.data)) ds = raw.data.data;
+    else if (raw?.data && Array.isArray(raw.data)) ds = raw.data;
+    else if (Array.isArray(raw)) ds = raw;
+    
+    myAttendance.value = ds;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+// Gọi lại API chấm công khi user đổi tháng
+watch(selectedAttendanceMonth, () => {
+  fetchAttendance();
+});
+
+const getResolvedStatus = (row) => {
+  if (row.trangThai !== 'Đi làm') return row.trangThai;
+  if (row.gioVao && row.gioVao > '08:00:00') return 'Đi trễ';
   return 'Đi làm (Đúng giờ)';
 };
 
-// 2. Hàm gán màu thẻ Tag theo trạng thái đã được Resolve
-const getAttendanceTagColor = (resolvedStatus) => {
-  if (resolvedStatus === 'Đi làm (Đúng giờ)') return 'success';
-  if (resolvedStatus === 'Đi trễ') return 'warning';
-  return 'info'; // Các loại nghỉ
+// --- LOGIC LỌC THÁNG VÀ XỬ LÝ TRẠNG THÁI (ĐÃ FIX CHUẨN) ---
+
+// 1. Hàm gán màu thẻ Tag dựa vào giờ vào thực tế
+const getAttendanceTagColor = (row) => {
+  if (!row.gioVao) return 'info'; // Không có giờ vào -> Các loại Nghỉ (Màu xám)
+  if (row.gioVao > '08:00:00') return 'warning'; // Trễ (Màu cam)
+  return 'success'; // Đúng giờ (Màu xanh)
 };
 
-// 3. Computed Lọc dữ liệu theo Tháng đã chọn
+// 2. Computed Lọc dữ liệu theo Tháng đã chọn
 const filteredAttendance = computed(() => {
   return myAttendance.value.filter(a => a.ngayLamViec.startsWith(selectedAttendanceMonth.value));
 });
 
-// 4. Hàm đếm số lượng thống kê trên thẻ
+// 3. Hàm đếm số lượng thống kê trên thẻ (Đếm cực chuẩn)
 const countAttendanceStatus = (type) => {
   return filteredAttendance.value.filter(a => {
-    const status = getResolvedStatus(a);
-    if (type === 'Đúng giờ') return status === 'Đi làm (Đúng giờ)';
-    if (type === 'Đi trễ') return status === 'Đi trễ';
-    if (type === 'Nghỉ') return status !== 'Đi làm (Đúng giờ)' && status !== 'Đi trễ';
+    const hasCheckedIn = !!a.gioVao; // Biến boolean kiểm tra xem có đi làm không
+    
+    if (type === 'Đúng giờ') return hasCheckedIn && a.gioVao <= '08:00:00';
+    if (type === 'Đi trễ') return hasCheckedIn && a.gioVao > '08:00:00';
+    if (type === 'Nghỉ') return !hasCheckedIn; // Không có giờ vào chắc chắn là nghỉ
   }).length;
 };
 
 
-// --- CÁC METHODS CŨ ---
+// ==========================================
+// 4. TAB PHIẾU LƯƠNG
+// ==========================================
+const fetchPayslips = async () => {
+  try {
+    const res = await api.get(`/hr/luong/${currentUser.value.maNhanVien}`);
+    const raw = res.data || res;
+    let ds = [];
+    if (raw?.data?.data && Array.isArray(raw.data.data)) ds = raw.data.data;
+    else if (raw?.data && Array.isArray(raw.data)) ds = raw.data;
+    else if (Array.isArray(raw)) ds = raw;
+    
+    myPayslips.value = ds;
+  } catch (error) {
+    console.error(error);
+  }
+};
+const openPayslipDetail = (slip) => { selectedPayslip.value = slip; dialogPayslipVisible.value = true; };
+
+
+// ==========================================
+// 5. TAB GỬI ĐƠN TỪ
+// ==========================================
+const fetchLeaves = async () => {
+  try {
+    const res = await api.get('/hr/dontu/canhan');
+    const raw = res.data || res;
+    let ds = [];
+    if (raw?.data?.data && Array.isArray(raw.data.data)) ds = raw.data.data;
+    else if (raw?.data && Array.isArray(raw.data)) ds = raw.data;
+    else if (Array.isArray(raw)) ds = raw;
+    
+    myLeaves.value = ds;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const submitLeave = async () => {
+  if (!formLeave.value.dateRange || formLeave.value.dateRange.length === 0) { ElMessage.error('Vui lòng chọn thời gian!'); return; }
+  
+  try {
+    const payload = {
+      loaiDon: formLeave.value.loaiDon,
+      ngayBatDau: formLeave.value.dateRange[0],
+      ngayKetThuc: formLeave.value.dateRange[1],
+      lyDo: formLeave.value.lyDo
+    };
+    const res = await api.post('/hr/dontu', payload);
+    if (res.data?.success || res.success) {
+      ElMessage.success('Gửi đơn xin nghỉ thành công!');
+      dialogLeaveVisible.value = false; 
+      formLeave.value = { loaiDon: 'Nghỉ phép năm', dateRange: [], lyDo: '' };
+      fetchLeaves();
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi gửi đơn');
+  }
+};
+
+
+// ==========================================
+// TIỆN ÍCH DÙNG CHUNG
+// ==========================================
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 const formatDateVN = (dateStr) => {
   if (!dateStr) return '';
-  const parts = dateStr.split('-');
+  const parts = dateStr.split('T')[0].split('-');
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
 const getInitials = (name) => {
+  if (!name) return 'NV';
   const words = name.split(' ');
   return words.length > 1 ? words[words.length - 2][0] + words[words.length - 1][0] : name.substring(0, 2).toUpperCase();
 };
 const getLeaveStatusColor = (status) => status === 'Đã duyệt' ? 'success' : (status === 'Từ chối' ? 'danger' : 'warning');
-
-const updateProfile = () => { updatingInfo.value = true; setTimeout(() => { updatingInfo.value = false; ElMessage.success('Cập nhật thông tin thành công!'); }, 600); };
-const changePassword = () => { 
-  if (formPassword.value.newPass !== formPassword.value.confirmPass) { ElMessage.error('Mật khẩu xác nhận không khớp!'); return; }
-  changingPass.value = true; setTimeout(() => { changingPass.value = false; formPassword.value = { oldPass: '', newPass: '', confirmPass: '' }; ElMessage.success('Đổi mật khẩu thành công!'); }, 600); 
-};
-
-const submitLeave = () => {
-  if (!formLeave.value.dateRange || formLeave.value.dateRange.length === 0) { ElMessage.error('Vui lòng chọn thời gian!'); return; }
-  myLeaves.value.unshift({ maDon: Date.now(), loaiDon: formLeave.value.loaiDon, ngayBatDau: formLeave.value.dateRange[0], ngayKetThuc: formLeave.value.dateRange[1], lyDo: formLeave.value.lyDo, trangThai: 'Chờ duyệt' });
-  dialogLeaveVisible.value = false; formLeave.value = { loaiDon: 'Nghỉ phép', dateRange: [], lyDo: '' }; ElMessage.success('Gửi đơn xin nghỉ thành công!');
-};
-const openPayslipDetail = (slip) => { selectedPayslip.value = slip; dialogPayslipVisible.value = true; };
 </script>
 
 <style scoped>

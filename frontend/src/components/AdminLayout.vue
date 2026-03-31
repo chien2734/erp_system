@@ -55,6 +55,7 @@
                 <el-menu-item index="/hr/attendance">Quản lý chấm công</el-menu-item>
                 <el-menu-item index="/hr/payroll">Bảng tính lương</el-menu-item>
                 <el-menu-item index="/hr/leaves">Quản lý Đơn từ</el-menu-item>
+                <el-menu-item index="/hr/positions" v-if="[1].includes(authStore.getUserRole)">Quản lý Chức vụ</el-menu-item>
             </el-sub-menu>
 
             <el-menu-item index="/settings" v-if="authStore.getUserRole === 1">

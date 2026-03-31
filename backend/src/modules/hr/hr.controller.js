@@ -1,6 +1,54 @@
 const HrModel = require('./hr.model');
 
 const HrController = {
+    // ==========================================
+    // PHẦN PROFILE CÁ NHÂN (Cho người đăng nhập)
+    // ==========================================
+
+    getProfile: async (req, res) => {
+        try {
+            const maNhanVien = req.user.maNhanVien;
+            const data = await HrModel.getNhanVienById(maNhanVien);
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi lấy thông tin cá nhân' });
+        }
+    },
+
+    updateProfileInfo: async (req, res) => {
+        try {
+            const maNhanVien = req.user.maNhanVien;
+            const { sdt, email, diaChi } = req.body;
+            
+            // Viết 1 hàm update nhỏ gọn trong Model để chỉ sửa 3 cột này
+            const sql = `UPDATE nhanvien SET sdt = ?, email = ?, diaChi = ? WHERE maNhanVien = ?`;
+            await db.query(sql, [sdt, email, diaChi, maNhanVien]);
+            
+            res.status(200).json({ success: true, message: 'Đã cập nhật thông tin liên hệ!' });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi khi cập nhật thông tin' });
+        }
+    },
+
+    changePassword: async (req, res) => {
+        try {
+            const maNhanVien = req.user.maNhanVien;
+            const { oldPass, newPass } = req.body;
+
+            // Kiểm tra pass cũ
+            const [user] = await db.query(`SELECT matKhau FROM nhanvien WHERE maNhanVien = ?`, [maNhanVien]);
+            if (user[0].matKhau !== oldPass) {
+                return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng!' });
+            }
+
+            // Lưu pass mới
+            await db.query(`UPDATE nhanvien SET matKhau = ? WHERE maNhanVien = ?`, [newPass, maNhanVien]);
+            res.status(200).json({ success: true, message: 'Đổi mật khẩu thành công!' });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi đổi mật khẩu' });
+        }
+    },
+    
     // Lay danh sach nhan vien
     getAll: async (req, res) => {
         try {
@@ -127,6 +175,58 @@ const HrController = {
                 success: false,
                 message: 'Lỗi máy chủ khi lấy danh sách chức vụ'
             });
+        }
+    },
+
+    // Thêm chức vụ mới
+    createChucVu: async (req, res) => {
+        try {
+            const { tenChucVu, luongTheoGio, phuCapTrachNhiem } = req.body;
+            if (!tenChucVu || !luongTheoGio) {
+                return res.status(400).json({ success: false, message: 'Vui lòng nhập tên chức vụ và lương theo giờ' });
+            }
+            await HrModel.createChucVu(req.body);
+            res.status(201).json({ success: true, message: 'Thêm chức vụ mới thành công' });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi tạo chức vụ' });
+        }
+    },
+
+    // Cập nhật chức vụ
+    updateChucVu: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { tenChucVu, luongTheoGio, phuCapTrachNhiem } = req.body;
+            if (!tenChucVu || !luongTheoGio) {
+                return res.status(400).json({ success: false, message: 'Vui lòng nhập tên chức vụ và lương theo giờ' });
+            }
+            const affectedRows = await HrModel.updateChucVu(id, req.body);
+            if (affectedRows === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy chức vụ' });
+            res.status(200).json({ success: true, message: 'Cập nhật chức vụ thành công' });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi cập nhật chức vụ' });
+        }
+    },
+
+    // Xóa chức vụ (Có bảo vệ Foreign Key)
+    deleteChucVu: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const affectedRows = await HrModel.deleteChucVu(id);
+            if (affectedRows === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy chức vụ' });
+            res.status(200).json({ success: true, message: 'Đã xóa chức vụ thành công' });
+        } catch (error) {
+            // Bắt lỗi MySQL: Nếu chức vụ đang có người làm, mã lỗi là 1451 (ER_ROW_IS_REFERENCED)
+            if (error.errno === 1451) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Không thể xóa! Đang có nhân viên giữ chức vụ này. Vui lòng chuyển chức vụ cho nhân viên trước.' 
+                });
+            }
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Lỗi khi xóa chức vụ' });
         }
     },
 
@@ -396,7 +496,6 @@ const HrController = {
     },
 
     // lay danh sach bang luong (Admin)
-    // lay danh sach bang luong (Admin)
     getBangLuong: async (req, res) => {
         try{
             const {thang, nam, maNhanVien, maChucVu} = req.query;
@@ -416,7 +515,7 @@ const HrController = {
         }      
     },
 
-    // Xem bang luong(User)
+    // Xem bang luong (User)
     xemLuong: async (req, res) => {
         try{
             const maNhanVien = req.params.id || req.user?.maNhanVien;
@@ -437,17 +536,24 @@ const HrController = {
     // --- LUỒNG NHÂN VIÊN ---
     createLeaveRequest: async (req, res) => {
         try {
-            const maNhanVien = req.user.maNhanVien; // Tự động lấy ID của người đang đăng nhập
+            const maNhanVien = req.user.maNhanVien; 
+            
             const { loaiDon, ngayBatDau, ngayKetThuc, lyDo } = req.body;
+
+            const validTypes = ['Nghỉ phép năm', 'Nghỉ không lương', 'Nghỉ ốm', 'Nghỉ thai sản', 'Nghỉ việc riêng'];
+            if (!validTypes.includes(loaiDon)) {
+                return res.status(400).json({ success: false, message: 'Loại đơn xin nghỉ không hợp lệ!' });
+            }
 
             if (!loaiDon || !ngayBatDau || !ngayKetThuc || !lyDo) {
                 return res.status(400).json({ success: false, message: 'Vui lòng điền đầy đủ thông tin đơn nghỉ phép' });
             }
-            // Có thể check thêm logic: ngayBatDau không được lớn hơn ngayKetThuc
             if (new Date(ngayBatDau) > new Date(ngayKetThuc)) {
                 return res.status(400).json({ success: false, message: 'Ngày bắt đầu không thể lớn hơn ngày kết thúc' });
             }
-            await HrModel.taoDonNghiPhep(maNhanVien, req.body);
+            
+            await HrModel.createLeaveRequest(maNhanVien, req.body);
+            
             res.status(201).json({ success: true, message: 'Đã gửi đơn xin nghỉ phép thành công. Vui lòng chờ quản lý duyệt!' });
         } catch (error) {
             console.log(error);

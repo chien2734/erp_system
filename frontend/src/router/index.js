@@ -87,9 +87,19 @@ const routes = [
             component: () => import('../modules/hr/DonTu.vue')
         },
         {
-            path: '/sales/customers', // Đã đổi theo ý bạn
+            path: '/sales/customers', 
             name: 'Quản lý Khách Hàng',
-            component: () => import('../modules/sales/KhachHang.vue') // Trỏ về thư mục sales
+            component: () => import('../modules/sales/KhachHang.vue')
+        },
+        {
+            path: '/hr/positions',
+            name: 'Quản lý Chức vụ', 
+            component: () => import('../modules/hr/ChucVu.vue'),
+            // meta: { 
+            // title: 'Quản lý Chức vụ',
+            // requiresAuth: true,
+            // role: 'Admin'
+            // }
         },
         // Các trang khác của phân hệ HR, Sales... sẽ khai báo thêm ở đây
         ],

@@ -37,9 +37,14 @@ const HrModel = {
             pagination: { page: Number(page), limit: Number(limit), totalRecords, totalPages: Math.ceil(totalRecords / limit) }
         };
     },
-    // Lấy chi tiết 1 nhân viên theo ID
+    // Lấy chi tiết 1 nhân viên theo ID 
     getNhanVienById: async (id) => {
-        const sql = `SELECT * FROM nhanvien WHERE maNhanVien = ?`;
+        const sql = `
+            SELECT nv.*, cv.tenChucVu 
+            FROM nhanvien nv
+            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            WHERE nv.maNhanVien = ?
+        `;
         const [rows] = await db.query(sql, [id]);
         return rows[0];
     },
@@ -185,7 +190,26 @@ const HrModel = {
         const [rows] = await db.query(sql);
         return rows;
     },
-    //=======================================
+
+    createChucVu: async (data) => {
+        const sql = `INSERT INTO chucvu (tenChucVu, luongTheoGio, phuCapTrachNhiem) VALUES (?, ?, ?)`;
+        const values = [data.tenChucVu, data.luongTheoGio, data.phuCapTrachNhiem || 0];
+        const [result] = await db.query(sql, values);
+        return result.insertId;
+    },
+
+    updateChucVu: async (id, data) => {
+        const sql = `UPDATE chucvu SET tenChucVu = ?, luongTheoGio = ?, phuCapTrachNhiem = ? WHERE maChucVu = ?`;
+        const values = [data.tenChucVu, data.luongTheoGio, data.phuCapTrachNhiem || 0, id];
+        const [result] = await db.query(sql, values);
+        return result.affectedRows;
+    },
+
+    deleteChucVu: async (id) => {
+        const sql = `DELETE FROM chucvu WHERE maChucVu = ?`;
+        const [result] = await db.query(sql, [id]);
+        return result.affectedRows;
+    },
 
     // ==============================================
     // PHẦN 3: CHẤM CÔNG & TIỀN LƯƠNG 
@@ -425,6 +449,27 @@ const HrModel = {
         }
     },
 
+    // Xem phiếu lương cá nhân (Dành cho trang Profile)
+    xemLuong: async (thang, nam, maNhanVien) => {
+        let sql = `
+            SELECT bl.*, nv.hoTen, cv.tenChucVu 
+            FROM bangluong bl
+            JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
+            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            WHERE bl.maNhanVien = ?
+        `;
+        let values = [maNhanVien];
+        
+        if (thang && nam) {
+            sql += ` AND bl.thang = ? AND bl.nam = ?`;
+            values.push(thang, nam);
+        }
+        sql += ` ORDER BY bl.nam DESC, bl.thang DESC`; // Sắp xếp lương mới nhất lên đầu
+        
+        const [rows] = await db.query(sql, values);
+        return rows;
+    },
+
     // Lấy bảng lương (Đã cập nhật LEFT JOIN để chống mất data)
     getBangLuong: async (filters) => {
         const { thang, nam, maNhanVien } = filters;
@@ -497,24 +542,21 @@ const HrModel = {
     // 3. Quản lý/HR: Xem toàn bộ đơn xin nghỉ của cả công ty (Có bộ lọc)
     getAllLeaveRequest: async (filters) => {
         const { trangThai, thang, nam } = filters;
+        
+        // 👉 ĐÃ SỬA: Chuyển toàn bộ thành LEFT JOIN để chống thất thoát dữ liệu
         let sql = `
             SELECT dt.*, nv.hoTen, cv.tenChucVu, nd.hoTen as tenNguoiDuyet
             FROM dontu dt
-            JOIN nhanvien nv ON dt.maNhanVien = nv.maNhanVien
-            JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN nhanvien nv ON dt.maNhanVien = nv.maNhanVien
+            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
             LEFT JOIN nhanvien nd ON dt.maNguoiDuyet = nd.maNhanVien
             WHERE 1=1
         `;
         let values = [];
 
-        if (trangThai) {
-            sql += ` AND dt.trangThai = ?`;
-            values.push(trangThai);
-        }
-        if (thang && nam) {
-            sql += ` AND MONTH(dt.ngayBatDau) = ? AND YEAR(dt.ngayBatDau) = ?`;
-            values.push(thang, nam);
-        }
+        if (trangThai) { sql += ` AND dt.trangThai = ?`; values.push(trangThai); }
+        if (thang && nam) { sql += ` AND MONTH(dt.ngayBatDau) = ? AND YEAR(dt.ngayBatDau) = ?`; values.push(thang, nam); }
+        
         sql += ` ORDER BY dt.ngayTao DESC`;
         const [rows] = await db.query(sql, values);
         return rows;
@@ -522,62 +564,70 @@ const HrModel = {
 
     // 4. Quản lý/HR: Duyệt hoặc Từ chối đơn (TÍCH HỢP TỰ ĐỘNG CHẤM CÔNG)
     handleLeaveRequest: async (maDon, trangThaiMoi, nguoiDuyet) => {
-        // Lấy một kết nối riêng biệt để chạy Transaction
         const connection = await db.getConnection(); 
 
         try {
-            // Bắt đầu khóa an toàn
             await connection.beginTransaction();
 
-            // BƯỚC 1: Cập nhật trạng thái duyệt vào bảng dontu
-            const sqlUpdateDon = `
-                UPDATE dontu
-                SET trangThai = ?, maNguoiDuyet = ? 
-                WHERE maDon = ?
-            `;
+            const sqlUpdateDon = `UPDATE dontu SET trangThai = ?, maNguoiDuyet = ? WHERE maDon = ?`;
             const [result] = await connection.query(sqlUpdateDon, [trangThaiMoi, nguoiDuyet, maDon]);
-            // BƯỚC 2: Nếu quản lý "Đã duyệt" -> Tự động sinh ra các ngày chấm công
+            
             if (trangThaiMoi === 'Đã duyệt') {
-                // 2.1: Lấy thông tin chi tiết của đơn này (Ai nghỉ, từ ngày nào đến ngày nào)
-                // Giả định bảng dontu của bạn có các cột: maNhanVien, tuNgay, denNgay, loaiDon
                 const sqlGetDon = `SELECT maNhanVien, ngayBatDau, ngayKetThuc, loaiDon FROM dontu WHERE maDon = ?`;
                 const [donInfo] = await connection.query(sqlGetDon, [maDon]);
 
                 if (donInfo.length > 0) {
-                    const { maNhanVien, tuNgay, denNgay, loaiDon } = donInfo[0];
-                    // 2.2: Dùng vòng lặp duyệt qua từng ngày từ 'tuNgay' đến 'denNgay'
-                    let currentDate = new Date(tuNgay);
-                    const endDate = new Date(denNgay);
+                    const { maNhanVien, ngayBatDau, ngayKetThuc, loaiDon } = donInfo[0]; 
+                    
+                    let currentDate = new Date(ngayBatDau);
+                    const endDate = new Date(ngayKetThuc);
+                    
+                    // Bất chấp Node.js hay MySQL bị lệch múi giờ, +- 7 tiếng vẫn nằm gọn trong cùng 1 ngày!
+                    currentDate.setHours(12, 0, 0, 0);
+                    endDate.setHours(12, 0, 0, 0);
+                    
                     while (currentDate <= endDate) {
-                        // Cắt lấy chuỗi YYYY-MM-DD chuẩn của MySQL
-                        const dateString = currentDate.toISOString().split('T')[0];
-                        const trangThaiNghi = `Nghỉ có phép`;
-                        // 2.3: Chèn vào bảng chamcong. 
-                        // Dùng ON DUPLICATE KEY UPDATE để lỡ nhân viên sáng check-in rồi trưa xin nghỉ ốm về thì hệ thống sẽ ghi đè lại trạng thái.
+                        // Tự build chuỗi YYYY-MM-DD an toàn tuyệt đối
+                        const y = currentDate.getFullYear();
+                        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+                        const d = String(currentDate.getDate()).padStart(2, '0');
+                        const dateString = `${y}-${m}-${d}`;
+                        
+                        // Lấy trạng thái là tên loại đơn (Nghỉ phép năm, Nghỉ ốm...)
+                        const trangThaiNghi = loaiDon;
+                        
+                        // Tính lương: Phép năm & Việc riêng được tính 8h, còn lại 0h
+                        let gioTinhLuong = 0;
+                        if (loaiDon === 'Nghỉ phép năm' || loaiDon === 'Nghỉ việc riêng') {
+                            gioTinhLuong = 8;
+                        }
+                        
+                        // Đẩy vào bảng chấm công
                         const sqlChamCong = `
-                            INSERT INTO chamcong (maNhanVien, ngayLamViec, trangThai) 
-                            VALUES (?, ?, ?)
-                            ON DUPLICATE KEY UPDATE trangThai = ?
+                            INSERT INTO chamcong (maNhanVien, ngayLamViec, trangThai, soGioLam) 
+                            VALUES (?, ?, ?, ?)
+                            ON DUPLICATE KEY UPDATE trangThai = ?, soGioLam = ?
                         `;
                         await connection.query(sqlChamCong, [
-                            maNhanVien, dateString, trangThaiNghi, 
-                            trangThaiNghi
+                            maNhanVien, dateString, trangThaiNghi, gioTinhLuong, 
+                            trangThaiNghi, gioTinhLuong
                         ]);
+                        
+                        // 👉 LƯU Ý TỐI QUAN TRỌNG: Lệnh cộng thêm 1 ngày PHẢI NẰM Ở CUỐI CÙNG
                         currentDate.setDate(currentDate.getDate() + 1);
                     }
                 }
             }
-            // Nếu mọi thứ trơn tru (Không có lỗi DB) -> Lưu vĩnh viễn
             await connection.commit();
             return result.affectedRows;
         } catch (error) {
-            // Có lỗi xảy ra -> Hủy bỏ, trả dữ liệu về như cũ, tránh sinh ra data rác
             await connection.rollback();
             throw error;
         } finally {
             connection.release();
         }
     },
+
     updateLeaveRequest: async (maDon, data) => {
         const sql = `
             UPDATE dontu
@@ -586,7 +636,7 @@ const HrModel = {
         `;
         const [result] = await db.query(sql, [data.ngayBatDau, data.ngayKetThuc, data.lyDo, maDon]);
         return result.affectedRows; 
-    }
+    },
     
 };
 
