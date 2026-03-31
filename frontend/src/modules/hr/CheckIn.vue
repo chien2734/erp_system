@@ -109,7 +109,6 @@ const fetchInitialData = async () => {
     const maNV = authStore.user?.maNhanVien || authStore.user?.id;
     if (maNV) {
       const profileRes = await api.get(`/hr/nhanvien/${maNV}`);
-      // API của bạn trả về { success: true, data: { ... } }
       employeeProfile.value = profileRes.data?.data || profileRes.data;
     }
 
@@ -118,25 +117,43 @@ const fetchInitialData = async () => {
     const thang = now.getMonth() + 1;
     const nam = now.getFullYear();
     
+    // Gọi API có truyền maNhanVien
     const attRes = await api.get(`/hr/chamcong?thang=${thang}&nam=${nam}&maNhanVien=${maNV}`);
-    let history = [];
-    if (Array.isArray(attRes)) history = attRes;
-    else if (Array.isArray(attRes.data)) history = attRes.data;
-    else if (Array.isArray(attRes.data?.data)) history = attRes.data.data;
     
+    // 👉 CẢI TIẾN 1: Quét mọi lớp vỏ dữ liệu (Giống hệt ChamCong.vue)
+    let history = [];
+    const resData = attRes.data || attRes; 
+    
+    if (resData?.data?.data && Array.isArray(resData.data.data)) {
+        history = resData.data.data;
+    } else if (resData?.data && Array.isArray(resData.data)) {
+        history = resData.data;
+    } else if (Array.isArray(resData)) {
+        history = resData;
+    }
+
+    // In log ra để kiểm tra xem Backend đã trả đúng dữ liệu chưa
+    console.log("Lịch sử CheckIn:", history);
+
+    // Tạo ngày hiện tại chuẩn YYYY-MM-DD
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
+    // 👉 ĐÃ FIX MÚI GIỜ: Khôi phục lại hàm new Date() để nó tự động +7 tiếng
     const todayRecord = history.find(item => {
         if (!item.ngayLamViec) return false;
-        // Xử lý cả trường hợp DB trả về chuỗi ISO hoặc Date object
-        const itemDateObj = new Date(item.ngayLamViec);
+        
+        // Truyền thẳng chuỗi có đuôi Z vào để nó tự bù giờ Việt Nam
+        const itemDateObj = new Date(item.ngayLamViec); 
         const iYear = itemDateObj.getFullYear();
         const iMonth = String(itemDateObj.getMonth() + 1).padStart(2, '0');
         const iDay = String(itemDateObj.getDate()).padStart(2, '0');
-        return `${iYear}-${iMonth}-${iDay}` === todayStr;
+        
+        const itemDateStr = `${iYear}-${iMonth}-${iDay}`;
+        
+        return itemDateStr === todayStr;
     });
 
     if (todayRecord) {
@@ -146,7 +163,7 @@ const fetchInitialData = async () => {
       };
     }
   } catch (error) {
-    console.error("Lỗi lấy dữ liệu:", error);
+    console.error("Lỗi lấy dữ liệu CheckIn:", error);
     ElMessage.error('Không thể tải thông tin ca làm việc!');
   } finally {
     pageLoading.value = false;

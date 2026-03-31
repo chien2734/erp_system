@@ -37,7 +37,11 @@
                     <el-icon><Box /></el-icon>
                     <span>Kho & Sản phẩm</span>
                 </template>
-                <el-menu-item index="/inventory/products">Danh mục Sản phẩm</el-menu-item>
+
+                <el-menu-item index="/inventory/products" v-if="[1, 2].includes(authStore.getUserRole)">
+                    Danh mục Sản phẩm
+                </el-menu-item>
+                
                 <el-menu-item index="/inventory/stock">Nhập kho</el-menu-item>
                 <el-menu-item index="/inventory/serial">Quản lý Serial</el-menu-item>
             </el-sub-menu>

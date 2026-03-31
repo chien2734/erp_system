@@ -25,7 +25,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" v-loading="fetching">
       <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
         <p class="text-sm text-slate-500 font-semibold mb-1">Tổng quỹ lương thực lãnh</p>
         <p class="text-2xl font-black text-blue-600">{{ formatPrice(totalThucLanh) }}</p>
@@ -45,13 +45,13 @@
             {{ isFinalized ? 'ĐÃ CHỐT SỔ' : 'ĐANG TÍNH TOÁN' }}
           </el-tag>
         </div>
-        <el-button v-if="!isFinalized" type="danger" @click="finalizePayroll" size="small" class="font-bold">
+        <el-button v-if="!isFinalized && payrollList.length > 0" type="danger" @click="finalizePayroll" size="small" class="font-bold">
           CHỐT LƯƠNG
         </el-button>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" v-loading="fetching">
       <el-table 
         :data="payrollList" 
         style="width: 100%" 
@@ -94,8 +94,8 @@
           </el-table-column>
           <el-table-column prop="phuCapKhac" label="PC Cố định & Thưởng" width="160" align="right">
             <template #default="scope">
-              <el-tooltip content="Gồm PC Cơm, Xăng xe (Cấu hình) + Thưởng thêm" placement="top">
-                <span>{{ formatPrice(scope.row.phuCapKhac) }}</span>
+              <el-tooltip content="Bao gồm: PC Cơm, Xăng xe + Tiền Thưởng ngoại lệ" placement="top">
+                <span class="text-emerald-600 font-semibold">{{ formatPrice(scope.row.phuCapKhac) }}</span>
               </el-tooltip>
             </template>
           </el-table-column>
@@ -103,13 +103,15 @@
 
         <el-table-column label="CÁC KHOẢN KHẤU TRƯ (-)" align="center">
           <el-table-column prop="tongTienPhat" label="Phạt đi trễ" width="120" align="right">
-            <template #default="scope"><span class="text-rose-500">{{ formatPrice(scope.row.tongTienPhat) }}</span></template>
+            <template #default="scope">
+              <el-tooltip :content="`Đi trễ tổng cộng ${scope.row.soPhutDiTre} phút`" placement="top">
+                <span class="text-rose-500 font-semibold">{{ formatPrice(scope.row.tongTienPhat) }}</span>
+              </el-tooltip>
+            </template>
           </el-table-column>
           <el-table-column prop="truBaoHiem" label="Trừ BHXH, YT" width="130" align="right">
             <template #default="scope">
-              <el-tooltip content="Dựa trên Lương cơ sở * %BH (Bảng Cấu hình)" placement="top">
-                <span class="text-rose-500">{{ formatPrice(scope.row.truBaoHiem) }}</span>
-              </el-tooltip>
+              <span class="text-rose-500">{{ formatPrice(scope.row.truBaoHiem) }}</span>
             </template>
           </el-table-column>
         </el-table-column>
@@ -133,7 +135,7 @@
     <el-dialog 
       v-model="dialogVisible" 
       title="ĐIỀU CHỈNH LƯƠNG NGOẠI LỆ" 
-      width="500px"
+      width="450px"
       destroy-on-close
       class="custom-dialog"
     >
@@ -141,15 +143,12 @@
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm mb-4">
           <p class="font-bold text-lg text-blue-600 mb-1">{{ editingRecord.hoTen }}</p>
           <p class="text-slate-500">Mã NV: {{ editingRecord.maNhanVien }}</p>
-          <p class="text-xs text-slate-400 mt-2 italic">Lưu ý: Các khoản cố định (BHXH, Ăn trưa, Phạt đi trễ) được hệ thống tự tính. Bạn chỉ nhập các khoản phát sinh ngoài quy định ở đây.</p>
+          <p class="text-xs text-slate-400 mt-2 italic">Lưu ý: Bạn chỉ được cấp quyền thêm tiền thưởng/truy lĩnh cho nhân viên.</p>
         </div>
 
         <el-form label-position="top">
           <el-form-item label="Thưởng thêm / Truy lĩnh (+)">
-            <el-input-number v-model="formEdit.thuongThem" :min="0" :step="100000" class="!w-full" controls-position="right" />
-          </el-form-item>
-          <el-form-item label="Khấu trừ khác / Truy thu (-)">
-            <el-input-number v-model="formEdit.truThem" :min="0" :step="50000" class="!w-full" controls-position="right" />
+            <el-input-number v-model="formEdit.thuong" :min="0" :step="100000" class="!w-full" controls-position="right" />
           </el-form-item>
         </el-form>
       </div>
@@ -157,7 +156,7 @@
       <template #footer>
         <div class="flex justify-end gap-3 pt-2">
           <el-button @click="dialogVisible = false">Hủy</el-button>
-          <el-button type="primary" @click="saveEdit" class="font-bold">LƯU ĐIỀU CHỈNH</el-button>
+          <el-button type="primary" @click="saveEdit" :loading="saving" class="font-bold">LƯU ĐIỀU CHỈNH</el-button>
         </div>
       </template>
     </el-dialog>
@@ -166,83 +165,143 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Refresh, Download, EditPen } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import api from '../../services/api'; // Đường dẫn API
 
 // --- STATE ---
-const selectedMonth = ref('2026-03');
-const loading = ref(false);
+const today = new Date();
+const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+const selectedMonth = ref(currentMonthStr);
+const loading = ref(false);     // Loading cho nút Tính toán lại
+const fetching = ref(false);    // Loading cho bảng
+const saving = ref(false);      // Loading cho nút Lưu Modal
 const isFinalized = ref(false);
 const dialogVisible = ref(false);
-const editingRecord = ref(null);
-const formEdit = ref({ thuongThem: 0, truThem: 0 });
 
-// --- MOCK DATABASE CẤU HÌNH (Rất quyền lực) ---
-const dbCauHinh = {
-  maCauHinh: 1,
-  tienPhatDiTre: 2000, // 2k/phút
-  heSoTangCa: 1.5,
-  luongCoSo: 4680000, // Lương cơ sở vùng
-  phanTramBHXH: 8.0,
-  phanTramBHYT: 1.5,
-  phuCapAnTrua: 730000,
-  phuCapXangXe: 300000
+const editingRecord = ref(null);
+const formEdit = ref({ thuong: 0 });
+
+// DATA TỪ BACKEND
+const payrollList = ref([]);
+
+// --- FETCH DATA (GET /hr/luong) ---
+const loadPayrollData = async () => {
+  fetching.value = true;
+  try {
+    const [year, month] = selectedMonth.value.split('-');
+    const res = await api.get(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
+    
+    // 🔴 CAMERA 1: IN RA CONSOLE TRÌNH DUYỆT ĐỂ XEM API TRẢ VỀ CÁI GÌ
+    console.log("Dữ liệu Lương từ Backend trả về:", res);
+
+    // Bóc tách data bọc thép (Chống mọi trường hợp undefined)
+    let dsBangLuong = [];
+    const resData = res.data || res;
+    
+    if (resData?.data?.data && Array.isArray(resData.data.data)) {
+        dsBangLuong = resData.data.data;
+    } else if (resData?.data && Array.isArray(resData.data)) {
+        dsBangLuong = resData.data;
+    } else if (Array.isArray(resData)) {
+        dsBangLuong = resData;
+    }
+
+    payrollList.value = dsBangLuong;
+    
+    // Kiểm tra trạng thái chốt sổ
+    if (payrollList.value.length > 0) {
+      isFinalized.value = payrollList.value[0].trangThai === 'Đã thanh toán';
+    } else {
+      isFinalized.value = false;
+    }
+
+  } catch (error) {
+    console.error("Lỗi lấy bảng lương:", error);
+    ElMessage.error('Lỗi tải dữ liệu bảng lương!');
+  } finally {
+    fetching.value = false;
+  }
 };
 
-// --- MOCK DATABASE BẢNG LƯƠNG ---
-// Dữ liệu thô lấy từ các bảng NhanVien, ChucVu, ChamCong. Chưa qua tính toán.
-const dbBangLuong = ref([
-  {
-    maNhanVien: 1, hoTen: 'Nguyễn Văn Admin', tenChucVu: 'Quản lý Cửa hàng',
-    luongTheoGio: 40000, soGioLamBinhThuong: 200, soGioTangCa: 10, soPhutDiTre: 30,
-    phuCapChucVu: 2000000, thuongThem: 0, truThem: 0 // Dành cho Dialog chỉnh sửa
-  },
-  {
-    maNhanVien: 2, hoTen: 'Trần Thị Sales', tenChucVu: 'Nhân viên Bán hàng',
-    luongTheoGio: 25000, soGioLamBinhThuong: 195, soGioTangCa: 5, soPhutDiTre: 120,
-    phuCapChucVu: 0, thuongThem: 500000, truThem: 0
-  }
-]);
-
-// --- COMPUTED: TÍNH TOÁN DỰA TRÊN BẢNG CẤU HÌNH ---
-const payrollList = computed(() => {
-  return dbBangLuong.value.map(nv => {
-    // 1. Lương Cơ Bản
-    const luongCoBan = nv.luongTheoGio * nv.soGioLamBinhThuong;
-    
-    // 2. Tăng ca (Quy chiếu Cấu hình)
-    const tongTienTangCa = nv.soGioTangCa * (nv.luongTheoGio * dbCauHinh.heSoTangCa);
-    
-    // 3. Phạt đi trễ (Quy chiếu Cấu hình)
-    const tongTienPhat = nv.soPhutDiTre * dbCauHinh.tienPhatDiTre;
-
-    // 4. Phụ cấp cố định + Thưởng thêm
-    const phuCapCoDinh = dbCauHinh.phuCapAnTrua + dbCauHinh.phuCapXangXe;
-    const phuCapKhac = phuCapCoDinh + nv.thuongThem;
-
-    // 5. Trừ Bảo Hiểm (Lương cơ sở * (BHXH + BHYT) / 100) + Trừ thêm
-    const baoHiemCoDinh = dbCauHinh.luongCoSo * ((dbCauHinh.phanTramBHXH + dbCauHinh.phanTramBHYT) / 100);
-    const truBaoHiem = baoHiemCoDinh + nv.truThem;
-
-    // 6. Thực lãnh chốt
-    const thucLanh = (luongCoBan + tongTienTangCa + nv.phuCapChucVu + phuCapKhac) - (tongTienPhat + truBaoHiem);
-
-    return {
-      ...nv,
-      luongCoBan, tongTienTangCa, tongTienPhat, phuCapKhac, truBaoHiem, thucLanh
-    };
-  });
+// Gọi ngay khi load trang
+onMounted(() => {
+  loadPayrollData();
 });
 
-// Các biến cho thẻ Thống kê tổng quan
-const totalThucLanh = computed(() => payrollList.value.reduce((sum, item) => sum + item.thucLanh, 0));
-const totalPhuCap = computed(() => payrollList.value.reduce((sum, item) => sum + item.phuCapChucVu + item.phuCapKhac, 0));
-const totalKhauTru = computed(() => payrollList.value.reduce((sum, item) => sum + item.tongTienPhat + item.truBaoHiem, 0));
+// Tự động load lại nếu đổi tháng
+watch(selectedMonth, () => {
+  loadPayrollData();
+});
 
-// --- METHODS ---
+// --- API ACTIONS ---
+
+// 1. Nút "TÍNH TOÁN LẠI" (POST /hr/luong)
+const calculatePayroll = async () => {
+  loading.value = true;
+  try {
+    const [year, month] = selectedMonth.value.split('-');
+    
+    // Gọi API chốt lương của Backend
+    const res = await api.post(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
+    const responseData = res.data || res;
+
+    if (responseData.success) {
+      ElMessage.success(responseData.message || 'Đã tính toán xong bảng lương!');
+      await loadPayrollData(); // Gọi lại GET để cập nhật UI
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi hệ thống khi tính lương!');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 2. Mở Modal & Lưu Tiền Thưởng (PUT /hr/luong-thuong)
+const openEditModal = (row) => {
+  editingRecord.value = row;
+  formEdit.value = { thuong: row.thuong || 0 }; // Map đúng biến thuong của DB
+  dialogVisible.value = true;
+};
+
+const saveEdit = async () => {
+  saving.value = true;
+  try {
+    const [year, month] = selectedMonth.value.split('-');
+    
+    // Cấu trúc payload theo đúng Controller Backend của bạn
+    const payload = {
+      thang: parseInt(month),
+      nam: parseInt(year),
+      dsNhanVien: [editingRecord.value.maNhanVien], // Đưa vào mảng
+      thuong: formEdit.value.thuong
+    };
+
+    const res = await api.put('/hr/luong-thuong', payload);
+    const responseData = res.data || res;
+
+    if (responseData.success) {
+      ElMessage.success('Đã cập nhật tiền thưởng thành công!');
+      dialogVisible.value = false;
+      await loadPayrollData(); // Load lại data để thấy tiền Thực Lãnh thay đổi
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi khi lưu tiền thưởng!');
+  } finally {
+    saving.value = false;
+  }
+};
+
+// --- THỐNG KÊ (Dựa trên mảng payrollList lấy từ API) ---
+const totalThucLanh = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.thucLanh), 0));
+const totalPhuCap = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.phuCapChucVu) + Number(item.phuCapKhac), 0));
+const totalKhauTru = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.tongTienPhat) + Number(item.truBaoHiem), 0));
+
+// --- TIỆN ÍCH ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
 
 const getSummaries = (param) => {
@@ -252,7 +311,7 @@ const getSummaries = (param) => {
     if (index === 0) { sums[index] = 'TỔNG CỘNG'; return; }
     const propertiesToSum = ['luongCoBan', 'tongTienTangCa', 'phuCapChucVu', 'phuCapKhac', 'tongTienPhat', 'truBaoHiem', 'thucLanh'];
     if (propertiesToSum.includes(column.property)) {
-      const values = data.map(item => Number(item[column.property]));
+      const values = data.map(item => Number(item[column.property] || 0));
       const sum = values.reduce((prev, curr) => prev + curr, 0);
       sums[index] = formatPrice(sum);
     } else { sums[index] = ''; }
@@ -260,17 +319,10 @@ const getSummaries = (param) => {
   return sums;
 };
 
-const calculatePayroll = () => {
-  loading.value = true;
-  setTimeout(() => {
-    loading.value = false;
-    ElMessage.success('Đã tải lại Cấu Hình và tính toán xong lương!');
-  }, 1000);
-};
-
+// Nút chốt lương (Hiện tại làm giả lập, nếu bạn có API cập nhật trạng thái thì thay vào)
 const finalizePayroll = () => {
   ElMessageBox.confirm(
-    'Xác nhận chốt sổ? Dữ liệu sẽ không thể thay đổi sau khi chốt.',
+    'Xác nhận chốt sổ? Lương đã chốt sẽ không thể chỉnh sửa tiền thưởng hoặc tính toán lại.',
     'Chốt Lương',
     { confirmButtonText: 'Chốt Sổ', cancelButtonText: 'Hủy', type: 'warning' }
   ).then(() => {
@@ -279,18 +331,16 @@ const finalizePayroll = () => {
   }).catch(() => {});
 };
 
-// XUẤT EXCEL CHUẨN BẢO MẬT (SỬ DỤNG EXCELJS)
+// XUẤT EXCEL (Đã map với biến DB thật)
 const exportExcel = async () => {
   if (payrollList.value.length === 0) {
     ElMessage.warning('Không có dữ liệu để xuất!');
     return;
   }
 
-  // 1. Khởi tạo file Excel
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('BangLuong');
 
-  // 2. Định nghĩa các cột (Tự động canh độ rộng cho đẹp)
   worksheet.columns = [
     { header: 'Mã NV', key: 'maNV', width: 10 },
     { header: 'Họ và Tên', key: 'hoTen', width: 25 },
@@ -301,13 +351,12 @@ const exportExcel = async () => {
     { header: 'Lương Cơ Bản', key: 'luongCoBan', width: 15 },
     { header: 'Tiền Tăng Ca', key: 'tienTangCa', width: 15 },
     { header: 'Phụ Cấp Chức Vụ', key: 'pcChucVu', width: 18 },
-    { header: 'Phụ Cấp Khác', key: 'pcKhac', width: 15 },
+    { header: 'PC & Thưởng', key: 'pcKhac', width: 15 },
     { header: 'Tiền Phạt Trễ', key: 'phatTre', width: 15 },
     { header: 'Trừ Bảo Hiểm', key: 'truBaoHiem', width: 15 },
     { header: 'THỰC LÃNH', key: 'thucLanh', width: 20 }
   ];
 
-  // 3. Đổ dữ liệu vào từng dòng
   payrollList.value.forEach(nv => {
     worksheet.addRow({
       maNV: `NV${nv.maNhanVien}`,
@@ -326,34 +375,14 @@ const exportExcel = async () => {
     });
   });
 
-  // 4. Làm đẹp Excel (In đậm dòng tiêu đề)
   worksheet.getRow(1).font = { bold: true };
 
-  // 5. Chuyển đổi thành file và tải xuống
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  
   const fileName = `Bang_Luong_Thang_${selectedMonth.value.replace('-', '_')}.xlsx`;
   saveAs(blob, fileName);
 
   ElMessage.success('Xuất file Excel thành công!');
-};
-
-// DIALOG SỬA NGOẠI LỆ
-const openEditModal = (row) => {
-  editingRecord.value = row;
-  formEdit.value = { thuongThem: row.thuongThem, truThem: row.truThem };
-  dialogVisible.value = true;
-};
-
-const saveEdit = () => {
-  const index = dbBangLuong.value.findIndex(nv => nv.maNhanVien === editingRecord.value.maNhanVien);
-  if (index !== -1) {
-    dbBangLuong.value[index].thuongThem = formEdit.value.thuongThem;
-    dbBangLuong.value[index].truThem = formEdit.value.truThem;
-  }
-  dialogVisible.value = false;
-  ElMessage.success('Đã cập nhật khoản ngoại lệ!');
 };
 </script>
 

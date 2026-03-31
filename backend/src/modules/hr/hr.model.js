@@ -201,13 +201,13 @@ const HrModel = {
         return result.insertId;
     },
 
-    checkOut: async (maNhanVien, ngayLamViec, gioRa, trangThai) => {
+    checkOut: async (maNhanVien, ngayLamViec, gioRa, soGioLam, trangThai) => {
         const sql = `
             UPDATE chamcong
-            SET gioRa = ?, trangThai = ?
+            SET gioRa = ?, soGioLam = ?, trangThai = ?  
             WHERE maNhanVien = ? AND ngayLamViec = ?
         `;
-        const values = [gioRa, trangThai, maNhanVien, ngayLamViec];
+        const values = [gioRa, soGioLam, trangThai, maNhanVien, ngayLamViec];
         const [result] = await db.query(sql, values);
         return result.affectedRows;
     },
@@ -227,180 +227,244 @@ const HrModel = {
         return rows[0];
     },
 
-    // 3. Tính lương
-    // Lay cau hinh tinh luong (tien phat di tre moi phut, he so tang ca)
+    // Lấy lịch sử chấm công của 1 nhân viên trong tháng
+    getChamCongThang: async (maNhanVien, thang, nam) => {
+        const sql = `
+            SELECT * FROM chamcong 
+            WHERE maNhanVien = ? 
+            AND MONTH(ngayLamViec) = ? 
+            AND YEAR(ngayLamViec) = ?
+        `;
+        const [rows] = await db.query(sql, [maNhanVien, thang, nam]);
+        return rows;
+    },
+
+    // Lấy chấm công của TOÀN BỘ nhân viên trong tháng
+    getTatCaChamCongThang: async (thang, nam) => {
+        const sql = `SELECT * FROM chamcong WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?`;
+        const [rows] = await db.query(sql, [thang, nam]);
+        return rows;
+    },
+
+    //bAdmin ép kiểu/sửa dữ liệu chấm công
+    adminUpdateChamCong: async (maNhanVien, ngayLamViec, gioVao, gioRa, soGioLam, trangThai) => {
+        // Kiểm tra xem ngày đó nhân viên đã có dòng dữ liệu nào chưa
+        const checkSql = `SELECT maChamCong FROM chamcong WHERE maNhanVien = ? AND ngayLamViec = ?`;
+        const [check] = await db.query(checkSql, [maNhanVien, ngayLamViec]);
+
+        if (check.length > 0) {
+            // Đã có -> Cập nhật (Sửa giờ, sửa trạng thái)
+            const sql = `UPDATE chamcong SET gioVao = ?, gioRa = ?, soGioLam = ?, trangThai = ? WHERE maNhanVien = ? AND ngayLamViec = ?`;
+            const [result] = await db.query(sql, [gioVao, gioRa, soGioLam, trangThai, maNhanVien, ngayLamViec]);
+            return result.affectedRows;
+        } else {
+            // Chưa có (Ví dụ: Admin tự thêm ngày nghỉ phép) -> Tạo mới
+            const sql = `INSERT INTO chamcong (maNhanVien, ngayLamViec, gioVao, gioRa, soGioLam, trangThai) VALUES (?, ?, ?, ?, ?, ?)`;
+            const [result] = await db.query(sql, [maNhanVien, ngayLamViec, gioVao, gioRa, soGioLam, trangThai]);
+            return result.insertId;
+        }
+    },
+
+    // 3. TÍNH LƯƠNG
     getCauHinh: async () => {
-        const sql = `SELECT * FROM cauhinhluong WHERE trangThai = 1 LIMIT 1`;
-        const [rows] = await db.query(sql);
-        return rows[0];
+        const sql = `SELECT * FROM cauhinh LIMIT 1`;
+        
+        try {
+            const [rows] = await db.query(sql);
+            // Vẫn giữ bọc thép để nếu bảng cấu hình thiếu cột, code không bị sập
+            return rows[0] || {
+                tienPhatDiTre: 2000,
+                heSoTangCa: 1.5,
+                phanTramBHXH: 8.0,
+                phanTramBHYT: 1.5,
+                phuCapAnTrua: 730000,
+                phuCapXangXe: 300000,
+                luongCoSo: 4680000
+            };
+        } catch (error) {
+            console.error("Lỗi lấy cấu hình:", error);
+            return {}; // Trả về object rỗng để hệ thống dùng số mặc định
+        }
     },
 
     chotBangLuongThang: async (thang, nam, cauHinh) => {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
-            const TIEN_PHAT_MOI_PHUT = cauHinh.tienPhatDitre;
-            const HE_SO_TANG_CA = cauHinh.heSoTangCa;
-            const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan;
-            const LUONG_THEO_GIO = cauHinh.luongTheoGio;
-            const BHXH = cauHinh.phanTramBHXH;
-            const BHYT = cauHinh.phanTramBHYT;
-            // lay danh sach nhan vien dang lam viec (trangThai = 1) va thong tin chuc vu de tinh luong
-            const sqlNhanVien = `
-                SELECT nv.maNhanVien, cv.luongTheoGio, cv.phuCapTrachNhiem
-                FROM nhanvien nv
-                JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
-                WHERE nv.trangThai = 1
-            `;
-            const [dsNhanVien] = await connection.query(sqlNhanVien);
-            // danh sach cham cong trong thang do (co gioVao) de tinh luong
-            const sqlChamCong = `
-                SELECT maNhanVien, gioVao, gioRa 
-                FROM chamcong 
-                WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ? AND gioVao IS NOT NULL
-            `;
-            const [dsChamCong] = await connection.query(sqlChamCong, [thang, nam]);
-            // Xóa bảng lương cũ của tháng đó (nếu kế toán muốn chốt lại)
-            const sqlDeleteOld = `DELETE FROM bangluong WHERE thang = ? AND nam = ?`;
-            await connection.query(sqlDeleteOld, [thang, nam]);
-            // Vòng lặp tính toán chi tiết cho TỪNG nhân viên
+
+            // 👉 BỌC THÉP 1: Chống lỗi NaN từ bảng Cấu Hình
+            // Dùng || để nếu DB thiếu cột, hệ thống tự lấy số mặc định để tính tiếp
+            const TIEN_PHAT_MOI_PHUT = parseFloat(cauHinh.tienPhatDiTre || cauHinh.tienPhatDitre || 2000); 
+            const GIO_VAO_CHUAN = '08:00:00'; 
+            const HE_SO_TANG_CA = parseFloat(cauHinh.heSoTangCa || 1.5);
+            const ptBHXH = parseFloat(cauHinh.phanTramBHXH || 8.0);
+            const ptBHYT = parseFloat(cauHinh.phanTramBHYT || 1.5);
+            const BH_PERCENT = (ptBHXH + ptBHYT) / 100;
+            
+            const pcAnTrua = parseFloat(cauHinh.phuCapAnTrua || 730000);
+            const pcXangXe = parseFloat(cauHinh.phuCapXangXe || 300000);
+            const PHU_CAP_CO_DINH = pcAnTrua + pcXangXe;
+            
+            const luongCoSo = parseFloat(cauHinh.luongCoSo || 4680000);
+            const MUC_TRU_BAO_HIEM = Math.round(luongCoSo * BH_PERCENT);
+
+            const ngayMoc = `${nam}-${String(thang).padStart(2, '0')}-01`;
+
+            const [dsNhanVien] = await connection.query(`SELECT maNhanVien, hoTen FROM nhanvien WHERE trangThai = 1`);
+
+            const [dsChamCong] = await connection.query(
+                `SELECT maNhanVien, soGioLam, trangThai, gioVao 
+                 FROM chamcong 
+                 WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?`, 
+                [thang, nam]
+            );
+
+            const [oldSalary] = await connection.query(`SELECT maNhanVien, thuong FROM bangluong WHERE thang = ? AND nam = ?`, [thang, nam]);
+            await connection.query(`DELETE FROM bangluong WHERE thang = ? AND nam = ?`, [thang, nam]);
+
             for (let nv of dsNhanVien) {
-                const chamCongCaNhan = dsChamCong.filter(cc => cc.maNhanVien === nv.maNhanVien);
-                let soGioLamBinhThuong = 0;
-                let soPhutDiTre = 0;
-                let soGioTangCa = 0;
-                // Tính toán trên từng ngày đi làm
-                chamCongCaNhan.forEach(ngayLam => {
-                    // Xử lý Đi trễ
-                    if (ngayLam.gioVao > GIO_VAO_CHUAN) {
-                        // Tính số phút đi trễ bằng cách đổi ra Timestamp
-                        const thoiGianVao = new Date(`1970-01-01T${ngayLam.gioVao}Z`);
-                        const thoiGianChuan = new Date(`1970-01-01T${GIO_VAO_CHUAN}Z`);
-                        const phutTre = Math.floor((thoiGianVao - thoiGianChuan) / 60000);
-                        soPhutDiTre += phutTre;
+                // TÌM CHỨC VỤ 
+                const [chucVuSql] = await connection.query(`
+                    SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu
+                    FROM thaydoichucvu td
+                    JOIN chucvu cv ON td.maChucVu = cv.maChucVu
+                    WHERE td.maNhanVien = ? AND td.ngayBatDau <= ?
+                    ORDER BY td.ngayBatDau DESC LIMIT 1
+                `, [nv.maNhanVien, ngayMoc]);
+
+                let luongTheoGio = 0; let pcChucVu = 0;
+                
+                // 👉 BỌC THÉP 2: Chống lỗi thiếu cột phuCapTrachNhiem trong bảng chucvu
+                if (chucVuSql.length > 0) {
+                    luongTheoGio = parseFloat(chucVuSql[0].luongTheoGio || 0);
+                    pcChucVu = parseFloat(chucVuSql[0].phuCapTrachNhiem || 0);
+                } else {
+                    const [cvHienTai] = await connection.query(`
+                        SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu 
+                        FROM nhanvien nv JOIN chucvu cv ON nv.maChucVu = cv.maChucVu WHERE nv.maNhanVien = ?
+                    `, [nv.maNhanVien]);
+                    if (cvHienTai.length > 0) {
+                        luongTheoGio = parseFloat(cvHienTai[0].luongTheoGio || 0);
+                        pcChucVu = parseFloat(cvHienTai[0].phuCapTrachNhiem || 0);
                     }
-                    // Xử lý Giờ làm bình thường & Tăng ca
-                    if (ngayLam.gioRa) {
-                        const tgVao = new Date(`1970-01-01T${ngayLam.gioVao}Z`);
-                        const tgRa = new Date(`1970-01-01T${ngayLam.gioRa}Z`);
-                        // Tổng số giờ làm trong ngày (trừ 1 tiếng nghỉ trưa)
-                        let tongGioThucTe = ((tgRa - tgVao) / 3600000) - 1;
-                        if (tongGioThucTe < 0) tongGioThucTe = 0;
-                        // Chốt giờ hành chính tối đa 8 tiếng/ngày
-                        if (tongGioThucTe > 8) {
-                            soGioLamBinhThuong += 8;
-                            soGioTangCa += (tongGioThucTe - 8);
-                        } else {
-                            soGioLamBinhThuong += tongGioThucTe;
+                }
+
+                // TÍNH TOÁN GIỜ LÀM & SỐ PHÚT TRỄ
+                const ccCaNhan = dsChamCong.filter(c => c.maNhanVien === nv.maNhanVien);
+                let soGioHanhChinh = 0;
+                let soGioTangCa = 0;
+                let soPhutDiTre = 0;
+
+                ccCaNhan.forEach(ngay => {
+                    const soGio = parseFloat(ngay.soGioLam || 0);
+                    let gioVao = ngay.gioVao;
+
+                    if (soGio <= 8) {
+                        soGioHanhChinh += soGio;
+                    } else {
+                        soGioHanhChinh += 8;
+                        soGioTangCa += (soGio - 8);
+                    }
+
+                    // 👉 BỌC THÉP 3: Xử lý định dạng giờ bị thiếu giây (08:00 thay vì 08:00:00)
+                    if (gioVao && typeof gioVao === 'string') {
+                        if (gioVao.length === 5) gioVao += ':00'; // Sửa 08:05 thành 08:05:00
+                        
+                        if (gioVao > GIO_VAO_CHUAN) {
+                            const timeVao = new Date(`1970-01-01T${gioVao}Z`);
+                            const timeChuan = new Date(`1970-01-01T${GIO_VAO_CHUAN}Z`);
+                            if (!isNaN(timeVao.getTime())) { // Đảm bảo Date hợp lệ
+                                const phutTre = Math.floor((timeVao - timeChuan) / 60000); 
+                                if (phutTre > 0) soPhutDiTre += phutTre;
+                            }
                         }
                     }
                 });
-                // Quy đổi lương tháng ra lương giờ (Giả sử 1 tháng làm 26 ngày, mỗi ngày 8 tiếng)
-                const luongCoBanThucTe = Math.round(soGioLamBinhThuong * LUONG_THEO_GIO);
-                const tongTienTangCa = Math.round(soGioTangCa * LUONG_THEO_GIO * HE_SO_TANG_CA);
-                const tongTienPhat = soPhutDiTre * TIEN_PHAT_MOI_PHUT;
-                const phuCapChucVu = nv.phuCapTrachNhiem || 0;
-                const phuCapKhac = 0;
-                // Trừ bảo hiểm (Ví dụ 10.5% trên Lương cơ bản thực tế)
-                const truBaoHiem = Math.round(luongCoBanThucTe * (BHXH + BHYT));
-                // Tính Thực Lãnh
-                const thuong = 0;
-                const thucLanh = luongCoBanThucTe + tongTienTangCa + phuCapChucVu + phuCapKhac + thuong - tongTienPhat - truBaoHiem;
 
-                const sqlInsertLuong = `
+                // TÍNH TIỀN (Chặn toàn bộ số âm hoặc NaN)
+                const luongCoBan = Math.round(soGioHanhChinh * luongTheoGio) || 0;
+                const tongTienTangCa = Math.round(soGioTangCa * luongTheoGio * HE_SO_TANG_CA) || 0;
+                const tongTienPhat = Math.round(soPhutDiTre * TIEN_PHAT_MOI_PHUT) || 0; 
+                
+                const backup = oldSalary.find(o => o.maNhanVien === nv.maNhanVien) || { thuong: 0 };
+                const thuongThem = parseFloat(backup.thuong || 0);
+
+                const phuCapKhac = PHU_CAP_CO_DINH + thuongThem;
+                const tongKhauTru = tongTienPhat + MUC_TRU_BAO_HIEM;
+
+                let thucLanh = (luongCoBan + tongTienTangCa + pcChucVu + phuCapKhac) - tongKhauTru;
+                if (thucLanh < 0) thucLanh = 0; // Không để âm lương
+
+                // LƯU DB
+                const sqlInsert = `
                     INSERT INTO bangluong (
                         maNhanVien, thang, nam, luongTheoGio, soGioLamBinhThuong, 
                         luongCoBan, soGioTangCa, heSoTangCa, tongTienTangCa, 
                         soPhutDiTre, tienPhatDiTre, tongTienPhat, 
-                        phuCapChucVu, phuCapKhac, truBaoHiem, thuong, thucLanh, ngayTao, trangThai
+                        phuCapChucVu, phuCapKhac, thuong, truBaoHiem, thucLanh, ngayTao, trangThai
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'Chưa thanh toán')
                 `;
-
-                const values = [
-                    nv.maNhanVien, thang, nam, LUONG_THEO_GIO, soGioLamBinhThuong,
-                    luongCoBanThucTe, soGioTangCa, HE_SO_TANG_CA, tongTienTangCa,
+                
+                await connection.query(sqlInsert, [
+                    nv.maNhanVien, thang, nam, luongTheoGio, soGioHanhChinh,
+                    luongCoBan, soGioTangCa, HE_SO_TANG_CA, tongTienTangCa,
                     soPhutDiTre, TIEN_PHAT_MOI_PHUT, tongTienPhat,
-                    phuCapChucVu, phuCapKhac, truBaoHiem, thuong, thucLanh
-                ];
-
-                await connection.query(sqlInsertLuong, values);
+                    pcChucVu, phuCapKhac, thuongThem, MUC_TRU_BAO_HIEM, thucLanh
+                ]);
             }
+
             await connection.commit();
             return dsNhanVien.length;
 
         } catch (error) {
             await connection.rollback();
+            console.error("LỖI SQL KHI TÍNH LƯƠNG: ", error); // Sẽ in thẳng lỗi ra terminal để bạn đọc
             throw error;
         } finally {
             connection.release();
         }
     },
-    // Lấy bảng lương kem bo loc (Admin)
+
+    // Lấy bảng lương (Đã cập nhật LEFT JOIN để chống mất data)
     getBangLuong: async (filters) => {
-        const { thang, nam, maNhanVien, maChucVu } = filters;
-        const sql = `
+        const { thang, nam, maNhanVien } = filters;
+        
+        // 👉 ĐÃ SỬA: Dùng LEFT JOIN cho bảng chucvu
+        let sql = `
             SELECT bl.*, nv.hoTen, cv.tenChucVu 
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
-            JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            WHERE 1=1
         `;
-
         let values = [];
 
-        if (thang) {
-            sql += ` WHERE bl.thang = ?`;
-            values.push(thang);
-        }
-        if(nam){
-            sql += values.length > 0 ? ` AND bl.nam = ?` : ` WHERE bl.nam = ?`;
-            values.push(nam);
-        }
-        if(maChucVu){
-            sql += values.length > 0 ? ` AND nv.maChucVu = ?` : ` WHERE nv.maChucVu = ?`;
-            values.push(maChucVu);
-        }
-        if (maNhanVien) {
-            sql += values.length > 0 ? ` AND bl.maNhanVien = ?` : ` WHERE bl.maNhanVien = ?`;
-            values.push(maNhanVien);
-        }
+        if (thang) { sql += ` AND bl.thang = ?`; values.push(thang); }
+        if (nam) { sql += ` AND bl.nam = ?`; values.push(nam); }
+        if (maNhanVien) { sql += ` AND bl.maNhanVien = ?`; values.push(maNhanVien); }
+
         const [rows] = await db.query(sql, values);
         return rows;
     },
 
-    // Xem luong (User)
-    xemLuong: async (thang, nam, maNhanVien) =>{
+    // Update bảng Lương (Chỉ còn Thưởng thêm)
+    updateBangLuong: async (thang, nam, maNhanVien, thuongThem) => {
+        const [old] = await db.query(`SELECT thucLanh, thuong FROM bangluong WHERE thang = ? AND nam = ? AND maNhanVien = ?`, [thang, nam, maNhanVien]);
+        if (old.length === 0) return 0;
+
+        const oldThucLanh = parseFloat(old[0].thucLanh);
+        const oldThuong = parseFloat(old[0].thuong) || 0;
+
+        // Hoàn tác tiền thưởng cũ, cộng tiền thưởng mới
+        const newThucLanh = (oldThucLanh - oldThuong) + parseFloat(thuongThem);
+
         const sql = `
-            SELECT *
-            FROM bangluong
-            WHERE maNhanVien = ?
+            UPDATE bangluong
+            SET thuong = ?, thucLanh = ?
+            WHERE nam = ? AND thang = ? AND maNhanVien = ? 
         `;
-        let values = [maNhanVien];
-        if (thang) {
-            sql += ` AND thang = ?`;
-            values.push(thang);
-        }
-        if(nam){
-            sql += ` AND nam = ?`;
-            values.push(nam);
-        }
-        const [rows] = await db.query(sql, values);
-        return rows;
-    },
-
-    // Update bang Luong (Thuong )
-    updateBangLuong: async (thang, nam, dsNhanVien, thuong) => {
-        let totalAffected = 0;
-        for (let nv of dsNhanVien) {
-            const sql = `
-                UPDATE bangluong
-                SET thuong = ? , thucLanh = thucLanh + ?
-                WHERE nam = ? AND thang = ? AND maNhanVien = ? 
-            `;
-            const values = [thuong, thuong, nam, thang, nv];
-            const [result] = await db.query(sql, values);
-            totalAffected += result.affectedRows;
-        }
-        return totalAffected;
+        const [result] = await db.query(sql, [thuongThem, newThucLanh, nam, thang, maNhanVien]);
+        return result.affectedRows;
     },
     //================================
 

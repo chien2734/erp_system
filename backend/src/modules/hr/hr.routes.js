@@ -14,7 +14,8 @@ router.delete('/nhanvien/:id', HrController.delete);// Xóa nhân viên (chuyể
 router.put('/nhanvien/:id/chucvu', HrController.changeChucVu);// Thăng chức nhân viên
 // Phần chấm công và lương thưởng
 router.post('/chamcong', HrController.ghiNhanChamCong);
-router.get('/chamcong', HrController.getHistoryChamCong);
+router.get('/chamcong', HrController.getLichSuChamCong);
+router.put('/chamcong/admin', HrController.adminSuaChamCong);
 router.post('/luong', HrController.TinhLuong);
 router.put('/luong-thuong', HrController.updateBangLuong);
 router.get('/luong', HrController.getBangLuong);
