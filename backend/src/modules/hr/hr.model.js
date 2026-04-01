@@ -289,14 +289,15 @@ const HrModel = {
         }
     },
 
-    // 3. TÍNH LƯƠNG
+    // 3. Cấu Hình
     getCauHinh: async () => {
         const sql = `SELECT * FROM cauhinh LIMIT 1`;
         
         try {
             const [rows] = await db.query(sql);
-            // Vẫn giữ bọc thép để nếu bảng cấu hình thiếu cột, code không bị sập
             return rows[0] || {
+                gioVaoLamChuan: '08:00:00', 
+                gioRaLamChuan: '17:00:00',  
                 tienPhatDiTre: 2000,
                 heSoTangCa: 1.5,
                 phanTramBHXH: 8.0,
@@ -311,6 +312,37 @@ const HrModel = {
         }
     },
 
+
+    updateCauHinh: async (data) => {
+        const sql = `
+            UPDATE cauhinh 
+            SET gioVaoLamChuan = ?, 
+                gioRaLamChuan = ?, 
+                tienPhatDiTre = ?, 
+                heSoTangCa = ?, 
+                luongCoSoBH = ?, 
+                phanTramBHXH = ?, 
+                phanTramBHYT = ?, 
+                phuCapAnTrua = ?, 
+                phuCapXangXe = ?
+            WHERE maCauHinh = 1
+        `;
+        const values = [
+            data.gioVaoLamChuan, 
+            data.gioRaLamChuan, // 👉 ĐÃ THÊM
+            data.tienPhatDiTre, 
+            data.heSoTangCa, 
+            data.luongCoSoBH, 
+            data.phanTramBHXH, 
+            data.phanTramBHYT, 
+            data.phuCapAnTrua, 
+            data.phuCapXangXe
+        ];
+        const [result] = await db.query(sql, values);
+        return result.affectedRows;
+    },
+
+    // 4. TÍNH LƯƠNG
     chotBangLuongThang: async (thang, nam, cauHinh) => {
         const connection = await db.getConnection();
         try {
@@ -319,7 +351,7 @@ const HrModel = {
             // 👉 BỌC THÉP 1: Chống lỗi NaN từ bảng Cấu Hình
             // Dùng || để nếu DB thiếu cột, hệ thống tự lấy số mặc định để tính tiếp
             const TIEN_PHAT_MOI_PHUT = parseFloat(cauHinh.tienPhatDiTre || cauHinh.tienPhatDitre || 2000); 
-            const GIO_VAO_CHUAN = '08:00:00'; 
+            const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan || '08:00:00';
             const HE_SO_TANG_CA = parseFloat(cauHinh.heSoTangCa || 1.5);
             const ptBHXH = parseFloat(cauHinh.phanTramBHXH || 8.0);
             const ptBHYT = parseFloat(cauHinh.phanTramBHYT || 1.5);
@@ -334,7 +366,14 @@ const HrModel = {
 
             const ngayMoc = `${nam}-${String(thang).padStart(2, '0')}-01`;
 
-            const [dsNhanVien] = await connection.query(`SELECT maNhanVien, hoTen FROM nhanvien WHERE trangThai = 1`);
+            const sqlGetNhanVien = `
+                SELECT DISTINCT nv.maNhanVien, nv.hoTen 
+                FROM nhanvien nv
+                LEFT JOIN chamcong cc ON nv.maNhanVien = cc.maNhanVien 
+                    AND MONTH(cc.ngayLamViec) = ? AND YEAR(cc.ngayLamViec) = ?
+                WHERE nv.trangThai = 1 OR cc.maNhanVien IS NOT NULL
+            `;
+            const [dsNhanVien] = await connection.query(sqlGetNhanVien, [thang, nam]);
 
             const [dsChamCong] = await connection.query(
                 `SELECT maNhanVien, soGioLam, trangThai, gioVao 
@@ -514,7 +553,7 @@ const HrModel = {
     //================================
 
     // ==============================================
-    // PHẦN 4: QUẢN LÝ ĐƠN NGHỈ PHÉP
+    // PHẦN 5: QUẢN LÝ ĐƠN NGHỈ PHÉP
     // ==============================================
 
     // 1. Nhân viên: Nộp đơn xin nghỉ

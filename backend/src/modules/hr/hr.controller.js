@@ -258,8 +258,10 @@ const HrController = {
             const ngayHienTai = '2026-03-30'; // Ngày test
             const gioHienTai = '17:45:00';
             
-            const GIO_VAO_CHUAN = '08:00:00';
-            const GIO_RA_CHUAN = '17:00:00';
+            const cauHinh = await HrModel.getCauHinh();
+            const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan || '08:00:00'; 
+            const GIO_RA_CHUAN = cauHinh.gioRaLamChuan || '17:00:00';
+
             const chamCongHomNay = await HrModel.getChamCongNgayHienTai(maNhanVien, ngayHienTai);
             // chưa chấm công -> thực hiện check-in
             if (gioHienTai < '06:00:00') {
@@ -286,8 +288,8 @@ const HrController = {
                 // Quy đổi ra Timestamp để tính toán chính xác
                 const tgVao = new Date(`1970-01-01T${chamCongHomNay.gioVao}Z`);
                 const tgRa = new Date(`1970-01-01T${gioHienTai}Z`);
-                const tgRaChuan = new Date(`1970-01-01T17:00:00Z`); // 17:00
-                const tgBatDauTC = new Date(`1970-01-01T18:00:00Z`); // 18:00
+                const tgRaChuan = new Date(`1970-01-01T${GIO_RA_CHUAN}Z`);
+                const tgBatDauTC = new Date(tgRaChuan.getTime() + (60 * 60 * 1000));
 
                 // PHÂN LOẠI 3 VÙNG THỜI GIAN CHECK-OUT
                 if (tgRa < tgRaChuan) {
@@ -379,13 +381,17 @@ const HrController = {
             } 
             // 2. NHÓM ĐI LÀM THỰC TẾ (Hệ thống tự động tính toán lại 100% dựa trên giờ)
             else if (gioVao && gioRa) {
+                const cauHinh = await HrModel.getCauHinh();
+                const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan || '08:00:00';
+                const GIO_RA_CHUAN = cauHinh.gioRaLamChuan || '17:00:00';
+
                 const tgVao = new Date(`1970-01-01T${gioVao}Z`);
                 const tgRa = new Date(`1970-01-01T${gioRa}Z`);
                 
                 // Các mốc giờ chuẩn của công ty
-                const tgVaoChuan = new Date(`1970-01-01T08:00:00Z`); // 8h sáng
-                const tgRaChuan = new Date(`1970-01-01T17:00:00Z`);  // 5h chiều
-                const tgBatDauTC = new Date(`1970-01-01T18:00:00Z`); // 6h tối bắt đầu OT
+                const tgVaoChuan = new Date(`1970-01-01T${GIO_VAO_CHUAN}Z`); 
+                const tgRaChuan = new Date(`1970-01-01T${GIO_RA_CHUAN}Z`);  
+                const tgBatDauTC = new Date(tgRaChuan.getTime() + (60 * 60 * 1000)); // +1 tiếng nghỉ
 
                 // 👉 FIX LỖI ẢO GIỜ: Nếu đi sớm trước 8h, chỉ bắt đầu tính lương từ 8h
                 const calcTgVao = (tgVao < tgVaoChuan) ? tgVaoChuan : tgVao;
@@ -610,7 +616,51 @@ const HrController = {
             res.status(500).json({success: false, message: 'Lỗi khi lấy bảng lương'});
         }
     },
+    
+    // ==========================================
+    // PHẦN CẤU HÌNH HỆ THỐNG (Dành cho Admin)
+    // ==========================================
+    
+    getCauHinhSys: async (req, res) => {
+        try {
+            const data = await HrModel.getCauHinh();
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Lỗi lấy cấu hình:", error);
+            res.status(500).json({ success: false, message: 'Lỗi khi lấy cấu hình hệ thống' });
+        }
+    },
 
+    updateCauHinhSys: async (req, res) => {
+        try {
+            const data = req.body;
+            
+            // KIỂM TRA LOGIC GIỜ LÀM VIỆC
+            if (data.gioVaoLamChuan && data.gioRaLamChuan) {
+                const gioVao = data.gioVaoLamChuan.length === 5 ? `${data.gioVaoLamChuan}:00` : data.gioVaoLamChuan;
+                const gioRa = data.gioRaLamChuan.length === 5 ? `${data.gioRaLamChuan}:00` : data.gioRaLamChuan;
+
+                const timeVao = new Date(`1970-01-01T${gioVao}Z`);
+                const timeRa = new Date(`1970-01-01T${gioRa}Z`);
+
+                const diffHours = (timeRa - timeVao) / (1000 * 60 * 60);
+
+                // Phải đủ 9 tiếng (Bao gồm 8h làm việc + 1h nghỉ trưa)
+                if (diffHours !== 9) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Khoảng cách giữa Giờ vào (${gioVao}) và Giờ ra (${gioRa}) đang là ${diffHours} tiếng. Vui lòng thiết lập CHÍNH XÁC 9 tiếng (Bao gồm 8h làm việc + 1h nghỉ trưa) để logic tính Tăng ca không bị lỗi!` 
+                    });
+                }
+            }
+
+            await HrModel.updateCauHinh(data);
+            res.status(200).json({ success: true, message: 'Cập nhật cấu hình hệ thống thành công!' });
+        } catch (error) {
+            console.error("Lỗi cập nhật cấu hình:", error);
+            res.status(500).json({ success: false, message: 'Lỗi khi lưu cấu hình' });
+        }
+    },
 
     //=================================
     // QUAN LY DON TU

@@ -38,4 +38,8 @@ router.get('/dontu/canhan', HrController.getLeaveRequestById);
 router.put('/dontu/:id', HrController.updateLeaveRequest);
 router.post('/dontu', HrController.createLeaveRequest);
 router.put('/dontu/:id/xuly', HrController.handleLeaveRequest);
+
+// Phần cấu hình hệ thống
+router.get('/cauhinh', HrController.getCauHinhSys);
+router.put('/cauhinh', HrController.updateCauHinhSys);
 module.exports = router;
