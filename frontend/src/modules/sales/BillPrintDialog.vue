@@ -56,7 +56,7 @@
         </div>
         <div class="flex justify-between">
           <span>Giảm giá:</span>
-          <span>- {{ formatPrice(billData.giamGia) }}</span>
+          <span>{{ formatPrice(billData.giamGia) }}</span>
         </div>
         <div class="flex justify-between font-bold text-sm mt-1 pt-1 border-t border-slate-800">
           <span>TỔNG THANH TOÁN:</span>

@@ -81,7 +81,7 @@
           <template #default="scope">
             <div class="text-sm">
               <p class="font-bold text-blue-600">{{ formatDateVN(scope.row.ngayBatDau) }} <span class="text-slate-400 font-normal">đến</span> {{ formatDateVN(scope.row.ngayKetThuc) }}</p>
-              <p class="text-xs text-slate-500 mt-0.5">({{ calculateDays(scope.row.ngayBatDau, scope.row.ngayKetThuc) }} ngày)</p>
+              <p class="text-xs text-slate-500 mt-0.5">({{ 2(scope.row.ngayBatDau, scope.row.ngayKetThuc) }} ngày)</p>
             </div>
           </template>
         </el-table-column>
