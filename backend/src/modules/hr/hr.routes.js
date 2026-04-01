@@ -30,6 +30,7 @@ router.post('/luong', HrController.TinhLuong);
 router.put('/luong-thuong', HrController.updateBangLuong);
 router.get('/luong', HrController.getBangLuong);
 router.get('/luong/:id', HrController.xemLuong);
+router.get('/thongke/luong', HrController.getLuongThongKe);
 
 // Phần quản lý đơn từ
 router.get('/dontu', HrController.getAllLeaveRequest);

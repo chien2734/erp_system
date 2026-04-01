@@ -26,6 +26,7 @@
                 </template>
                 <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
                 <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
+                <el-menu-item index="/sales/report">Báo cáo sản phẩm</el-menu-item>
                 
                 <el-menu-item index="/sales/customers" v-if="[1, 2].includes(authStore.getUserRole)">
                     Quản lý khách hàng

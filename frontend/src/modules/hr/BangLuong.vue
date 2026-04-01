@@ -5,17 +5,34 @@
         <h2 class="text-2xl font-bold text-slate-900">Bảng Tính Lương Tổng Hợp</h2>
         <p class="text-slate-500">Quản lý lương, thưởng, phụ cấp và các khoản khấu trừ hằng tháng</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-wrap">
         <span class="font-semibold text-slate-700">Kỳ lương:</span>
+        <el-radio-group v-model="selectedPeriodType" size="medium" class="mr-3">
+          <el-radio-button label="month">Theo tháng</el-radio-button>
+          <el-radio-button label="year">Theo năm</el-radio-button>
+        </el-radio-group>
+
         <el-date-picker
+          v-if="selectedPeriodType === 'month'"
           v-model="selectedMonth"
           type="month"
           placeholder="Chọn tháng"
           format="MM/YYYY"
           value-format="YYYY-MM"
           :clearable="false"
-          class="!w-40"
+          class="w-40"
         />
+        <el-date-picker
+          v-else
+          v-model="selectedYear"
+          type="year"
+          placeholder="Chọn năm"
+          format="YYYY"
+          value-format="YYYY"
+          :clearable="false"
+          class="w-32"
+        />
+
         <el-button type="primary" size="large" @click="calculatePayroll" :loading="loading" class="font-bold shadow-md shadow-blue-500/30">
           <el-icon class="mr-2"><Refresh /></el-icon> TÍNH TOÁN LẠI
         </el-button>
@@ -148,7 +165,7 @@
 
         <el-form label-position="top">
           <el-form-item label="Thưởng thêm / Truy lĩnh (+)">
-            <el-input-number v-model="formEdit.thuong" :min="0" :step="100000" class="!w-full" controls-position="right" />
+            <el-input-number v-model="formEdit.thuong" :min="0" :step="100000" class="w-full" controls-position="right" />
           </el-form-item>
         </el-form>
       </div>
@@ -176,7 +193,9 @@ import api from '../../services/api'; // Đường dẫn API
 const today = new Date();
 const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
+const selectedPeriodType = ref('month');
 const selectedMonth = ref(currentMonthStr);
+const selectedYear = ref(`${today.getFullYear()}`);
 const loading = ref(false);     // Loading cho nút Tính toán lại
 const fetching = ref(false);    // Loading cho bảng
 const saving = ref(false);      // Loading cho nút Lưu Modal
@@ -193,9 +212,14 @@ const payrollList = ref([]);
 const loadPayrollData = async () => {
   fetching.value = true;
   try {
-    const [year, month] = selectedMonth.value.split('-');
-    const res = await api.get(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
-    
+    let res;
+    if (selectedPeriodType.value === 'month') {
+      const [year, month] = selectedMonth.value.split('-');
+      res = await api.get(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
+    } else {
+      res = await api.get(`/hr/luong?nam=${selectedYear.value}`);
+    }
+
     // 🔴 CAMERA 1: IN RA CONSOLE TRÌNH DUYỆT ĐỂ XEM API TRẢ VỀ CÁI GÌ
     console.log("Dữ liệu Lương từ Backend trả về:", res);
 
@@ -233,8 +257,8 @@ onMounted(() => {
   loadPayrollData();
 });
 
-// Tự động load lại nếu đổi tháng
-watch(selectedMonth, () => {
+// Tự động load lại khi thay đổi kỳ lương
+watch([selectedPeriodType, selectedMonth, selectedYear], () => {
   loadPayrollData();
 });
 
@@ -244,10 +268,14 @@ watch(selectedMonth, () => {
 const calculatePayroll = async () => {
   loading.value = true;
   try {
-    const [year, month] = selectedMonth.value.split('-');
-    
-    // Gọi API chốt lương của Backend
-    const res = await api.post(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
+    let res;
+    if (selectedPeriodType.value === 'month') {
+      const [year, month] = selectedMonth.value.split('-');
+      res = await api.post(`/hr/luong?thang=${parseInt(month)}&nam=${year}`);
+    } else {
+      res = await api.post(`/hr/luong?type=year&nam=${selectedYear.value}`);
+    }
+
     const responseData = res.data || res;
 
     if (responseData.success) {
@@ -379,7 +407,10 @@ const exportExcel = async () => {
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const fileName = `Bang_Luong_Thang_${selectedMonth.value.replace('-', '_')}.xlsx`;
+  const periodText = selectedPeriodType.value === 'month' ? selectedMonth.value.replace('-', '_') : selectedYear.value;
+  const fileName = selectedPeriodType.value === 'month'
+    ? `Bang_Luong_Thang_${periodText}.xlsx`
+    : `Bang_Luong_Nam_${periodText}.xlsx`;
   saveAs(blob, fileName);
 
   ElMessage.success('Xuất file Excel thành công!');

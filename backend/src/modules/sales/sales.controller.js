@@ -122,6 +122,115 @@ const SalesController = {
             console.error(error);
             res.status(500).json({ success: false, message: error.message || 'Lỗi lấy chi tiết hóa đơn' });
         }
+    },
+
+    getThongKeSanPham: async (req, res) => {
+        try {
+            const { type = 'month', thang, nam, quy } = req.query;
+            if (!nam) {
+                return res.status(400).json({ success: false, message: 'Thiếu năm thống kê' });
+            }
+
+            const getDateRange = () => {
+                const year = Number(nam);
+                if (type === 'month') {
+                    if (!thang) throw new Error('Thiếu tháng thống kê');
+                    const month = Number(thang);
+                    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                    const lastDay = new Date(year, month, 0).getDate();
+                    const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+                    return { startDate, endDate };
+                }
+                if (type === 'quarter') {
+                    if (!quy) throw new Error('Thiếu quý thống kê');
+                    const quarter = Number(quy);
+                    const startMonth = (quarter - 1) * 3 + 1;
+                    const endMonth = startMonth + 2;
+                    const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01`;
+                    const lastDay = new Date(year, endMonth, 0).getDate();
+                    const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}`;
+                    return { startDate, endDate };
+                }
+                const startDate = `${year}-01-01`;
+                const endDate = `${year}-12-31`;
+                return { startDate, endDate };
+            };
+
+            const { startDate, endDate } = getDateRange();
+            const rows = await SalesModel.getProductSalesReport({ startDate, endDate });
+            const summary = rows.reduce(
+                (acc, item) => {
+                    acc.tongSoLuong += Number(item.soLuongDaXuat || 0);
+                    acc.tongDoanhThu += Number(item.doanhThu || 0);
+                    acc.tongGiaVon += Number(item.tongGiaVon || 0);
+                    acc.tongLoiNhuan += Number(item.loiNhuan || 0);
+                    return acc;
+                },
+                { tongSoLuong: 0, tongDoanhThu: 0, tongGiaVon: 0, tongLoiNhuan: 0 }
+            );
+
+            res.status(200).json({ success: true, data: rows, summary });
+        } catch (error) {
+            console.error('Lỗi API thống kê sản phẩm:', error);
+            res.status(500).json({ success: false, message: error.message || 'Lỗi thống kê sản phẩm' });
+        }
+    },
+
+    getThongKeLoiNhuan: async (req, res) => {
+        try {
+            const { type = 'month', thang, nam, quy } = req.query;
+            if (!nam) {
+                return res.status(400).json({ success: false, message: 'Thiếu năm thống kê' });
+            }
+
+            const getDateRange = () => {
+                const year = Number(nam);
+                if (type === 'month') {
+                    if (!thang) throw new Error('Thiếu tháng thống kê');
+                    const month = Number(thang);
+                    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                    const lastDay = new Date(year, month, 0).getDate();
+                    const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+                    return { startDate, endDate };
+                }
+                if (type === 'quarter') {
+                    if (!quy) throw new Error('Thiếu quý thống kê');
+                    const quarter = Number(quy);
+                    const startMonth = (quarter - 1) * 3 + 1;
+                    const endMonth = startMonth + 2;
+                    const startDate = `${year}-${String(startMonth).padStart(2, '0')}-01`;
+                    const lastDay = new Date(year, endMonth, 0).getDate();
+                    const endDate = `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}`;
+                    return { startDate, endDate };
+                }
+                const startDate = `${year}-01-01`;
+                const endDate = `${year}-12-31`;
+                return { startDate, endDate };
+            };
+
+            const { startDate, endDate } = getDateRange();
+            const groupBy = type === 'year' ? 'quarter' : undefined;
+            const rows = await SalesModel.getProfitReport({ startDate, endDate, groupBy });
+
+            if (type === 'year') {
+                const summary = rows.reduce(
+                    (acc, item) => {
+                        acc.tongDoanhThu += Number(item.doanhThu || 0);
+                        acc.tongGiaVon += Number(item.tongGiaVon || 0);
+                        acc.tongLoiNhuan += Number(item.loiNhuan || 0);
+                        return acc;
+                    },
+                    { tongDoanhThu: 0, tongGiaVon: 0, tongLoiNhuan: 0 }
+                );
+                return res.status(200).json({ success: true, period: type, data: rows, summary });
+            }
+
+            const result = rows[0] || { doanhThu: 0, tongGiaVon: 0, loiNhuan: 0 };
+            res.status(200).json({ success: true, period: type, data: result });
+        } catch (error) {
+            console.error('Lỗi API thống kê lợi nhuận:', error);
+            res.status(500).json({ success: false, message: error.message || 'Lỗi thống kê lợi nhuận' });
+        }
     }
 };
 

@@ -437,8 +437,28 @@ const HrController = {
     // Tính lương
     TinhLuong: async (req, res) => {
         try {
-            const { thang, nam } = req.query;
+            const { thang, nam, type = 'month' } = req.query;
+            if (!nam) {
+                return res.status(400).json({ success: false, message: 'Thiếu năm để tính lương' });
+            }
+
             const cauhinh = await HrModel.getCauHinh();
+
+            if (type === 'year') {
+                let totalNhanVien = 0;
+                for (let month = 1; month <= 12; month++) {
+                    const count = await HrModel.chotBangLuongThang(month, nam, cauhinh);
+                    totalNhanVien += Number(count || 0);
+                }
+                return res.status(200).json({
+                    success: true,
+                    message: `Đã tính lương cho cả năm ${nam} với ${totalNhanVien} nhân viên!`
+                });
+            }
+
+            if (!thang) {
+                return res.status(400).json({ success: false, message: 'Thiếu tháng để tính lương' });
+            }
             const dsNhanVien = await HrModel.chotBangLuongThang(thang, nam, cauhinh);
             if (dsNhanVien === 0) {
                 return res.status(400).json({
@@ -457,6 +477,69 @@ const HrController = {
                 success: false,
                 message: 'Lỗi khi tính lương nhân viên'
             })
+        }
+    },
+    
+    getLuongThongKe: async (req, res) => {
+        try {
+            const { type = 'month', thang, nam } = req.query;
+            if (!nam) {
+                return res.status(400).json({ success: false, message: 'Thiếu năm thống kê' });
+            }
+
+            let bangLuong = [];
+            if (type === 'month') {
+                if (!thang) {
+                    return res.status(400).json({ success: false, message: 'Thiếu tháng thống kê' });
+                }
+                bangLuong = await HrModel.getBangLuong({ thang, nam });
+            } else if (type === 'year') {
+                bangLuong = await HrModel.getBangLuong({ nam });
+            } else {
+                return res.status(400).json({ success: false, message: 'Loại thống kê không hợp lệ' });
+            }
+
+            const totalNhanVien = bangLuong.length;
+            const totalLuongCoBan = bangLuong.reduce((sum, item) => sum + Number(item.luongCoBan || 0), 0);
+            const totalThuong = bangLuong.reduce((sum, item) => sum + Number(item.thuong || 0), 0);
+            const totalPhuCap = bangLuong.reduce((sum, item) => sum + Number(item.phuCapChucVu || 0) + Number(item.phuCapKhac || 0), 0);
+            const totalKhauTru = bangLuong.reduce((sum, item) => sum + Number(item.tongTienPhat || 0) + Number(item.truBaoHiem || 0), 0);
+            const totalThucLanh = bangLuong.reduce((sum, item) => sum + Number(item.thucLanh || 0), 0);
+
+            let chartData = [];
+            if (type === 'year') {
+                const byMonth = {};
+                for (const row of bangLuong) {
+                    const monthKey = Number(row.thang) || 0;
+                    if (!byMonth[monthKey]) {
+                        byMonth[monthKey] = { thang: monthKey, totalThucLanh: 0, totalThuong: 0, totalKhauTru: 0, totalNguoi: 0 };
+                    }
+                    byMonth[monthKey].totalThucLanh += Number(row.thucLanh || 0);
+                    byMonth[monthKey].totalThuong += Number(row.thuong || 0);
+                    byMonth[monthKey].totalKhauTru += Number(row.tongTienPhat || 0) + Number(row.truBaoHiem || 0);
+                    byMonth[monthKey].totalNguoi += 1;
+                }
+                chartData = Object.values(byMonth).sort((a, b) => a.thang - b.thang);
+            }
+
+            return res.status(200).json({
+                success: true,
+                type,
+                period: type === 'month' ? `${thang}/${nam}` : `${nam}`,
+                summary: {
+                    totalNhanVien,
+                    totalLuongCoBan,
+                    totalThuong,
+                    totalPhuCap,
+                    totalKhauTru,
+                    totalThucLanh
+                },
+                data: bangLuong,
+                chartData
+            });
+        } catch (error) {
+            console.error('Lỗi thống kê lương:', error);
+            return res.status(500).json({ success: false, message: 'Lỗi thống kê lương' });
         }
     },
     

@@ -52,6 +52,11 @@ const routes = [
             component: () => import('../modules/sales/HoaDon.vue')
         },
         {
+            path: '/sales/report',
+            name: 'Báo cáo Sản phẩm',
+            component: () => import('../modules/sales/ThongKeSanPham.vue')
+        },
+        {
             path: '/hr/attendance',
             name: 'Chấm Công',
             component: () => import('../modules/hr/ChamCong.vue')

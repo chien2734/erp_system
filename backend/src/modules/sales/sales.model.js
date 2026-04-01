@@ -175,6 +175,83 @@ const SalesModel = {
 
         return thongTinChung;
     },
+    // Báo cáo sản phẩm
+    getProductSalesReport: async ({ startDate, endDate }) => {
+        const sql = `
+            SELECT sp.maSP,
+                   sp.tenSP,
+                   SUM(cthd.soLuong) AS soLuongDaXuat,
+                   SUM(cthd.thanhTien) AS doanhThu,
+                   COALESCE(SUM(cost.tongGiaVon), 0) AS tongGiaVon,
+                   SUM(cthd.thanhTien) - COALESCE(SUM(cost.tongGiaVon), 0) AS loiNhuan
+            FROM hoadon hd
+            JOIN chitiethoadon cthd ON hd.maHoaDon = cthd.maHoaDon
+            JOIN sanpham sp ON cthd.maSP = sp.maSP
+            LEFT JOIN (
+                SELECT mt.maHoaDon, mt.maSP, SUM(COALESCE(ctpn.donGiaNhap, 0)) AS tongGiaVon
+                FROM maytinh mt
+                LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
+                WHERE mt.maHoaDon IS NOT NULL
+                GROUP BY mt.maHoaDon, mt.maSP
+            ) cost ON cost.maHoaDon = hd.maHoaDon AND cost.maSP = cthd.maSP
+            WHERE hd.ngayLap BETWEEN ? AND ?
+            GROUP BY sp.maSP, sp.tenSP
+            ORDER BY soLuongDaXuat DESC, sp.tenSP ASC
+        `;
+        const [rows] = await db.query(sql, [startDate, endDate]);
+        return rows;
+    },
+    // Báo cáo lợi nhuận
+    getProfitReport: async ({ startDate, endDate, groupBy }) => {
+        const costSubquery = `
+            SELECT mt.maHoaDon, mt.maSP, SUM(COALESCE(ctpn.donGiaNhap, 0)) AS tongGiaVon
+            FROM maytinh mt
+            LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
+            WHERE mt.maHoaDon IS NOT NULL
+            GROUP BY mt.maHoaDon, mt.maSP
+        `;
+
+        let sql = '';
+        if (groupBy === 'month') {
+            sql = `
+                SELECT MONTH(hd.ngayLap) AS thang,
+                       SUM(cthd.thanhTien) AS doanhThu,
+                       COALESCE(SUM(cost.tongGiaVon), 0) AS tongGiaVon,
+                       SUM(cthd.thanhTien) - COALESCE(SUM(cost.tongGiaVon), 0) AS loiNhuan
+                FROM hoadon hd
+                JOIN chitiethoadon cthd ON hd.maHoaDon = cthd.maHoaDon
+                LEFT JOIN (${costSubquery}) cost ON cost.maHoaDon = hd.maHoaDon AND cost.maSP = cthd.maSP
+                WHERE hd.ngayLap BETWEEN ? AND ?
+                GROUP BY MONTH(hd.ngayLap)
+                ORDER BY MONTH(hd.ngayLap)
+            `;
+        } else if (groupBy === 'quarter') {
+            sql = `
+                SELECT CEILING(MONTH(hd.ngayLap) / 3) AS quy,
+                       SUM(cthd.thanhTien) AS doanhThu,
+                       COALESCE(SUM(cost.tongGiaVon), 0) AS tongGiaVon,
+                       SUM(cthd.thanhTien) - COALESCE(SUM(cost.tongGiaVon), 0) AS loiNhuan
+                FROM hoadon hd
+                JOIN chitiethoadon cthd ON hd.maHoaDon = cthd.maHoaDon
+                LEFT JOIN (${costSubquery}) cost ON cost.maHoaDon = hd.maHoaDon AND cost.maSP = cthd.maSP
+                WHERE hd.ngayLap BETWEEN ? AND ?
+                GROUP BY CEILING(MONTH(hd.ngayLap) / 3)
+                ORDER BY CEILING(MONTH(hd.ngayLap) / 3)
+            `;
+        } else {
+            sql = `
+                SELECT SUM(cthd.thanhTien) AS doanhThu,
+                       COALESCE(SUM(cost.tongGiaVon), 0) AS tongGiaVon,
+                       SUM(cthd.thanhTien) - COALESCE(SUM(cost.tongGiaVon), 0) AS loiNhuan
+                FROM hoadon hd
+                JOIN chitiethoadon cthd ON hd.maHoaDon = cthd.maHoaDon
+                LEFT JOIN (${costSubquery}) cost ON cost.maHoaDon = hd.maHoaDon AND cost.maSP = cthd.maSP
+                WHERE hd.ngayLap BETWEEN ? AND ?
+            `;
+        }
+        const [rows] = await db.query(sql, [startDate, endDate]);
+        return rows;
+    },
 };
 
 module.exports = SalesModel;
