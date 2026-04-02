@@ -12,6 +12,18 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
     getUserName: (state) => state.user?.hoTen || state.user?.username || 'User',
     getUserRole: (state) => state.user?.maNhomQuyen,
+
+    // Mặc định là check quyenXem, nếu muốn check nút Xóa thì truyền 'quyenXoa'
+    hasPermission: (state) => (maChucNang, action = 'quyenXem') => {
+      if (!state.user || !state.user.permissions) return false;
+      
+      // Lấy quyền của chức năng đó (Nếu không có trong danh sách -> false)
+      const modulePerms = state.user.permissions[maChucNang];
+      if (!modulePerms) return false;
+
+      // Trả về 1 (true) hoặc 0 (false)
+      return modulePerms[action] === 1;
+    }
   },
 
   actions: {

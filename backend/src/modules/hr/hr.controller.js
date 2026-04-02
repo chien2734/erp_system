@@ -18,34 +18,13 @@ const HrController = {
     updateProfileInfo: async (req, res) => {
         try {
             const maNhanVien = req.user.maNhanVien;
-            const { sdt, email, diaChi } = req.body;
             
-            // Viết 1 hàm update nhỏ gọn trong Model để chỉ sửa 3 cột này
-            const sql = `UPDATE nhanvien SET sdt = ?, email = ?, diaChi = ? WHERE maNhanVien = ?`;
-            await db.query(sql, [sdt, email, diaChi, maNhanVien]);
+            await HrModel.updateProfileInfo(maNhanVien, req.body);
             
             res.status(200).json({ success: true, message: 'Đã cập nhật thông tin liên hệ!' });
         } catch (error) {
+            console.error("Lỗi updateProfileInfo:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật thông tin' });
-        }
-    },
-
-    changePassword: async (req, res) => {
-        try {
-            const maNhanVien = req.user.maNhanVien;
-            const { oldPass, newPass } = req.body;
-
-            // Kiểm tra pass cũ
-            const [user] = await db.query(`SELECT matKhau FROM nhanvien WHERE maNhanVien = ?`, [maNhanVien]);
-            if (user[0].matKhau !== oldPass) {
-                return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng!' });
-            }
-
-            // Lưu pass mới
-            await db.query(`UPDATE nhanvien SET matKhau = ? WHERE maNhanVien = ?`, [newPass, maNhanVien]);
-            res.status(200).json({ success: true, message: 'Đổi mật khẩu thành công!' });
-        } catch (error) {
-            res.status(500).json({ success: false, message: 'Lỗi đổi mật khẩu' });
         }
     },
     
@@ -684,7 +663,39 @@ const HrController = {
             if (new Date(ngayBatDau) > new Date(ngayKetThuc)) {
                 return res.status(400).json({ success: false, message: 'Ngày bắt đầu không thể lớn hơn ngày kết thúc' });
             }
+
+            const checkTrung = await HrModel.checkTrungThoiGian(maNhanVien, ngayBatDau, ngayKetThuc);
+            if (checkTrung.isTrung) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Thời gian xin nghỉ bị trùng lặp với ${checkTrung.type}. Vui lòng kiểm tra lại!` 
+                });
+            }
             
+            if (loaiDon === 'Nghỉ phép năm') {
+                const start = new Date(ngayBatDau);
+                const end = new Date(ngayKetThuc);
+                
+                // Tính số ngày muốn xin (VD: 15/10 đến 16/10 là 2 ngày)
+                const soNgayMuonXin = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+                // Lấy số ngày phép đã dùng trong năm (Tính theo năm của ngày bắt đầu xin nghỉ)
+                const namHienTai = start.getFullYear();
+                const soNgayDaDung = await HrModel.getPhepNamDaDung(maNhanVien, namHienTai);
+                
+                // Quy định công ty: 12 ngày phép/năm
+                const QUY_PHEP_NAM = 12;
+                const soNgayConLai = QUY_PHEP_NAM - soNgayDaDung;
+
+                // Kiểm tra vượt hạn mức
+                if (soNgayMuonXin > soNgayConLai) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Quỹ phép năm ${namHienTai} của bạn chỉ còn ${soNgayConLai} ngày. Không thể xin thêm ${soNgayMuonXin} ngày!` 
+                    });
+                }
+            }
+
             await HrModel.createLeaveRequest(maNhanVien, req.body);
             
             res.status(201).json({ success: true, message: 'Đã gửi đơn xin nghỉ phép thành công. Vui lòng chờ quản lý duyệt!' });

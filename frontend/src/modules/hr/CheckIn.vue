@@ -194,7 +194,7 @@ const handleAttendance = async (type) => {
     loading.value = true;
     const res = await api.post('/hr/chamcong');
     
-    // 👉 ĐÃ SỬA: Lấy dữ liệu an toàn, tương thích với mọi cách cấu hình Axios
+    // Lấy dữ liệu an toàn, tương thích với mọi cách cấu hình Axios
     const resultData = res.data || res; 
     
     if (resultData.success) {

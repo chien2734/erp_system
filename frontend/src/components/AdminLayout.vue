@@ -19,54 +19,51 @@
                 <span class="font-bold text-emerald-400">Chấm Công Hàng Ngày</span>
             </el-menu-item>
 
-            <el-sub-menu index="sales" v-if="[1, 2, 3].includes(authStore.getUserRole)">
+            <el-sub-menu index="sales" v-if="authStore.hasPermission(CHUCNANG.POS) || authStore.hasPermission(CHUCNANG.KHACH_HANG)">
                 <template #title>
                     <el-icon><ShoppingCart /></el-icon>
                     <span>Bán Hàng & POS</span>
                 </template>
-                <el-menu-item index="/sales/pos">Màn hình POS</el-menu-item>
-                <el-menu-item index="/sales/orders">Lịch sử hóa đơn</el-menu-item>
-                <el-menu-item index="/sales/report">Báo cáo sản phẩm</el-menu-item>
                 
-                <el-menu-item index="/sales/customers" v-if="[1, 2].includes(authStore.getUserRole)">
-                    Quản lý khách hàng
-                </el-menu-item>
+                <el-menu-item index="/sales/pos" v-if="authStore.hasPermission(CHUCNANG.POS)">Màn hình POS</el-menu-item>
+                <el-menu-item index="/sales/orders" v-if="authStore.hasPermission(CHUCNANG.POS)">Lịch sử hóa đơn</el-menu-item>
+                
+                <el-menu-item index="/sales/report" v-if="authStore.hasPermission(CHUCNANG.BAO_CAO)">Báo cáo sản phẩm</el-menu-item>
+                
+                <el-menu-item index="/sales/customers" v-if="authStore.hasPermission(CHUCNANG.KHACH_HANG)">Quản lý khách hàng</el-menu-item>
             </el-sub-menu>
 
-            <el-sub-menu index="inventory" v-if="[1, 2, 4].includes(authStore.getUserRole)">
+            <el-sub-menu index="inventory" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM) || authStore.hasPermission(CHUCNANG.NHAP_KHO)">
                 <template #title>
                     <el-icon><Box /></el-icon>
                     <span>Kho & Sản phẩm</span>
                 </template>
 
-                <el-menu-item index="/inventory/products" v-if="[1, 2].includes(authStore.getUserRole)">
-                    Danh mục Sản phẩm
-                </el-menu-item>
-                
-                <el-menu-item index="/inventory/stock">Nhập kho</el-menu-item>
-                <el-menu-item index="/inventory/serial">Quản lý Serial</el-menu-item>
+                <el-menu-item index="/inventory/products" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Danh mục Sản phẩm</el-menu-item>
+                <el-menu-item index="/inventory/stock" v-if="authStore.hasPermission(CHUCNANG.NHAP_KHO)">Nhập kho</el-menu-item>
+                <el-menu-item index="/inventory/serial" v-if="authStore.hasPermission(CHUCNANG.SERIAL)">Quản lý Serial</el-menu-item>
             </el-sub-menu>
 
-            <el-sub-menu index="hr" v-if="[1, 2].includes(authStore.getUserRole)">
+            <el-sub-menu index="hr" v-if="authStore.hasPermission(CHUCNANG.NHAN_VIEN) || authStore.hasPermission(CHUCNANG.CHAM_CONG)">
                 <template #title>
                     <el-icon><UserFilled /></el-icon>
                     <span>Nhân Sự & Lương</span>
                 </template>
-                <el-menu-item index="/hr/employees">Quản lý nhân viên</el-menu-item>
-                <el-menu-item index="/hr/attendance">Quản lý chấm công</el-menu-item>
-                <el-menu-item index="/hr/payroll">Bảng tính lương</el-menu-item>
-                <el-menu-item index="/hr/leaves">Quản lý Đơn từ</el-menu-item>
-                <el-menu-item index="/hr/positions" v-if="[1].includes(authStore.getUserRole)">Quản lý Chức vụ</el-menu-item>
+                <el-menu-item index="/hr/employees" v-if="authStore.hasPermission(CHUCNANG.NHAN_VIEN)">Quản lý nhân viên</el-menu-item>
+                <el-menu-item index="/hr/positions" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">Quản lý Chức vụ</el-menu-item>
+                <el-menu-item index="/hr/attendance" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý chấm công</el-menu-item>
+                <el-menu-item index="/hr/payroll" v-if="authStore.hasPermission(CHUCNANG.TINH_LUONG)">Bảng tính lương</el-menu-item>
+                <el-menu-item index="/hr/leaves" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý Đơn từ</el-menu-item>
             </el-sub-menu>
 
-            <el-menu-item index="/settings" v-if="authStore.getUserRole === 1">
+            <el-menu-item index="/settings" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">
                 <el-icon><Setting /></el-icon>
                 <span>Cấu hình hệ thống</span>
             </el-menu-item>
 
-            <el-menu-item index="/auth/accounts" v-if="authStore.getUserRole === 1">
+            <el-menu-item index="/auth/accounts" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">
                 <el-icon><User /></el-icon>
-                <span>Quản lý Tài khoản</span>
+                <span>Quản lý Phân quyền</span>
             </el-menu-item>
         </el-menu>
 
@@ -83,20 +80,21 @@
 
                 <div class="flex items-center gap-4">
                     <div class="text-right mr-2">
-                        <p class="text-sm font-bold text-gray-700">{{ authStore.getUserName }}</p>
+                        <p class="text-sm font-bold text-gray-700">
+                            {{ authStore.user?.hoten || authStore.user?.username || 'Người dùng' }}
+                        </p>
+                        
                         <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">
-                            {{ authStore.getUserRole === 1 ? 'Ban Giám Đốc' : 
-                               authStore.getUserRole === 2 ? 'Quản Lý' : 
-                               authStore.getUserRole === 3 ? 'Thu Ngân' : 'Kho & Kỹ Thuật' }}
+                            {{ authStore.user?.tenNhomQuyen || 'Nhân viên' }}
                         </p>
                     </div>
+                    
                     <el-dropdown trigger="click">
                         <el-avatar :size="40" class="cursor-pointer bg-blue-500 font-bold text-white">
-                            {{ authStore.getUserName.charAt(0) }}
+                            {{ (authStore.user?.hoten || authStore.user?.username || 'U').charAt(0).toUpperCase() }}
                         </el-avatar>
                         <template #dropdown>
                             <el-dropdown-menu>
-                            
                                 <el-dropdown-item @click="$router.push('/profile')">
                                     <el-icon><User /></el-icon> Hồ sơ cá nhân
                                 </el-dropdown-item>
@@ -104,7 +102,6 @@
                                 <el-dropdown-item divided @click="handleLogout" class="text-red-500 font-bold">
                                     <el-icon><SwitchButton /></el-icon> Đăng xuất
                                 </el-dropdown-item>
-                            
                             </el-dropdown-menu>
                         </template>
                     </el-dropdown>
@@ -126,6 +123,7 @@
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../modules/auth/auth.store';
 import { Monitor, ShoppingCart, Box, UserFilled, Setting, User, Location } from '@element-plus/icons-vue';
+import { CHUCNANG } from '../utils/constants';
 
 const router = useRouter();
 const authStore = useAuthStore();

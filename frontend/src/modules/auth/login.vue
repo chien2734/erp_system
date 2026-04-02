@@ -112,9 +112,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from './auth.store'; // Đảm bảo đường dẫn này đúng
+import { useAuthStore } from './auth.store'; 
 import { ElMessage } from 'element-plus';
 import { Monitor, User, Lock } from '@element-plus/icons-vue';
+import { CHUCNANG } from '../../utils/constants';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -143,38 +144,30 @@ const handleLogin = async (formEl) => {
     if (valid) {
       isLoading.value = true;
       try {
-        // 1. Đã truyền thêm rememberMe vào store
         await authStore.login(loginForm.username, loginForm.password, rememberMe.value);
-        
         ElMessage.success(`Đăng nhập thành công! Chào mừng ${authStore.user?.hoTen || ''}`);
         
-        // 2. Logic điều hướng thông minh theo Nhóm Quyền (Database thực tế)
-        const role = authStore.user?.maNhomQuyen;
+        // 👉 ĐÃ FIX LOGIC ĐIỀU HƯỚNG THEO QUYỀN (Không phụ thuộc maNhomQuyen)
+        // Hệ thống sẽ thử từng "Cửa" theo thứ tự ưu tiên. Cửa nào mở (có quyền xem) thì nhảy vào.
         
-        if (role === 1) { 
-          // 1. Ban Giám Đốc -> Vào trang Tổng quan (Dashboard)
-          router.push('/'); 
-        }
-        else if (role === 2) { 
-          // 2. Quản Lý -> Vào trang Tổng quan (Hoặc bạn có thể đổi thành '/hr/employees' nếu muốn)
-          router.push('/'); 
-        }
-        else if (role === 3) { 
-          // 3. Bán Hàng & Thu Ngân -> Đẩy thẳng ra màn hình POS
-          router.push('/sales/pos'); 
+        if (authStore.hasPermission(CHUCNANG.POS)) {
+          // Bán hàng/Thu ngân ưu tiên vào POS luôn cho nhanh
+          router.push('/sales/pos');
         } 
-        else if (role === 4) { 
-          // 4. Kho & Kỹ thuật -> Đẩy thẳng vào trang Nhập kho
-          router.push('/inventory/stock'); 
+        else if (authStore.hasPermission(CHUCNANG.NHAP_KHO) || authStore.hasPermission(CHUCNANG.SERIAL)) {
+          // Thủ kho ưu tiên vào Nhập kho
+          router.push('/inventory/stock');
+        } 
+        else if (authStore.hasPermission(CHUCNANG.NHAN_VIEN) || authStore.hasPermission(CHUCNANG.TINH_LUONG)) {
+          // Quản lý Nhân sự vào bảng chấm công/nhân viên
+          router.push('/hr/attendance');
         } 
         else {
-          // Xử lý ngoại lệ: Nếu user không có mã quyền hợp lệ, bắt đăng nhập lại
-          ElMessage.error('Tài khoản chưa được phân quyền hợp lệ!');
-          authStore.logout();
+          // Mặc định (như Admin/Ban Giám Đốc hoặc người mới tinh): Vào Dashboard
+          router.push('/');
         }
 
       } catch (error) {
-        // Xử lý lỗi an toàn hơn, tránh crash nếu error.response không tồn tại
         ElMessage.error(error.response?.data?.message || error.message || 'Sai tài khoản hoặc mật khẩu!');
       } finally {
         isLoading.value = false;

@@ -118,8 +118,8 @@
               type="primary" 
               link 
               @click="openEditModal(scope.row)"
-              :disabled="scope.row.trangThai.includes('Nghỉ có phép')"
-              :title="scope.row.trangThai.includes('Nghỉ có phép') ? 'Không thể sửa ngày nghỉ có phép' : ''"
+              :disabled="scope.row.trangThai && scope.row.trangThai.includes('Nghỉ')"
+              :title="(scope.row.trangThai && scope.row.trangThai.includes('Nghỉ')) ? 'Không thể sửa thủ công ngày nghỉ theo đơn' : ''"
             >
               <el-icon class="text-xl"><EditPen /></el-icon> Sửa
             </el-button>

@@ -171,6 +171,14 @@
             <el-table-column prop="lyDo" label="Lý do chi tiết" min-width="200">
               <template #default="scope"><span class="text-slate-600">{{ scope.row.lyDo }}</span></template>
             </el-table-column>
+            <el-table-column label="Ngày tạo đơn" width="150" align="center">
+              <template #default="scope">
+                <div class="flex items-center justify-center gap-1 text-slate-500 text-sm">
+                  <el-icon><Calendar /></el-icon>
+                  <span>{{ formatDateVN(scope.row.ngayTao) }}</span>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="trangThai" label="Trạng thái duyệt" width="150" align="center">
               <template #default="scope">
                 <el-tag :type="getLeaveStatusColor(scope.row.trangThai)" effect="dark" class="font-bold w-24">
@@ -398,10 +406,12 @@ const changePassword = async () => {
   
   changingPass.value = true;
   try {
-    const res = await api.put('/hr/profile/change-password', {
-      oldPass: formPassword.value.oldPass,
-      newPass: formPassword.value.newPass
+    // Trỏ về đúng route của module Auth và đổi key cho khớp Backend
+    const res = await api.put('/auth/change-password', {
+      oldPassword: formPassword.value.oldPass, 
+      newPassword: formPassword.value.newPass
     });
+    
     if (res.data?.success || res.success) {
       ElMessage.success('Đổi mật khẩu thành công!');
       formPassword.value = { oldPass: '', newPass: '', confirmPass: '' };
@@ -412,7 +422,6 @@ const changePassword = async () => {
     changingPass.value = false;
   }
 };
-
 
 // ==========================================
 // 3. TAB LỊCH SỬ CHẤM CÔNG
@@ -542,8 +551,16 @@ const submitLeave = async () => {
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 const formatDateVN = (dateStr) => {
   if (!dateStr) return '';
-  const parts = dateStr.split('T')[0].split('-');
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  const d = new Date(dateStr);
+  
+  // Tránh lỗi nếu chuỗi ngày không hợp lệ
+  if (isNaN(d.getTime())) return ''; 
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  
+  return `${day}/${month}/${year}`;
 };
 const getInitials = (name) => {
   if (!name) return 'NV';

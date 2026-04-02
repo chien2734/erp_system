@@ -556,6 +556,52 @@ const HrModel = {
     // PHẦN 5: QUẢN LÝ ĐƠN NGHỈ PHÉP
     // ==============================================
 
+    // 0. Lấy số ngày phép năm đã sử dụng (hoặc đang chờ duyệt)
+    getPhepNamDaDung: async (maNhanVien, namHienTai) => {
+        const sql = `
+            SELECT SUM(DATEDIFF(ngayKetThuc, ngayBatDau) + 1) AS soNgayDaDung
+            FROM dontu
+            WHERE maNhanVien = ? 
+              AND loaiDon = 'Nghỉ phép năm' 
+              AND trangThai IN ('Đã duyệt', 'Chờ duyệt')
+              AND YEAR(ngayBatDau) = ?
+        `;
+        const [rows] = await db.query(sql, [maNhanVien, namHienTai]);
+        return parseInt(rows[0].soNgayDaDung) || 0;
+    },
+
+    // BỔ SUNG: Kiểm tra xem những ngày xin nghỉ có bị trùng với lịch cũ không
+    checkTrungThoiGian: async (maNhanVien, ngayBatDau, ngayKetThuc) => {
+        // 1. Quét bảng Đơn Từ (Xem có trùng với đơn nào Đã duyệt/Chờ duyệt không)
+        const sqlDonTu = `
+            SELECT maDon, loaiDon FROM dontu 
+            WHERE maNhanVien = ? 
+              AND trangThai IN ('Chờ duyệt', 'Đã duyệt')
+              AND ngayBatDau <= ? AND ngayKetThuc >= ?
+            LIMIT 1
+        `;
+        const [donTuTrung] = await db.query(sqlDonTu, [maNhanVien, ngayKetThuc, ngayBatDau]);
+        if (donTuTrung.length > 0) {
+            return { isTrung: true, type: `đơn xin "${donTuTrung[0].loaiDon}" khác đang tồn tại` };
+        }
+
+        // 2. Quét bảng Chấm Công (Xem những ngày đó đã đi làm chưa)
+        const sqlChamCong = `
+            SELECT ngayLamViec FROM chamcong 
+            WHERE maNhanVien = ? 
+              AND ngayLamViec >= ? AND ngayLamViec <= ?
+              AND gioVao IS NOT NULL
+            LIMIT 1
+        `;
+        const [chamCongTrung] = await db.query(sqlChamCong, [maNhanVien, ngayBatDau, ngayKetThuc]);
+        if (chamCongTrung.length > 0) {
+            return { isTrung: true, type: 'ngày bạn đã đi làm (đã có dữ liệu chấm công)' };
+        }
+
+        // Vượt qua 2 chốt an toàn
+        return { isTrung: false };
+    },
+    
     // 1. Nhân viên: Nộp đơn xin nghỉ
    createLeaveRequest: async (maNhanVien, data) => {
         const sql = `
@@ -675,6 +721,13 @@ const HrModel = {
         `;
         const [result] = await db.query(sql, [data.ngayBatDau, data.ngayKetThuc, data.lyDo, maDon]);
         return result.affectedRows; 
+    },
+
+    // Cập nhật thông tin cá nhân (Cho trang Profile)
+    updateProfileInfo: async (maNhanVien, data) => {
+        const sql = `UPDATE nhanvien SET sdt = ?, email = ?, diaChi = ? WHERE maNhanVien = ?`;
+        const [result] = await db.query(sql, [data.sdt, data.email, data.diaChi, maNhanVien]);
+        return result.affectedRows;
     },
     
 };

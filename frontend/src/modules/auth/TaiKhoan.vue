@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6 max-w-7xl mx-auto">
+  <div class="space-y-6 max-w-7xl mx-auto" v-loading="loadingData">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <div>
         <h2 class="text-2xl font-bold text-slate-900">Quản lý Tài khoản & Phân quyền</h2>
@@ -22,9 +22,9 @@
             <el-table-column label="Nhân viên" min-width="200">
               <template #default="scope">
                 <div class="flex items-center gap-3">
-                  <el-avatar :size="40" class="bg-blue-100 text-blue-600 font-bold">NV</el-avatar>
+                  <el-avatar :size="40" class="bg-blue-100 text-blue-600 font-bold">{{ scope.row.hoTen?.charAt(0) || 'NV' }}</el-avatar>
                   <div>
-                    <p class="font-bold text-slate-800">{{ getTenNhanVien(scope.row.maNhanVien) }}</p>
+                    <p class="font-bold text-slate-800">{{ scope.row.hoTen }}</p>
                     <p class="text-xs text-slate-500">Mã NV: {{ scope.row.maNhanVien }}</p>
                   </div>
                 </div>
@@ -40,7 +40,7 @@
             <el-table-column label="Nhóm Quyền (Role)" width="180" align="center">
               <template #default="scope">
                 <el-tag :type="getRoleColor(scope.row.maNhomQuyen)" effect="dark" class="font-bold">
-                  {{ getTenNhomQuyen(scope.row.maNhomQuyen) }}
+                  {{ scope.row.tenNhomQuyen }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -83,7 +83,7 @@
             </div>
             
             <div 
-              v-for="role in dbNhomQuyen" :key="role.maNhomQuyen"
+              v-for="role in rolesList" :key="role.maNhomQuyen"
               @click="selectRole(role)"
               class="p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
               :class="selectedRole?.maNhomQuyen === role.maNhomQuyen ? 'border-blue-500 bg-blue-50' : 'border-slate-100 bg-white hover:border-blue-300'"
@@ -99,30 +99,32 @@
             <div class="flex justify-between items-center mb-6">
               <div>
                 <h3 class="font-bold text-lg text-slate-800">Chi tiết quyền: <span class="text-blue-600">{{ selectedRole.tenNhomQuyen }}</span></h3>
-                <p class="text-sm text-slate-500">Tích chọn các hành động được phép thực hiện.</p>
+                <p class="text-sm text-slate-500" v-if="selectedRole.maNhomQuyen === 1">Tài khoản Admin hệ thống có mặc định tất cả quyền hạn.</p>
+                <p class="text-sm text-slate-500" v-else>Tích chọn các hành động được phép thực hiện.</p>
               </div>
-              <el-button type="primary" @click="savePermissions"><el-icon class="mr-2"><Check /></el-icon> LƯU PHÂN QUYỀN</el-button>
+              <el-button type="primary" @click="savePermissions" :disabled="selectedRole.maNhomQuyen === 1">
+                <el-icon class="mr-2"><Check /></el-icon> LƯU PHÂN QUYỀN
+              </el-button>
             </div>
 
             <el-table :data="permissionMatrix" style="width: 100%" border size="small">
               <el-table-column prop="tenChucNang" label="Module (Chức năng)" min-width="180">
                 <template #default="scope">
                   <span class="font-bold text-slate-700">{{ scope.row.tenChucNang }}</span>
-                  <span class="block text-xs text-slate-400 font-mono">{{ scope.row.maChucNang }}</span>
                 </template>
               </el-table-column>
               
               <el-table-column label="Xem (View)" width="90" align="center">
-                <template #default="scope"><el-checkbox v-model="scope.row.actions.View" /></template>
+                <template #default="scope"><el-checkbox v-model="scope.row.quyenXem" :true-value="1" :false-value="0" :disabled="selectedRole.maNhomQuyen === 1" /></template>
               </el-table-column>
               <el-table-column label="Thêm (Add)" width="90" align="center">
-                <template #default="scope"><el-checkbox v-model="scope.row.actions.Add" /></template>
+                <template #default="scope"><el-checkbox v-model="scope.row.quyenThem" :true-value="1" :false-value="0" :disabled="selectedRole.maNhomQuyen === 1" /></template>
               </el-table-column>
               <el-table-column label="Sửa (Edit)" width="90" align="center">
-                <template #default="scope"><el-checkbox v-model="scope.row.actions.Edit" /></template>
+                <template #default="scope"><el-checkbox v-model="scope.row.quyenSua" :true-value="1" :false-value="0" :disabled="selectedRole.maNhomQuyen === 1" /></template>
               </el-table-column>
               <el-table-column label="Xóa (Delete)" width="90" align="center">
-                <template #default="scope"><el-checkbox v-model="scope.row.actions.Delete" /></template>
+                <template #default="scope"><el-checkbox v-model="scope.row.quyenXoa" :true-value="1" :false-value="0" :disabled="selectedRole.maNhomQuyen === 1" /></template>
               </el-table-column>
             </el-table>
           </div>
@@ -139,7 +141,7 @@
       <el-form label-position="top">
         <el-form-item label="Chọn Nhân viên" v-if="!isEditAccount">
           <el-select v-model="formAccount.maNhanVien" class="w-full" filterable placeholder="Gõ tên hoặc mã NV...">
-            <el-option v-for="nv in dbNhanVien" :key="nv.maNhanVien" :label="`${nv.hoTen} (NV${nv.maNhanVien})`" :value="nv.maNhanVien" />
+            <el-option v-for="nv in freeEmployees" :key="nv.maNhanVien" :label="`${nv.hoTen} (NV${nv.maNhanVien})`" :value="nv.maNhanVien" />
           </el-select>
         </el-form-item>
 
@@ -150,7 +152,7 @@
 
         <el-form-item label="Nhóm Quyền (Role)">
           <el-select v-model="formAccount.maNhomQuyen" class="w-full">
-            <el-option v-for="role in dbNhomQuyen" :key="role.maNhomQuyen" :label="role.tenNhomQuyen" :value="role.maNhomQuyen" />
+            <el-option v-for="role in rolesList" :key="role.maNhomQuyen" :label="role.tenNhomQuyen" :value="role.maNhomQuyen" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -179,43 +181,20 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, EditPen, Key, User, Check } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-
-// --- MOCK DATABASE ---
-const dbNhanVien = ref([
-  { maNhanVien: 1, hoTen: 'Nguyễn Văn Admin' },
-  { maNhanVien: 2, hoTen: 'Trần Thị Sales' },
-  { maNhanVien: 3, hoTen: 'Lê Văn Kho' },
-]);
-
-const dbNhomQuyen = ref([
-  { maNhomQuyen: 1, tenNhomQuyen: 'Administrator', moTa: 'Toàn quyền quản trị hệ thống' },
-  { maNhomQuyen: 2, tenNhomQuyen: 'Thu ngân (POS)', moTa: 'Quyền bán hàng, xuất hóa đơn' },
-  { maNhomQuyen: 3, tenNhomQuyen: 'Quản lý Kho', moTa: 'Quyền nhập hàng, xuất kho, serial' },
-]);
-
-const dbChucNang = ref([
-  { maChucNang: 'QL_BANHANG', tenChucNang: 'Phân hệ Bán Hàng (POS)' },
-  { maChucNang: 'QL_KHO', tenChucNang: 'Phân hệ Kho hàng' },
-  { maChucNang: 'QL_NHANSU', tenChucNang: 'Phân hệ Nhân sự & Lương' },
-  { maChucNang: 'QL_HETHONG', tenChucNang: 'Cấu hình & Tài khoản' },
-]);
-
-const dbPhanQuyen = ref([
-  { maNhomQuyen: 2, maChucNang: 'QL_BANHANG', actions: { View: true, Add: true, Edit: true, Delete: false } },
-  { maNhomQuyen: 2, maChucNang: 'QL_KHO', actions: { View: true, Add: false, Edit: false, Delete: false } },
-]);
-
-const dbTaiKhoan = ref([
-  { maNhanVien: 1, username: 'admin', maNhomQuyen: 1, trangThai: 1 },
-  { maNhanVien: 2, username: 'thungan_tran', maNhomQuyen: 2, trangThai: 1 },
-  { maNhanVien: 3, username: 'thukho_le', maNhomQuyen: 3, trangThai: 0 },
-]);
+import api from '../../services/api'; // Đường dẫn API của bạn
 
 // --- STATE ---
+const loadingData = ref(false);
 const activeTab = ref('accounts');
+
+// Data Lists từ Backend
+const accountsList = ref([]);
+const rolesList = ref([]);
+const functionsList = ref([]);
+const freeEmployees = ref([]); // Những nhân viên chưa có tài khoản
 
 // State cho Tab 1 (Tài khoản)
 const searchAccount = ref('');
@@ -229,31 +208,72 @@ const permissionMatrix = ref([]);
 const dialogRoleVisible = ref(false);
 const formRole = ref({ tenNhomQuyen: '', moTa: '' });
 
-// --- COMPUTED (TAB 1) ---
+// --- COMPUTED ---
 const filteredAccounts = computed(() => {
-  return dbTaiKhoan.value.filter(tk => {
-    const nv = dbNhanVien.value.find(n => n.maNhanVien === tk.maNhanVien);
-    const tenNV = nv ? nv.hoTen.toLowerCase() : '';
-    const query = searchAccount.value.toLowerCase();
-    return tk.username.toLowerCase().includes(query) || tenNV.includes(query);
-  });
+  const query = searchAccount.value.toLowerCase();
+  return accountsList.value.filter(tk => 
+    tk.username.toLowerCase().includes(query) || 
+    (tk.hoTen && tk.hoTen.toLowerCase().includes(query))
+  );
 });
 
-// --- METHODS (TAB 1: TÀI KHOẢN) ---
-const getTenNhanVien = (id) => dbNhanVien.value.find(nv => nv.maNhanVien === id)?.hoTen || 'Unknown';
-const getTenNhomQuyen = (id) => dbNhomQuyen.value.find(q => q.maNhomQuyen === id)?.tenNhomQuyen || 'Trống';
+// --- LIFECYCLE ---
+onMounted(async () => {
+  loadingData.value = true;
+  await Promise.all([
+    fetchAccounts(),
+    fetchRoles(),
+    fetchFunctions(),
+    fetchFreeEmployees()
+  ]);
+  loadingData.value = false;
+});
 
+// --- API CALLS (Đã bọc thép hứng data và thêm tiền tố /auth) ---
+const fetchAccounts = async () => {
+  try { 
+    const res = await api.get('/auth/admin/accounts'); 
+    // Hứng trực tiếp res.data vì api.js đã return response.data
+    accountsList.value = res.data || []; 
+  } catch (e) { console.error("Lỗi fetchAccounts:", e); }
+};
+
+const fetchRoles = async () => {
+  try { 
+    const res = await api.get('/auth/admin/roles'); 
+    rolesList.value = res.data || []; 
+  } catch (e) { console.error("Lỗi fetchRoles:", e); }
+};
+
+const fetchFunctions = async () => {
+  try { 
+    const res = await api.get('/auth/admin/functions'); 
+    functionsList.value = res.data || []; 
+  } catch (e) { console.error("Lỗi fetchFunctions:", e); }
+};
+
+const fetchFreeEmployees = async () => {
+  try { 
+    const res = await api.get('/auth/admin/free-employees'); 
+    freeEmployees.value = res.data || []; 
+  } catch (e) { console.error("Lỗi fetchFreeEmployees:", e); }
+};
+
+// --- METHODS (TÀI KHOẢN) ---
 const getRoleColor = (id) => {
-  if (id === 1) return 'danger';
-  if (id === 2) return 'success';
-  if (id === 3) return 'warning';
-  return 'info';
+  if (id === 1) return 'danger'; if (id === 2) return 'success';
+  if (id === 3) return 'warning'; return 'info';
 };
 const getRoleColorText = (id) => `text-${getRoleColor(id)}-600`;
 
-const toggleStatus = (row) => {
-  const stt = row.trangThai === 1 ? 'MỞ KHÓA' : 'KHÓA';
-  ElMessage.success(`Đã ${stt} tài khoản ${row.username}`);
+const toggleStatus = async (row) => {
+  try {
+    await api.put(`/auth/admin/accounts/${row.maNhanVien}/status`, { trangThai: row.trangThai });
+    ElMessage.success(`Đã cập nhật trạng thái tài khoản ${row.username}`);
+  } catch (error) {
+    row.trangThai = row.trangThai === 1 ? 0 : 1; // Rollback nếu lỗi
+    ElMessage.error(error.response?.data?.message || 'Lỗi khi đổi trạng thái');
+  }
 };
 
 const openAddAccount = () => {
@@ -264,70 +284,92 @@ const openAddAccount = () => {
 
 const openEditAccount = (row) => {
   isEditAccount.value = true;
-  formAccount.value = { ...row };
+  formAccount.value = { maNhanVien: row.maNhanVien, username: row.username, maNhomQuyen: row.maNhomQuyen };
   dialogAccountVisible.value = true;
 };
 
-const saveAccount = () => {
-  dialogAccountVisible.value = false;
-  ElMessage.success(isEditAccount.value ? 'Cập nhật quyền thành công!' : 'Cấp tài khoản mới thành công!');
+const saveAccount = async () => {
+  try {
+    if (isEditAccount.value) {
+      await api.put(`/auth/admin/accounts/${formAccount.value.maNhanVien}`, formAccount.value);
+      ElMessage.success('Cập nhật quyền thành công!');
+    } else {
+      if (!formAccount.value.maNhanVien || !formAccount.value.username) return ElMessage.warning("Vui lòng điền đủ thông tin");
+      await api.post(`/auth/admin/accounts`, formAccount.value);
+      ElMessage.success('Cấp tài khoản mới thành công!');
+      fetchFreeEmployees(); // Reload lại nhân viên rảnh
+    }
+    dialogAccountVisible.value = false;
+    fetchAccounts(); // Reload lại bảng
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Có lỗi xảy ra');
+  }
 };
 
 const resetPassword = (row) => {
   ElMessageBox.confirm(`Đưa mật khẩu của ${row.username} về mặc định (123456)?`, 'Reset Mật Khẩu', {
     confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy', type: 'warning'
-  }).then(() => {
-    ElMessage.success(`Đã reset mật khẩu cho ${row.username}`);
+  }).then(async () => {
+    try {
+      await api.put(`/auth/admin/accounts/${row.maNhanVien}/reset-password`);
+      ElMessage.success(`Đã reset mật khẩu cho ${row.username}`);
+    } catch (error) { 
+      ElMessage.error(error.response?.data?.message || 'Lỗi reset mật khẩu'); 
+    }
   }).catch(() => {});
 };
 
-// --- METHODS (TAB 2: THÊM ROLE & MATRIX) ---
+// --- METHODS (PHÂN QUYỀN) ---
 const openAddRole = () => {
   formRole.value = { tenNhomQuyen: '', moTa: '' };
   dialogRoleVisible.value = true;
 };
 
-const saveRole = () => {
-  if (!formRole.value.tenNhomQuyen.trim()) {
-    ElMessage.error('Vui lòng nhập tên Nhóm Quyền!');
-    return;
+const saveRole = async () => {
+  if (!formRole.value.tenNhomQuyen.trim()) return ElMessage.error('Vui lòng nhập tên Nhóm Quyền!');
+  try {
+    await api.post('/auth/admin/roles', formRole.value);
+    ElMessage.success('Tạo Nhóm Quyền mới thành công!');
+    dialogRoleVisible.value = false;
+    fetchRoles(); // Reload bảng Role
+  } catch (error) { 
+    ElMessage.error(error.response?.data?.message || 'Lỗi tạo nhóm quyền'); 
   }
-  
-  // Tự động sinh ID mới
-  const newId = dbNhomQuyen.value.length > 0 ? Math.max(...dbNhomQuyen.value.map(r => r.maNhomQuyen)) + 1 : 1;
-  
-  dbNhomQuyen.value.push({
-    maNhomQuyen: newId,
-    tenNhomQuyen: formRole.value.tenNhomQuyen,
-    moTa: formRole.value.moTa
-  });
-  
-  dialogRoleVisible.value = false;
-  ElMessage.success('Tạo Nhóm Quyền mới thành công!');
 };
 
-const selectRole = (role) => {
+const selectRole = async (role) => {
   selectedRole.value = role;
-  
-  permissionMatrix.value = dbChucNang.value.map(cn => {
-    const existRule = dbPhanQuyen.value.find(pq => pq.maNhomQuyen === role.maNhomQuyen && pq.maChucNang === cn.maChucNang);
-    const isAdmin = role.maNhomQuyen === 1;
+  try {
+    const res = await api.get(`/auth/admin/roles/${role.maNhomQuyen}/permissions`);
+    const rolePerms = res.data || [];
     
-    return {
-      maChucNang: cn.maChucNang,
-      tenChucNang: cn.tenChucNang,
-      actions: {
-        View: isAdmin ? true : (existRule?.actions.View || false),
-        Add: isAdmin ? true : (existRule?.actions.Add || false),
-        Edit: isAdmin ? true : (existRule?.actions.Edit || false),
-        Delete: isAdmin ? true : (existRule?.actions.Delete || false),
-      }
-    };
-  });
+    permissionMatrix.value = functionsList.value.map(func => {
+      const p = rolePerms.find(x => x.maChucNang === func.maChucNang);
+      const isAdmin = role.maNhomQuyen === 1; // Role Admin luôn Full quyền
+      
+      return {
+        maChucNang: func.maChucNang,
+        tenChucNang: func.tenChucNang,
+        quyenXem: isAdmin ? 1 : (p ? p.quyenXem : 0),
+        quyenThem: isAdmin ? 1 : (p ? p.quyenThem : 0),
+        quyenSua: isAdmin ? 1 : (p ? p.quyenSua : 0),
+        quyenXoa: isAdmin ? 1 : (p ? p.quyenXoa : 0),
+      };
+    });
+  } catch (e) {
+    ElMessage.error('Không tải được chi tiết phân quyền');
+  }
 };
 
-const savePermissions = () => {
-  ElMessage.success(`Đã lưu phân quyền cho nhóm: ${selectedRole.value.tenNhomQuyen}`);
+const savePermissions = async () => {
+  try {
+    await api.put(`/auth/admin/roles/${selectedRole.value.maNhomQuyen}/permissions`, {
+      permissions: permissionMatrix.value
+    });
+    ElMessage.success(`Đã lưu phân quyền cho: ${selectedRole.value.tenNhomQuyen}`);
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || 'Lỗi khi lưu phân quyền');
+  }
 };
 </script>
 
@@ -335,8 +377,6 @@ const savePermissions = () => {
 :deep(.custom-dialog) { border-radius: 16px; overflow: hidden; }
 :deep(.custom-dialog .el-dialog__header) { background-color: #f8fafc; padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
 :deep(.custom-dialog .el-dialog__title) { font-weight: 800; color: #0f172a; }
-
-/* Tùy chỉnh thanh Tabs */
 :deep(.custom-tabs .el-tabs__nav-wrap::after) { background-color: transparent; }
 :deep(.custom-tabs .el-tabs__item) { font-weight: 600; font-size: 15px; color: #64748b; padding: 0 24px; }
 :deep(.custom-tabs .el-tabs__item.is-active) { color: #2563eb; }
