@@ -17,13 +17,28 @@ const InventoryController = {
         }
     },
 
+    // Dùng cho trang Quản lý NCC (Lấy tất cả, không truyền trangThai)
     getAllNCC: async (req, res) => {
         try {
             const { id, tenNCC } = req.query;
-            const data = await InventoryModel.getAllNCC({ id, tenNCC });
+            // Không truyền trangThai -> Lấy cả 1 và 0 (Vì Model dùng WHERE 1=1)
+            const data = await InventoryModel.getAllNCC({ id, tenNCC }); 
             res.status(200).json({ success: true, data });
         } catch (error) {
             console.error("Lỗi API Lấy DS Nhà Cung Cấp:", error);
+            res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách' });
+        }
+    },
+
+    // Dùng cho trang Nhập Kho (Chỉ lấy NCC đang hoạt động)
+    getActiveNCC: async (req, res) => {
+        try {
+            const { tenNCC } = req.query;
+            // Truyền cứng trangThai = 1 xuống Model
+            const data = await InventoryModel.getAllNCC({ tenNCC, trangThai: 1 }); 
+            res.status(200).json({ success: true, data });
+        } catch (error) {
+            console.error("Lỗi API Lấy DS Nhà Cung Cấp Active:", error);
             res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách' });
         }
     },
@@ -75,6 +90,7 @@ const InventoryController = {
             res.status(500).json({ success: false, message: 'Lỗi khi xóa nhà cung cấp' });
         }
     },
+    
     //======================================
     // SAN PHAM
     //======================================

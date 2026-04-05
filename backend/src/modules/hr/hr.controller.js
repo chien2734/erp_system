@@ -72,6 +72,20 @@ const HrController = {
     // Thêm mới nhân viên
     create: async (req, res) => {
         try {
+            const roleNguoiDangSua = req.user.maNhomQuyen; // Lấy role từ token
+            const maChucVuMoi = req.body.maChucVu;
+
+            // 👉 CHỐT CHẶN BỔ NHIỆM LÚC TẠO MỚI
+            if (roleNguoiDangSua !== 1 && maChucVuMoi) {
+                const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
+                if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
+                    return res.status(403).json({ 
+                        success: false, 
+                        message: 'Từ chối truy cập! Chỉ Giám đốc mới có quyền tạo nhân sự cấp Giám đốc.' 
+                    });
+                }
+            }
+
             const newId = await HrModel.createNhanVien(req.body);
             res.status(201).json({ success: true, message: 'Thêm nhân viên thành công', id: newId });
         } catch (error) {
@@ -83,14 +97,47 @@ const HrController = {
     // Cập nhật thông tin nhân viên
     update: async (req, res) => {
         try {
-            const { id } = req.params;
-            const affetedRows = await HrModel.updateNhanVien(id, req.body);
-            if (affetedRows === 0) {
+            const roleNguoiDangSua = req.user.maNhomQuyen; 
+            const { id } = req.params; 
+
+            const targetEmployee = await HrModel.getNhanVienById(id);
+            
+            if (!targetEmployee) {
                 return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
             }
+
+            // 👉 CHỐT CHẶN 1: BẢO VỆ HỒ SƠ SẾP
+            if (roleNguoiDangSua !== 1 && targetEmployee.maNhomQuyen === 1) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Từ chối truy cập! Bạn không có thẩm quyền thay đổi hồ sơ của Ban Giám Đốc.' 
+                });
+            }
+
+            // 👉 CHỐT CHẶN 2: BẢO VỆ GHẾ SẾP (Chống thăng chức)
+            const maChucVuMoi = req.body.maChucVu;
+            // Chỉ check nếu Quản lý đổi chức vụ sang một mã khác với chức vụ hiện tại
+            if (roleNguoiDangSua !== 1 && maChucVuMoi && maChucVuMoi !== targetEmployee.maChucVu) {
+                const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
+                if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
+                    return res.status(403).json({ 
+                        success: false, 
+                        message: 'Từ chối truy cập! Chỉ Giám đốc mới có quyền bổ nhiệm chức vụ Giám đốc.' 
+                    });
+                }
+            }
+
+            // 3. Vượt qua 2 chốt chặn an toàn -> Cho phép Cập nhật
+            const success = await HrModel.updateNhanVien(id, req.body);
+            
+            // Fix logic check DB update thành công (Model trả về true, không phải số dòng)
+            if (!success) {
+                return res.status(400).json({ success: false, message: 'Không thể cập nhật nhân viên lúc này' });
+            }
+            
             res.status(200).json({ success: true, message: 'Cập nhật nhân viên thành công' });
         } catch (error) {
-            console.error(error);
+            console.error("Lỗi cập nhật NV:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật nhân viên' });
         }
     },
@@ -457,11 +504,41 @@ const HrController = {
                 });
             }
         } catch (error) {
-            console.log(error)
-            return res.status(500).json({
-                success: false,
-                message: 'Lỗi khi tính lương nhân viên'
-            })
+            if (error.message === 'ĐÃ_CHỐT') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Bảng lương tháng này đã được chốt, hệ thống khóa không cho phép tính lại!'
+                });
+            }
+            console.log(error);
+            return res.status(500).json({ success: false, message: 'Lỗi khi tính lương nhân viên' });
+        }
+    },
+
+    // CHỐT BẢNG LƯƠNG
+    chotBangLuong: async (req, res) => {
+        try {
+            const { thang, nam } = req.body;
+            if (!thang || !nam) {
+                return res.status(400).json({ success: false, message: 'Vui lòng cung cấp tháng và năm cần chốt!' });
+            }
+
+            const affectedRows = await HrModel.updateTrangThaiBangLuong(thang, nam, 1); // 1 = Đã chốt
+            
+            if (affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: `Không tìm thấy dữ liệu lương tháng ${thang}/${nam}. Vui lòng bấm Tính Lương trước!` 
+                });
+            }
+
+            return res.status(200).json({ 
+                success: true, 
+                message: `Đã chốt bảng lương tháng ${thang}/${nam} thành công! Nhân viên đã có thể xem phiếu lương.` 
+            });
+        } catch (error) {
+            console.error("Lỗi khi chốt lương:", error);
+            return res.status(500).json({ success: false, message: 'Lỗi hệ thống khi chốt lương' });
         }
     },
     

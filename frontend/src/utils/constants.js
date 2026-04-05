@@ -1,4 +1,4 @@
-// Danh sách Mã Chức Năng (Khớp 100% với Database)
+// Danh sách Mã Chức Năng Database
 export const CHUCNANG = {
   NHAN_VIEN: 1,
   CHAM_CONG: 2,

@@ -22,11 +22,13 @@ const InventoryModel = {
         return rows;
     },
     // NCC
+    // NCC
     getAllNCC: async (filters) => {
-        const { id, tenNCC } = filters;
-        let sql = `
-            SELECT * FROM nhacungcap WHERE trangThai = 1`;
+        const { id, tenNCC, trangThai } = filters; 
+        
+        let sql = `SELECT * FROM nhacungcap WHERE 1=1`;
         let values = [];
+        
         if (id) {
             sql += ` AND maNCC = ?`;
             values.push(id);
@@ -35,6 +37,13 @@ const InventoryModel = {
             sql += ` AND tenNCC like ?`;
             values.push(`%${tenNCC}%`);
         }
+        
+        // Lưu ý: So sánh với undefined để vẫn cho phép truyền trangThai = 0
+        if (trangThai !== undefined) { 
+            sql += ` AND trangThai = ?`;
+            values.push(trangThai);
+        }
+        
         const [rows] = await db.query(sql, values);
         return rows;
     },
@@ -51,9 +60,11 @@ const InventoryModel = {
     updateNCC: async (maNCC, data) => {
         const sql = `
             UPDATE nhacungcap 
-            SET tenNCC = ?, sdt = ?, diaChi =?, email =?
-            WHERE maDon = ?`;
-        const values = [data.tenNCC, data.sdt, data.diaChi, data.email, maNCC];
+            SET tenNCC = ?, sdt = ?, diaChi = ?, email = ?, trangThai = ?
+            WHERE maNCC = ?`; 
+            
+        const values = [data.tenNCC, data.sdt, data.diaChi, data.email, data.trangThai, maNCC];
+        
         const [result] = await db.query(sql, values);
         return result.affectedRows;
     },

@@ -8,6 +8,7 @@ router.use(verifyToken);
 router.get('/hangsp', InventoryController.getAllHangSP); // Lấy danh sách hãng sản phẩm
 
 router.get('/ncc', InventoryController.getAllNCC);
+router.get('/ncc/active', InventoryController.getActiveNCC);
 router.post('/ncc', InventoryController.createNCC);
 router.put('/ncc/:id', InventoryController.updateNCC);
 router.delete('/ncc/:id', InventoryController.deleteNCC);

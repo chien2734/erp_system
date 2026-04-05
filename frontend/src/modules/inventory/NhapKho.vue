@@ -173,7 +173,7 @@ const loadInitialData = async () => {
   try {
     const [resSP, resNCC] = await Promise.all([
       api.get('/inventory/sanpham?limit=1000'),
-      api.get('/inventory/ncc')
+      api.get('/inventory/ncc/active')
     ]);
     dbSanPham.value = resSP.data || [];
     dbNhaCungCap.value = resNCC.data || [];

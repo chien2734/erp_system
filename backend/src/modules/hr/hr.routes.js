@@ -26,6 +26,7 @@ router.post('/chamcong', HrController.ghiNhanChamCong);
 router.get('/chamcong', HrController.getLichSuChamCong);
 router.put('/chamcong/admin', HrController.adminSuaChamCong);
 router.post('/luong', HrController.TinhLuong);
+router.put('/luong/chot', HrController.chotBangLuong);
 router.put('/luong-thuong', HrController.updateBangLuong);
 router.get('/luong', HrController.getBangLuong);
 router.get('/luong/:id', HrController.xemLuong);

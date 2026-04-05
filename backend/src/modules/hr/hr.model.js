@@ -9,9 +9,10 @@ const HrModel = {
     getAllNhanVien: async (filters) => {
         const { keyword, maChucVu, page = 1, limit = 10 } = filters;
         let sql = `
-            SELECT nv.*, cv.tenChucVu 
+            SELECT nv.*, cv.tenChucVu, tk.maNhomQuyen 
             FROM nhanvien nv
             LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN taikhoan tk ON nv.maNhanVien = tk.maNhanVien
             WHERE 1 = 1
         `;
         let values = [];
@@ -27,6 +28,7 @@ const HrModel = {
         const countSql = `SELECT COUNT(*) as total FROM (${sql}) as temp`;
         const [countResult] = await db.query(countSql, values);
         const totalRecords = countResult[0].total;
+
         // Phân trang
         const offset = (page - 1) * limit;
         sql += ` ORDER BY nv.maNhanVien DESC LIMIT ? OFFSET ?`;
@@ -40,9 +42,10 @@ const HrModel = {
     // Lấy chi tiết 1 nhân viên theo ID 
     getNhanVienById: async (id) => {
         const sql = `
-            SELECT nv.*, cv.tenChucVu 
+            SELECT nv.*, cv.tenChucVu, tk.maNhomQuyen 
             FROM nhanvien nv
             LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN taikhoan tk ON nv.maNhanVien = tk.maNhanVien
             WHERE nv.maNhanVien = ?
         `;
         const [rows] = await db.query(sql, [id]);
@@ -137,6 +140,7 @@ const HrModel = {
         const [result] = await db.query(sql, [id]);
         return result.affectedRows;
     },
+
     // Thay đổi chức vụ -> lịch sử công tác
     changeChucVu: async (id, maChucVuMoi, ngayHieuLuc) => {
         // Lấy một kết nối riêng biệt từ Pool để chạy Transaction
@@ -168,6 +172,7 @@ const HrModel = {
             connection.release();
         }
     },
+
     // Lay lich su cong tac cua nhan vien
     getLichSuCongTac: async (id) => {
         const sql = `
@@ -189,6 +194,13 @@ const HrModel = {
         const sql = `SELECT * FROM chucvu`;
         const [rows] = await db.query(sql);
         return rows;
+    },
+
+    // Lấy thông tin 1 chức vụ theo ID (Hỗ trợ check phân quyền)
+    getChucVuById: async (maChucVu) => {
+        const sql = `SELECT * FROM chucvu WHERE maChucVu = ?`;
+        const [rows] = await db.query(sql, [maChucVu]);
+        return rows[0];
     },
 
     createChucVu: async (data) => {
@@ -348,7 +360,15 @@ const HrModel = {
         try {
             await connection.beginTransaction();
 
-            // 👉 BỌC THÉP 1: Chống lỗi NaN từ bảng Cấu Hình
+            // Nếu đã chốt (trangThai = 1) thì CẤM không cho tính lại để bảo vệ dữ liệu!
+            const [checkChot] = await connection.query(
+                `SELECT 1 FROM bangluong WHERE thang = ? AND nam = ? AND trangThai = 1 LIMIT 1`, 
+                [thang, nam]
+            );
+            if (checkChot.length > 0) {
+                throw new Error('ĐÃ_CHỐT'); // Ném lỗi ra cho Controller xử lý
+            }
+
             // Dùng || để nếu DB thiếu cột, hệ thống tự lấy số mặc định để tính tiếp
             const TIEN_PHAT_MOI_PHUT = parseFloat(cauHinh.tienPhatDiTre || cauHinh.tienPhatDitre || 2000); 
             const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan || '08:00:00';
@@ -386,29 +406,52 @@ const HrModel = {
             await connection.query(`DELETE FROM bangluong WHERE thang = ? AND nam = ?`, [thang, nam]);
 
             for (let nv of dsNhanVien) {
-                // TÌM CHỨC VỤ 
-                const [chucVuSql] = await connection.query(`
+                // TÌM CHỨC VỤ ÁP DỤNG CHO THÁNG TÍNH LƯƠNG
+                let luongTheoGio = 0; 
+                let pcChucVu = 0;
+                let tenChucVu = '';
+
+                // Check 1: Tìm chức vụ được phân công TỪ TRƯỚC mùng 1 của tháng này
+                // (Vì đổi chức vụ trong tháng này thì tháng sau mới được áp dụng)
+                const [chucVuTruocDo] = await connection.query(`
                     SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu
                     FROM thaydoichucvu td
                     JOIN chucvu cv ON td.maChucVu = cv.maChucVu
-                    WHERE td.maNhanVien = ? AND td.ngayBatDau <= ?
+                    WHERE td.maNhanVien = ? AND td.ngayBatDau < ?
                     ORDER BY td.ngayBatDau DESC LIMIT 1
                 `, [nv.maNhanVien, ngayMoc]);
 
-                let luongTheoGio = 0; let pcChucVu = 0;
-                
-                // 👉 BỌC THÉP 2: Chống lỗi thiếu cột phuCapTrachNhiem trong bảng chucvu
-                if (chucVuSql.length > 0) {
-                    luongTheoGio = parseFloat(chucVuSql[0].luongTheoGio || 0);
-                    pcChucVu = parseFloat(chucVuSql[0].phuCapTrachNhiem || 0);
+                if (chucVuTruocDo.length > 0) {
+                    luongTheoGio = parseFloat(chucVuTruocDo[0].luongTheoGio || 0);
+                    pcChucVu = parseFloat(chucVuTruocDo[0].phuCapTrachNhiem || 0);
+                    tenChucVu = chucVuTruocDo[0].tenChucVu;
                 } else {
-                    const [cvHienTai] = await connection.query(`
-                        SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu 
-                        FROM nhanvien nv JOIN chucvu cv ON nv.maChucVu = cv.maChucVu WHERE nv.maNhanVien = ?
-                    `, [nv.maNhanVien]);
-                    if (cvHienTai.length > 0) {
-                        luongTheoGio = parseFloat(cvHienTai[0].luongTheoGio || 0);
-                        pcChucVu = parseFloat(cvHienTai[0].phuCapTrachNhiem || 0);
+                    // Check 2: Nếu không có lịch sử TRƯỚC mùng 1 (Tức là NV mới vào làm hoặc 
+                    // mới có data trong tháng này). Ta lấy chức vụ CŨ NHẤT trong tháng này.
+                    const [chucVuTrongThang] = await connection.query(`
+                        SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu
+                        FROM thaydoichucvu td
+                        JOIN chucvu cv ON td.maChucVu = cv.maChucVu
+                        WHERE td.maNhanVien = ? AND MONTH(td.ngayBatDau) = ? AND YEAR(td.ngayBatDau) = ?
+                        ORDER BY td.ngayBatDau ASC LIMIT 1
+                    `, [nv.maNhanVien, thang, nam]);
+
+                    if (chucVuTrongThang.length > 0) {
+                        luongTheoGio = parseFloat(chucVuTrongThang[0].luongTheoGio || 0);
+                        pcChucVu = parseFloat(chucVuTrongThang[0].phuCapTrachNhiem || 0);
+                        tenChucVu = chucVuTrongThang[0].tenChucVu;
+                    } else {
+                        // Check 3: Fallback cuối cùng - Lấy đại chức vụ hiện tại ở bảng nhanvien
+                        // (Trường hợp Admin quên cập nhật bảng thaydoichucvu hoàn toàn)
+                        const [cvHienTai] = await connection.query(`
+                            SELECT cv.luongTheoGio, cv.phuCapTrachNhiem, cv.tenChucVu 
+                            FROM nhanvien nv JOIN chucvu cv ON nv.maChucVu = cv.maChucVu WHERE nv.maNhanVien = ?
+                        `, [nv.maNhanVien]);
+                        if (cvHienTai.length > 0) {
+                            luongTheoGio = parseFloat(cvHienTai[0].luongTheoGio || 0);
+                            pcChucVu = parseFloat(cvHienTai[0].phuCapTrachNhiem || 0);
+                            tenChucVu = cvHienTai[0].tenChucVu;
+                        }
                     }
                 }
 
@@ -465,7 +508,7 @@ const HrModel = {
                         luongCoBan, soGioTangCa, heSoTangCa, tongTienTangCa, 
                         soPhutDiTre, tienPhatDiTre, tongTienPhat, 
                         phuCapChucVu, phuCapKhac, thuong, truBaoHiem, thucLanh, ngayTao, trangThai
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'Chưa thanh toán')
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
                 `;
                 
                 await connection.query(sqlInsert, [
@@ -488,6 +531,13 @@ const HrModel = {
         }
     },
 
+    // Update trạng thái chốt lương
+    updateTrangThaiBangLuong: async (thang, nam, trangThai) => {
+        const sql = `UPDATE bangluong SET trangThai = ? WHERE thang = ? AND nam = ?`;
+        const [result] = await db.query(sql, [trangThai, thang, nam]);
+        return result.affectedRows;
+    },
+
     // Xem phiếu lương cá nhân (Dành cho trang Profile)
     xemLuong: async (thang, nam, maNhanVien) => {
         let sql = `
@@ -495,7 +545,7 @@ const HrModel = {
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
             LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
-            WHERE bl.maNhanVien = ?
+            WHERE bl.maNhanVien = ? and bl.trangThai = 1
         `;
         let values = [maNhanVien];
         

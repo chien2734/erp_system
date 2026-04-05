@@ -1,7 +1,11 @@
 <template>
     <div class="min-h-screen bg-gray-50 flex">
         <aside class="w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col shadow-xl">
-        <div class="p-6 flex items-center gap-3 border-b border-slate-800">
+        
+        <div 
+            class="p-6 flex items-center gap-3 border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-colors"
+            @click="$router.push('/')"
+        >
             <el-icon class="text-2xl text-blue-400"><Monitor /></el-icon>
             <span class="font-bold text-lg tracking-tight">LAPTOP ERP</span>
         </div>
@@ -40,6 +44,9 @@
                 </template>
 
                 <el-menu-item index="/inventory/products" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Danh mục Sản phẩm</el-menu-item>
+
+                <el-menu-item index="/inventory/suppliers" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Nhà Cung Cấp</el-menu-item>
+                
                 <el-menu-item index="/inventory/stock" v-if="authStore.hasPermission(CHUCNANG.NHAP_KHO)">Nhập kho</el-menu-item>
                 <el-menu-item index="/inventory/serial" v-if="authStore.hasPermission(CHUCNANG.SERIAL)">Quản lý Serial</el-menu-item>
             </el-sub-menu>

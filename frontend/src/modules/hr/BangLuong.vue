@@ -12,30 +12,47 @@
           <el-radio-button label="year">Theo năm</el-radio-button>
         </el-radio-group>
 
+        
         <el-date-picker
-          v-if="selectedPeriodType === 'month'"
-          v-model="selectedMonth"
-          type="month"
-          placeholder="Chọn tháng"
-          format="MM/YYYY"
-          value-format="YYYY-MM"
-          :clearable="false"
-          class="w-40"
+        v-if="selectedPeriodType === 'month'"
+        v-model="selectedMonth"
+        type="month"
+        placeholder="Chọn tháng"
+        format="MM/YYYY"
+        value-format="YYYY-MM"
+        :clearable="false"
+        class="w-40"
         />
         <el-date-picker
-          v-else
-          v-model="selectedYear"
-          type="year"
-          placeholder="Chọn năm"
-          format="YYYY"
-          value-format="YYYY"
-          :clearable="false"
-          class="w-32"
+        v-else
+        v-model="selectedYear"
+        type="year"
+        placeholder="Chọn năm"
+        format="YYYY"
+        value-format="YYYY"
+        :clearable="false"
+        class="w-32"
         />
-
-        <el-button type="primary" size="large" @click="calculatePayroll" :loading="loading" class="font-bold shadow-md shadow-blue-500/30">
+        
+        <el-input 
+          v-model="searchQuery" 
+          placeholder="Tìm Tên hoặc Mã NV..." 
+          :prefix-icon="Search"
+          class="w-48 ml-4"
+          clearable
+        />
+        
+        <el-button 
+          type="primary" 
+          size="large" 
+          @click="calculatePayroll" 
+          :loading="loading" 
+          :disabled="isFinalized" 
+          class="font-bold shadow-md shadow-blue-500/30"
+        >
           <el-icon class="mr-2"><Refresh /></el-icon> TÍNH TOÁN LẠI
         </el-button>
+
         <el-button type="success" size="large" plain @click="exportExcel">
           <el-icon class="mr-2"><Download /></el-icon> Xuất Excel
         </el-button>
@@ -70,7 +87,7 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" v-loading="fetching">
       <el-table 
-        :data="payrollList" 
+        :data="filteredPayrollList" 
         style="width: 100%" 
         size="large" 
         stripe 
@@ -183,7 +200,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { Refresh, Download, EditPen } from '@element-plus/icons-vue';
+import { Refresh, Download, EditPen, Search } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -204,6 +221,7 @@ const dialogVisible = ref(false);
 
 const editingRecord = ref(null);
 const formEdit = ref({ thuong: 0 });
+const searchQuery = ref('');
 
 // DATA TỪ BACKEND
 const payrollList = ref([]);
@@ -239,7 +257,7 @@ const loadPayrollData = async () => {
     
     // Kiểm tra trạng thái chốt sổ
     if (payrollList.value.length > 0) {
-      isFinalized.value = payrollList.value[0].trangThai === 'Đã thanh toán';
+      isFinalized.value = Number(payrollList.value[0].trangThai) === 1;
     } else {
       isFinalized.value = false;
     }
@@ -324,10 +342,19 @@ const saveEdit = async () => {
   }
 };
 
-// --- THỐNG KÊ (Dựa trên mảng payrollList lấy từ API) ---
-const totalThucLanh = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.thucLanh), 0));
-const totalPhuCap = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.phuCapChucVu) + Number(item.phuCapKhac), 0));
-const totalKhauTru = computed(() => payrollList.value.reduce((sum, item) => sum + Number(item.tongTienPhat) + Number(item.truBaoHiem), 0));
+const filteredPayrollList = computed(() => {
+  if (!searchQuery.value) return payrollList.value;
+  const q = searchQuery.value.toLowerCase();
+  return payrollList.value.filter(item => 
+    (item.hoTen && item.hoTen.toLowerCase().includes(q)) || 
+    (item.maNhanVien && item.maNhanVien.toString().includes(q))
+  );
+});
+
+// --- THỐNG KÊ  ---
+const totalThucLanh = computed(() => filteredPayrollList.value.reduce((sum, item) => sum + Number(item.thucLanh || 0), 0));
+const totalPhuCap = computed(() => filteredPayrollList.value.reduce((sum, item) => sum + Number(item.phuCapChucVu || 0) + Number(item.phuCapKhac || 0), 0));
+const totalKhauTru = computed(() => filteredPayrollList.value.reduce((sum, item) => sum + Number(item.tongTienPhat || 0) + Number(item.truBaoHiem || 0), 0));
 
 // --- TIỆN ÍCH ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
@@ -347,15 +374,33 @@ const getSummaries = (param) => {
   return sums;
 };
 
-// Nút chốt lương (Hiện tại làm giả lập, nếu bạn có API cập nhật trạng thái thì thay vào)
+// Nối API để chốt lương xuống Database
 const finalizePayroll = () => {
   ElMessageBox.confirm(
-    'Xác nhận chốt sổ? Lương đã chốt sẽ không thể chỉnh sửa tiền thưởng hoặc tính toán lại.',
+    'Xác nhận chốt sổ? Lương đã chốt sẽ KHÔNG THỂ chỉnh sửa tiền thưởng hoặc tính toán lại.',
     'Chốt Lương',
-    { confirmButtonText: 'Chốt Sổ', cancelButtonText: 'Hủy', type: 'warning' }
-  ).then(() => {
-    isFinalized.value = true;
-    ElMessage.success('Đã chốt sổ lương thành công!');
+    { confirmButtonText: 'Xác Nhận Chốt', cancelButtonText: 'Hủy', type: 'warning' }
+  ).then(async () => {
+    try {
+      fetching.value = true;
+      const [year, month] = selectedMonth.value.split('-');
+      
+      // Gọi API Chốt lương
+      const res = await api.put('/hr/luong/chot', {
+        thang: parseInt(month),
+        nam: parseInt(year)
+      });
+      
+      const responseData = res.data || res;
+      if (responseData.success) {
+        ElMessage.success(responseData.message || 'Đã chốt sổ lương thành công!');
+        await loadPayrollData(); // Tải lại data để cập nhật UI (Đổi tag sang màu xanh)
+      }
+    } catch (error) {
+      ElMessage.error(error.response?.data?.message || 'Lỗi khi chốt lương!');
+    } finally {
+      fetching.value = false;
+    }
   }).catch(() => {});
 };
 

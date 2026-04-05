@@ -91,7 +91,16 @@
         
         <el-table-column label="Thao tác" width="120" align="center" fixed="right">
           <template #default="scope">
-            <el-button :icon="Edit" circle size="small" type="primary" plain @click="openEditDialog(scope.row)" />
+            <el-button 
+              :icon="Edit" 
+              circle 
+              size="small" 
+              type="primary" 
+              plain 
+              @click="openEditDialog(scope.row)" 
+              :disabled="authStore.getUserRole !== 1 && scope.row.maNhomQuyen === 1"
+              :title="authStore.getUserRole !== 1 && scope.row.maNhomQuyen === 1 ? 'Không có quyền sửa hồ sơ Giám đốc' : 'Cập nhật hồ sơ'"
+            />
           </template>
         </el-table-column>
       </el-table>
@@ -152,7 +161,15 @@
                 :key="cv.maChucVu" 
                 :label="cv.tenChucVu" 
                 :value="cv.maChucVu" 
-              />
+                :disabled="authStore.getUserRole !== 1 && cv.tenChucVu.toLowerCase().includes('giám đốc')"
+              >
+                <span class="flex justify-between items-center w-full">
+                  <span>{{ cv.tenChucVu }}</span>
+                  <el-icon v-if="authStore.getUserRole !== 1 && cv.tenChucVu.toLowerCase().includes('giám đốc')" class="text-rose-500">
+                    <Lock />
+                  </el-icon>
+                </span>
+              </el-option>
             </el-select>
           </el-form-item>
 
@@ -205,12 +222,14 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { Search, Plus, Edit, User, Phone, Message, Male, Female } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import api from '../../services/api'; // Import api từ thư mục services
+import { useAuthStore } from '../auth/auth.store';
 
 // --- STATE QUẢN LÝ DỮ LIỆU ---
 const employees = ref([]);
 const dbChucVu = ref([]); 
 const loading = ref(false);
 const searchQuery = ref('');
+const authStore = useAuthStore();
 
 // --- STATE QUẢN LÝ DIALOG ---
 const dialogVisible = ref(false);
