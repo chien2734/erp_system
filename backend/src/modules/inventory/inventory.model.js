@@ -367,6 +367,59 @@ const InventoryModel = {
         const [result] = await db.query(sql, [trangThai, maMay]);
         return result.affectedRows;
     },
+
+    //================================
+    // BÁO CÁO THỐNG KÊ
+    //================================
+
+    // Lấy báo cáo hàng tồn (Tính giá trị dựa trên giá nhập gần nhất)
+    getInventoryReport: async (filters) => {
+        const { maHang } = filters;
+        
+        let sql = `
+            SELECT 
+                sp.maSP, 
+                sp.tenSP, 
+                h.tenHang, 
+                sp.giaBan,
+                -- 1. Đếm số lượng máy thực tế đang ở trạng thái 'Trong kho'
+                COUNT(mt.maMay) AS soLuongTon,
+                
+                -- 2. Tính Tổng giá trị tồn = Tổng đơn giá nhập của chính những máy đó
+                -- Dùng COALESCE để trả về 0 nếu không có máy nào
+                COALESCE(SUM(ctpn.donGiaNhap), 0) AS tongGiaTriTon,
+
+                -- 3. Tính giá vốn trung bình thực tế (Dùng cho báo cáo)
+                -- = Tổng giá trị tồn / Số lượng tồn
+                CASE 
+                    WHEN COUNT(mt.maMay) > 0 THEN SUM(ctpn.donGiaNhap) / COUNT(mt.maMay)
+                    ELSE 0 
+                END AS giaVonTrungBinh
+                
+            FROM sanpham sp
+            JOIN hangsp h ON sp.maHang = h.maHang
+            -- Join sang bảng máy tính để lấy danh sách máy đang tồn
+            LEFT JOIN maytinh mt ON sp.maSP = mt.maSP AND mt.trangThai = 'Trong kho'
+            -- Join sang chi tiết phiếu nhập để lấy đúng giá nhập của từng máy dựa trên mã phiếu nhập
+            LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
+            
+            WHERE sp.trangThai = 1
+        `;
+        
+        let values = [];
+        if (maHang) {
+            sql += ` AND sp.maHang = ?`;
+            values.push(maHang);
+        }
+
+        // Bắt buộc Group By theo mã sản phẩm
+        sql += ` GROUP BY sp.maSP, sp.tenSP, h.tenHang, sp.giaBan`;
+        sql += ` ORDER BY tongGiaTriTon DESC`;
+
+        const [rows] = await db.query(sql, values);
+        return rows;
+    },
+    
 };
 
 module.exports = InventoryModel;

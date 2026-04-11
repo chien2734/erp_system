@@ -672,6 +672,31 @@ const HrController = {
             res.status(500).json({success: false, message: 'Lỗi khi lấy bảng lương'});
         }
     },
+
+    // ==========================================
+    // PHẦN BÁO CÁO LƯƠNG (Dành cho Admin)
+    // ==========================================
+    getSalaryReport: async (req, res) => {
+        try {
+            const data = await HrModel.getSalaryReport(req.query);
+            
+            // Tính toán summary cho các thẻ trên cùng
+            const tongNhanVien = data.length;
+            const tongQuyLuong = data.reduce((sum, item) => sum + Number(item.thucLanh), 0);
+            
+            // Tổng khấu trừ = Tiền phạt + Trừ Bảo hiểm
+            const tongKhauTru = data.reduce((sum, item) => sum + Number(item.tongTienPhat) + Number(item.truBaoHiem), 0);
+
+            res.status(200).json({
+                success: true,
+                summary: { tongNhanVien, tongQuyLuong, tongKhauTru },
+                result: data 
+            });
+        } catch (error) {
+            console.error("Lỗi lấy báo cáo lương:", error);
+            res.status(500).json({ success: false, message: 'Lỗi server khi lấy báo cáo' });
+        }
+    },
     
     // ==========================================
     // PHẦN CẤU HÌNH HỆ THỐNG (Dành cho Admin)

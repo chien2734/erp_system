@@ -13,6 +13,8 @@ router.post('/ncc', InventoryController.createNCC);
 router.put('/ncc/:id', InventoryController.updateNCC);
 router.delete('/ncc/:id', InventoryController.deleteNCC);
 
+router.get('/report/inventory', verifyToken, InventoryController.getInventoryReport); // Báo cáo tồn kho
+
 router.get('/sanpham', InventoryController.getAllSanPham); // Lấy danh sách sản phẩm (Kèm bo loc)
 router.get('/sanpham/:id', InventoryController.getOne); // Lấy chi tiết 1 sản phẩm theo ID
 router.post('/sanpham', InventoryController.createProduct); // Thêm mới 1 sản phẩm

@@ -61,7 +61,7 @@ const routes = [
             path: '/inventory/history',
             name: 'Lịch sử nhập kho',
             component: () => import('../modules/inventory/LichSuNhap.vue'),
-            meta: { permission: CHUCNANG.NHAP_KHO } // Tùy bạn có thể gộp chung quyền nhập kho
+            meta: { permission: CHUCNANG.NHAP_KHO } 
         },
         {
             path: '/inventory/products', 
@@ -82,10 +82,16 @@ const routes = [
             meta: { permission: CHUCNANG.SERIAL }
         },
         {
+            path: '/inventory/report',
+            name: 'Báo cáo Kho',
+            component: () => import('../modules/inventory/BaoCaoKho.vue'),
+            meta: { permission: CHUCNANG.BAO_CAO }
+        },
+        {
             path: '/sales/orders',
             name: 'Quản lý Hóa đơn',
             component: () => import('../modules/sales/HoaDon.vue'),
-            meta: { permission: CHUCNANG.POS } // Thu ngân có POS thì xem được lịch sử Hóa đơn
+            meta: { permission: CHUCNANG.POS } 
         },
         {
             path: '/sales/report',
@@ -135,6 +141,12 @@ const routes = [
             component: () => import('../modules/hr/ChucVu.vue'),
             meta: { permission: CHUCNANG.PHAN_QUYEN } 
         },
+        {
+            path: '/inventory/report-salary',
+            name: 'Báo cáo Lương',
+            component: () => import('../modules/hr/BaoCaoLuong.vue'),
+            meta: { permission: CHUCNANG.BAO_CAO }
+        },
         ],
         meta: { requiresAuth: true }
     },
@@ -146,40 +158,6 @@ const router = createRouter({
 });
 
 // BẢO VỆ ROUTE 
-router.beforeEach((to, from) => {
-    const authStore = useAuthStore();
-    const isAuthenticated = authStore.isAuthenticated;
-    const userRole = authStore.getUserRole; // Lấy Role (1: Giám đốc)
-
-    // 1. Chưa đăng nhập -> Đuổi về trang Login
-    if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-        return { name: 'Login' }; 
-    }
-
-    // 2. Đã đăng nhập mà cố vào trang Login -> Đẩy về đúng trang mặc định
-    if (to.path === '/login' && isAuthenticated) {
-        return userRole === 1 ? { path: '/' } : { path: '/hr/checkin' };
-    }
-
-    // 👉 3. CHỐT CHẶN DASHBOARD: Chỉ Giám đốc mới được xem
-    if (to.path === '/' && isAuthenticated) {
-        if (userRole !== 1) {
-            return { path: '/hr/checkin' }; // Nhân viên khác bị đá sang Chấm công
-        }
-    }
-
-    // 4. Chốt chặn Phân quyền nghiệp vụ (RBAC Guard)
-    if (to.meta.permission) {
-        if (!authStore.hasPermission(to.meta.permission, 'quyenXem')) {
-            ElMessage.error('Truy cập bị từ chối! Bạn không có quyền xem trang này.');
-            // Nếu bị từ chối, cũng phải trả về đúng trang mặc định theo Role
-            return userRole === 1 ? { path: '/' } : { path: '/hr/checkin' };
-        }
-    }
-
-    // Cho phép đi tiếp
-    return true;
-})// BẢO VỆ ROUTE (Navigation Guard)
 router.beforeEach((to, from) => {
     const authStore = useAuthStore();
     const isAuthenticated = authStore.isAuthenticated;

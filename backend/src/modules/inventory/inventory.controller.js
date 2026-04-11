@@ -282,6 +282,26 @@ const InventoryController = {
         }
     },
 
+    getInventoryReport: async (req, res) => {
+        try {
+            const reportData = await InventoryModel.getInventoryReport(req.query);
+            
+            // Tính toán tổng gom nhóm cho toàn báo cáo
+            const tongSanPham = reportData.length;
+            const tongSoLuongTon = reportData.reduce((sum, item) => sum + Number(item.soLuongTon), 0);
+            const tongGiaTriKho = reportData.reduce((sum, item) => sum + Number(item.tongGiaTriTon), 0);
+
+            res.status(200).json({ 
+                success: true, 
+                summary: { tongSanPham, tongSoLuongTon, tongGiaTriKho },
+                data: reportData 
+            });
+        } catch (error) {
+            console.error("Lỗi lấy báo cáo tồn kho:", error);
+            res.status(500).json({ success: false, message: 'Lỗi server khi lấy báo cáo' });
+        }
+    },
+
 };
 
 module.exports = InventoryController;
