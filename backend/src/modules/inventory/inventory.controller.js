@@ -282,6 +282,7 @@ const InventoryController = {
         }
     },
 
+<<<<<<< HEAD
     getInventoryReport: async (req, res) => {
         try {
             const reportData = await InventoryModel.getInventoryReport(req.query);
@@ -302,6 +303,8 @@ const InventoryController = {
         }
     },
 
+=======
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
 };
 
 module.exports = InventoryController;

@@ -44,6 +44,7 @@
                 </template>
 
                 <el-menu-item index="/inventory/products" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Danh mục Sản phẩm</el-menu-item>
+<<<<<<< HEAD
                 <el-menu-item index="/inventory/suppliers" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Nhà Cung Cấp</el-menu-item>
                 
                 <el-menu-item index="/inventory/stock" v-if="authStore.hasPermission(CHUCNANG.NHAP_KHO)">Nhập kho</el-menu-item>
@@ -51,6 +52,13 @@
                 <el-menu-item index="/inventory/serial" v-if="authStore.hasPermission(CHUCNANG.SERIAL)">Quản lý Serial</el-menu-item>
 
                 <el-menu-item index="/inventory/report" v-if="authStore.hasPermission(CHUCNANG.BAO_CAO)">Báo cáo kho</el-menu-item>
+=======
+
+                <el-menu-item index="/inventory/suppliers" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Nhà Cung Cấp</el-menu-item>
+                
+                <el-menu-item index="/inventory/stock" v-if="authStore.hasPermission(CHUCNANG.NHAP_KHO)">Nhập kho</el-menu-item>
+                <el-menu-item index="/inventory/serial" v-if="authStore.hasPermission(CHUCNANG.SERIAL)">Quản lý Serial</el-menu-item>
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
             </el-sub-menu>
 
             <el-sub-menu index="hr" v-if="authStore.hasPermission(CHUCNANG.NHAN_VIEN) || authStore.hasPermission(CHUCNANG.CHAM_CONG)">
@@ -63,7 +71,10 @@
                 <el-menu-item index="/hr/attendance" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý chấm công</el-menu-item>
                 <el-menu-item index="/hr/payroll" v-if="authStore.hasPermission(CHUCNANG.TINH_LUONG)">Bảng tính lương</el-menu-item>
                 <el-menu-item index="/hr/leaves" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý Đơn từ</el-menu-item>
+<<<<<<< HEAD
                 <el-menu-item index="/inventory/report-salary" v-if="authStore.hasPermission(CHUCNANG.BAO_CAO)">Báo cáo lương</el-menu-item>
+=======
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
             </el-sub-menu>
 
             <el-menu-item index="/settings" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">

@@ -42,8 +42,11 @@ router.put('/dontu/:id/xuly', HrController.handleLeaveRequest);
 // Phần cấu hình hệ thống
 router.get('/cauhinh', HrController.getCauHinhSys);
 router.put('/cauhinh', HrController.updateCauHinhSys);
+<<<<<<< HEAD
 
 // Báo cáo lương
 router.get('/report/salary', verifyToken, HrController.getSalaryReport);
 
+=======
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
 module.exports = router;

@@ -672,6 +672,7 @@ const HrController = {
             res.status(500).json({success: false, message: 'Lỗi khi lấy bảng lương'});
         }
     },
+<<<<<<< HEAD
 
     // ==========================================
     // PHẦN BÁO CÁO LƯƠNG (Dành cho Admin)
@@ -697,6 +698,8 @@ const HrController = {
             res.status(500).json({ success: false, message: 'Lỗi server khi lấy báo cáo' });
         }
     },
+=======
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
     
     // ==========================================
     // PHẦN CẤU HÌNH HỆ THỐNG (Dành cho Admin)

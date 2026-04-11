@@ -600,6 +600,7 @@ const HrModel = {
         const [result] = await db.query(sql, [thuongThem, newThucLanh, nam, thang, maNhanVien]);
         return result.affectedRows;
     },
+<<<<<<< HEAD
 
     // BÁO CÁO QUỸ LƯƠNG THỐNG KÊ
     getSalaryReport: async (filters) => {
@@ -634,6 +635,9 @@ const HrModel = {
         const [rows] = await db.query(sql, values);
         return rows;
     },
+=======
+    //================================
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
 
     // ==============================================
     // PHẦN 5: QUẢN LÝ ĐƠN NGHỈ PHÉP
@@ -655,6 +659,10 @@ const HrModel = {
 
     // BỔ SUNG: Kiểm tra xem những ngày xin nghỉ có bị trùng với lịch cũ không
     checkTrungThoiGian: async (maNhanVien, ngayBatDau, ngayKetThuc) => {
+<<<<<<< HEAD
+=======
+        // 1. Quét bảng Đơn Từ (Xem có trùng với đơn nào Đã duyệt/Chờ duyệt không)
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
         const sqlDonTu = `
             SELECT maDon, loaiDon FROM dontu 
             WHERE maNhanVien = ? 
@@ -667,6 +675,10 @@ const HrModel = {
             return { isTrung: true, type: `đơn xin "${donTuTrung[0].loaiDon}" khác đang tồn tại` };
         }
 
+<<<<<<< HEAD
+=======
+        // 2. Quét bảng Chấm Công (Xem những ngày đó đã đi làm chưa)
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
         const sqlChamCong = `
             SELECT ngayLamViec FROM chamcong 
             WHERE maNhanVien = ? 
@@ -679,6 +691,10 @@ const HrModel = {
             return { isTrung: true, type: 'ngày bạn đã đi làm (đã có dữ liệu chấm công)' };
         }
 
+<<<<<<< HEAD
+=======
+        // Vượt qua 2 chốt an toàn
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
         return { isTrung: false };
     },
     

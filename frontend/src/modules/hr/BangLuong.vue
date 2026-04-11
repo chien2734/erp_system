@@ -238,7 +238,11 @@ const loadPayrollData = async () => {
       res = await api.get(`/hr/luong?nam=${selectedYear.value}`);
     }
 
+<<<<<<< HEAD
     // IN RA CONSOLE TRÌNH DUYỆT ĐỂ XEM API TRẢ VỀ CÁI GÌ
+=======
+    // 🔴 CAMERA 1: IN RA CONSOLE TRÌNH DUYỆT ĐỂ XEM API TRẢ VỀ CÁI GÌ
+>>>>>>> c095d035aed92d121b728fa823f98aa2a605e840
     console.log("Dữ liệu Lương từ Backend trả về:", res);
 
     // Bóc tách data bọc thép (Chống mọi trường hợp undefined)
