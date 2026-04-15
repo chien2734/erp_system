@@ -225,10 +225,6 @@ const newCustomerForm = ref({ sdt: '', tenKH: '', diaChi: '' });
 const newCustomerNameRef = ref(null);
 
 const customerMoneyRaw = ref('');
-const customerMoney = computed({
-  get: () => customerMoneyRaw.value,
-  set: (val) => { customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); }
-});
 
 // ==========================================
 // 1. HÀM GỌI API KHỞI TẠO DỮ LIỆU BAN ĐẦU
@@ -294,11 +290,18 @@ const filteredProducts = computed(() => {
 // ==========================================
 // 3. TÍNH TOÁN TIỀN BẠC
 // ==========================================
+const customerMoney = computed({
+  get: () => customerMoneyRaw.value,
+  set: (val) => { customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); }
+});
+
 const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
 const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.giaBan * item.serials.length), 0));
-const finalTotal = computed(() => cartTotal.value); // Chưa có VIP thì Final = CartTotal
+const finalTotal = computed(() => cartTotal.value); 
 const changeMoney = computed(() => {
-  const moneyGiven = parseInt(customerMoneyRaw.value) || 0;
+  const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
+  const moneyGiven = parseInt(rawString) || 0;
+  
   return moneyGiven - finalTotal.value; 
 });
 
@@ -419,19 +422,32 @@ const processCheckout = () => {
     return;
   }
 
+  // BƯỚC 1: "Chụp ảnh" (Snapshot) toàn bộ dữ liệu hiện tại
+  const currentCart = JSON.parse(JSON.stringify(cart.value));
+  const currentTotal = finalTotal.value;
+  const currentCustomer = selectedCustomer.value;
+  const mangSerial = cart.value.flatMap(item => item.serials);
+  
+  // 👉 SỬA LỖI Ở ĐÂY: Gọt sạch ký tự dấu phẩy trước khi chuyển thành số
+  const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
+  let khachDua = parseInt(rawString) || 0;
+  
+  if (khachDua < currentTotal) {
+    khachDua = currentTotal; 
+  }
+
   ElMessageBox.confirm(
-    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng phải thu: <b class="text-blue-600">${formatPrice(finalTotal.value)}</b>?`,
+    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng phải thu: <b class="text-blue-600">${formatPrice(currentTotal)}</b>?`,
     'TẠO HÓA ĐƠN XUẤT',
     { confirmButtonText: 'Lưu & In', cancelButtonText: 'Hủy', type: 'success', dangerouslyUseHTMLString: true }
   ).then(async () => {
     
-    // Gom tất cả Serial trong giỏ hàng thành 1 mảng dẹt [ "SN001", "SN002" ]
-    const mangSerial = cart.value.flatMap(item => item.serials);
-
-    // Chuẩn bị Payload khớp 100% với Backend
+    // Payload Backend
     const payloadBackend = {
-      maKH: selectedCustomer.value.maKH,
-      giamGia: 0, // Đã bỏ chức năng giảm giá
+      maKH: currentCustomer.maKH,
+      giamGia: 0, 
+      thanhTien: currentTotal, 
+      tienKhachDua: khachDua,
       mangSerial: mangSerial
     };
 
@@ -442,34 +458,29 @@ const processCheckout = () => {
       const response = await api.post('/sales/hoadon', payloadBackend);
       
       loading.close();
-
-      // Nếu Backend trả về thành công
       ElMessage.success('Thanh toán thành công!');
 
-      // In Bill (nếu có form in)
       if (billDialogRef.value) {
         billDialogRef.value.openBill({
-          maHoaDon: response.data?.maHD || 'HD-NEW',
-          items: JSON.parse(JSON.stringify(cart.value)), 
-          tongTien: finalTotal.value,
-          khachDua: parseInt(customerMoneyRaw.value) || finalTotal.value,
-          tenKhachHang: selectedCustomer.value.tenKH
+          maHoaDon: response.data?.maHoaDon || response.data?.data?.maHoaDon || response.data?.data?.maHD || 'HD-NEW',
+          items: currentCart, 
+          tongTien: currentTotal,
+          giamGia: 0,
+          khachDua: khachDua, 
+          tenKhachHang: currentCustomer.tenKH
         });
       }
 
-      // Reset quầy và Tải lại dữ liệu (Để trừ kho)
       cart.value = []; 
       customerMoneyRaw.value = '';
       clearCustomer(); 
       loadInitialData(); // Load lại kho để cập nhật số lượng tồn
 
     } catch (error) {
-      // Backend bắn lỗi (VD: Máy đã bán, không tồn tại)
       ElMessage.error(error.response?.data?.message || 'Lỗi hệ thống khi tạo hóa đơn');
     }
   }).catch(() => {}); // Hủy confirm
 };
-
 
 // ==========================================
 // 7. HỖ TRỢ HIỂN THỊ ẢNH

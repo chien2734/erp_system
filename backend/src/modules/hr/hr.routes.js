@@ -12,6 +12,7 @@ router.delete('/chucvu/:id', HrController.deleteChucVu);
 // Phần cá nhân (Profile)
 router.get('/profile/me', HrController.getProfile);
 router.put('/profile/update-info', HrController.updateProfileInfo);
+router.get('/nhanvien/:id/lichsu', HrController.getLichSu); // Lịch sử công tác
 
 // Phần Quản lý nhân viên
 router.get('/nhanvien' , HrController.getAll); // Lấy danh sách nhân viên với phân trang và lọc

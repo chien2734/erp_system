@@ -75,7 +75,8 @@ const SalesController = {
     banHangPOS: async (req, res) => {
         try {
             const maNhanVien = req.user.maNhanVien; // Lấy từ Token thu ngân
-            const { maKH, giamGia, mangSerial } = req.body;
+            
+            const { maKH, giamGia, mangSerial, tienKhachDua } = req.body;
 
             if (!maKH || !mangSerial || mangSerial.length === 0) {
                 return res.status(400).json({ 
@@ -84,7 +85,7 @@ const SalesController = {
                 });
             }
 
-            const ketQua = await SalesModel.taoHoaDonBanHang(maKH, maNhanVien, giamGia, mangSerial);
+            const ketQua = await SalesModel.taoHoaDonBanHang(maKH, maNhanVien, giamGia, mangSerial, tienKhachDua);
 
             res.status(201).json({ 
                 success: true, 
@@ -94,7 +95,6 @@ const SalesController = {
 
         } catch (error) {
             console.error("Lỗi API Bán Hàng:", error.message);
-            // Nếu lỗi do máy đã bán hoặc không tồn tại thì báo ra cho Frontend biết
             if (error.message.includes('không tồn tại')) {
                 return res.status(400).json({ success: false, message: error.message });
             }

@@ -22,7 +22,6 @@ const InventoryModel = {
         return rows;
     },
     // NCC
-    // NCC
     getAllNCC: async (filters) => {
         const { id, tenNCC, trangThai } = filters; 
         
@@ -372,47 +371,83 @@ const InventoryModel = {
     // BÁO CÁO THỐNG KÊ
     //================================
 
-    // Lấy báo cáo hàng tồn (Tính giá trị dựa trên giá nhập gần nhất)
+    // Lấy báo cáo hàng tồn (Hỗ trợ truy vấn xuyên thời gian theo Tháng/Năm)
     getInventoryReport: async (filters) => {
-        const { maHang } = filters;
+        const { maHang, month, year } = filters;
         
-        let sql = `
-            SELECT 
-                sp.maSP, 
-                sp.tenSP, 
-                h.tenHang, 
-                sp.giaBan,
-                -- 1. Đếm số lượng máy thực tế đang ở trạng thái 'Trong kho'
-                COUNT(mt.maMay) AS soLuongTon,
-                
-                -- 2. Tính Tổng giá trị tồn = Tổng đơn giá nhập của chính những máy đó
-                -- Dùng COALESCE để trả về 0 nếu không có máy nào
-                COALESCE(SUM(ctpn.donGiaNhap), 0) AS tongGiaTriTon,
-
-                -- 3. Tính giá vốn trung bình thực tế (Dùng cho báo cáo)
-                -- = Tổng giá trị tồn / Số lượng tồn
-                CASE 
-                    WHEN COUNT(mt.maMay) > 0 THEN SUM(ctpn.donGiaNhap) / COUNT(mt.maMay)
-                    ELSE 0 
-                END AS giaVonTrungBinh
-                
-            FROM sanpham sp
-            JOIN hangsp h ON sp.maHang = h.maHang
-            -- Join sang bảng máy tính để lấy danh sách máy đang tồn
-            LEFT JOIN maytinh mt ON sp.maSP = mt.maSP AND mt.trangThai = 'Trong kho'
-            -- Join sang chi tiết phiếu nhập để lấy đúng giá nhập của từng máy dựa trên mã phiếu nhập
-            LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
-            
-            WHERE sp.trangThai = 1
-        `;
-        
+        let sql = '';
         let values = [];
+
+        // NẾU CÓ CHỌN THÁNG/NĂM -> TÍNH TỒN KHO LỊCH SỬ (CUỐI KỲ)
+        if (month && year) {
+            // Bước 1: Tính ngày cuối cùng của tháng được chọn
+            // Lưu ý: Trong JS Date, month truyền vào bị lùi 1 (0-11). Truyền ngày = 0 sẽ lùi về ngày cuối của tháng trước.
+            // Ví dụ: new Date(2026, 4, 0) -> Ngày cuối cùng của tháng 4 năm 2026 (Vì tháng 4 trong tham số là May).
+            const lastDay = new Date(year, month, 0); 
+            const dd = String(lastDay.getDate()).padStart(2, '0');
+            const mm = String(lastDay.getMonth() + 1).padStart(2, '0');
+            const yyyy = lastDay.getFullYear();
+            
+            // Chốt thời gian là 23:59:59 của ngày cuối tháng
+            const endDateStr = `${yyyy}-${mm}-${dd} 23:59:59`;
+
+            sql = `
+                SELECT 
+                    sp.maSP, 
+                    sp.tenSP, 
+                    h.tenHang, 
+                    sp.giaBan,
+                    COUNT(vmt.maMay) AS soLuongTon,
+                    COALESCE(SUM(vmt.donGiaNhap), 0) AS tongGiaTriTon,
+                    CASE 
+                        WHEN COUNT(vmt.maMay) > 0 THEN SUM(vmt.donGiaNhap) / COUNT(vmt.maMay)
+                        ELSE 0 
+                    END AS giaVonTrungBinh
+                FROM sanpham sp
+                JOIN hangsp h ON sp.maHang = h.maHang
+                LEFT JOIN (
+                    -- SUB-QUERY: BỘ LỌC CỖ MÁY THỜI GIAN
+                    SELECT m.maMay, m.maSP, m.maPhieuNhap, ctpn.donGiaNhap
+                    FROM maytinh m
+                    JOIN phieunhap pn ON m.maPhieuNhap = pn.maPhieuNhap
+                    LEFT JOIN hoadon hd ON m.maHoaDon = hd.maHoaDon
+                    LEFT JOIN chitietphieunhap ctpn ON m.maPhieuNhap = ctpn.maPhieuNhap AND m.maSP = ctpn.maSP
+                    WHERE pn.ngayNhap <= ? -- 1. Đã nhập kho trước hoặc trong ngày cuối tháng
+                      AND (m.maHoaDon IS NULL OR hd.ngayLap > ?) -- 2. Chưa bán, hoặc qua tháng sau mới bán
+                ) AS vmt ON sp.maSP = vmt.maSP
+                WHERE sp.trangThai = 1
+            `;
+            values.push(endDateStr, endDateStr);
+        } 
+        // NẾU KHÔNG CHỌN THÁNG/NĂM -> TÍNH TỒN KHO HIỆN TẠI (Real-time)
+        else {
+            sql = `
+                SELECT 
+                    sp.maSP, 
+                    sp.tenSP, 
+                    h.tenHang, 
+                    sp.giaBan,
+                    COUNT(mt.maMay) AS soLuongTon,
+                    COALESCE(SUM(ctpn.donGiaNhap), 0) AS tongGiaTriTon,
+                    CASE 
+                        WHEN COUNT(mt.maMay) > 0 THEN SUM(ctpn.donGiaNhap) / COUNT(mt.maMay)
+                        ELSE 0 
+                    END AS giaVonTrungBinh
+                FROM sanpham sp
+                JOIN hangsp h ON sp.maHang = h.maHang
+                LEFT JOIN maytinh mt ON sp.maSP = mt.maSP AND mt.trangThai = 'Trong kho'
+                LEFT JOIN chitietphieunhap ctpn ON mt.maPhieuNhap = ctpn.maPhieuNhap AND mt.maSP = ctpn.maSP
+                WHERE sp.trangThai = 1
+            `;
+        }
+
+        // Áp dụng bộ lọc Hãng sản xuất (Dùng chung cho cả 2 luồng)
         if (maHang) {
             sql += ` AND sp.maHang = ?`;
             values.push(maHang);
         }
 
-        // Bắt buộc Group By theo mã sản phẩm
+        // Bắt buộc Group By để gom nhóm theo từng mẫu sản phẩm
         sql += ` GROUP BY sp.maSP, sp.tenSP, h.tenHang, sp.giaBan`;
         sql += ` ORDER BY tongGiaTriTon DESC`;
 

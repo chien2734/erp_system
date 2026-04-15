@@ -173,17 +173,41 @@ const HrModel = {
         }
     },
 
-    // Lay lich su cong tac cua nhan vien
+    // Lấy lịch sử công tác của nhân viên
     getLichSuCongTac: async (id) => {
-        const sql = `
+        // 1. Trả lại câu SELECT nguyên bản của bạn để không bị lỗi cột
+        const sqlHistory = `
             SELECT td.*, cv.tenChucVu
             FROM thaydoichucvu td
             JOIN chucvu cv ON td.maChucVu = cv.maChucVu
             WHERE td.maNhanVien = ?
             ORDER BY td.ngayBatDau DESC
         `;
-        const [rows] = await db.query(sql, [id]);
-        return rows;
+        const [history] = await db.query(sqlHistory, [id]);
+
+        // Nếu đã có lịch sử thì trả về luôn
+        if (history.length > 0) {
+            return history;
+        } 
+        
+        // 2. Nếu chưa từng thăng tiến, lấy chức vụ ngày đầu tiên vào làm
+        const sqlDefault = `
+            SELECT nv.ngayVaoLam AS ngayBatDau, cv.tenChucVu
+            FROM nhanvien nv
+            JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            WHERE nv.maNhanVien = ?
+        `;
+        const [defaultRole] = await db.query(sqlDefault, [id]);
+        
+        // Trả về Object mô phỏng lại bảng thaydoichucvu
+        if (defaultRole.length > 0) {
+            return [{
+                ngayBatDau: defaultRole[0].ngayBatDau,
+                tenChucVu: defaultRole[0].tenChucVu,
+                ghiChu: 'Tiếp nhận công việc / Bắt đầu làm việc'
+            }];
+        }
+        return [];
     },
 
     //================================
@@ -477,7 +501,7 @@ const HrModel = {
                         soGioTangCa += (soGio - 8);
                     }
 
-                    // 👉 BỌC THÉP 3: Xử lý định dạng giờ bị thiếu giây (08:00 thay vì 08:00:00)
+                    // BỌC THÉP 3: Xử lý định dạng giờ bị thiếu giây (08:00 thay vì 08:00:00)
                     if (gioVao && typeof gioVao === 'string') {
                         if (gioVao.length === 5) gioVao += ':00'; // Sửa 08:05 thành 08:05:00
                         
@@ -492,6 +516,10 @@ const HrModel = {
                     }
                 });
 
+                // FIX LỖI FLOATING POINT (Làm tròn 2 chữ số thập phân)
+                soGioHanhChinh = Math.round(soGioHanhChinh * 100) / 100;
+                soGioTangCa = Math.round(soGioTangCa * 100) / 100;
+                
                 // TÍNH TIỀN (Chặn toàn bộ số âm hoặc NaN)
                 const luongCoBan = Math.round(soGioHanhChinh * luongTheoGio) || 0;
                 const tongTienTangCa = Math.round(soGioTangCa * luongTheoGio * HE_SO_TANG_CA) || 0;
@@ -550,7 +578,7 @@ const HrModel = {
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
             LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
-            WHERE bl.maNhanVien = ? -- and bl.trangThai = 1
+            WHERE bl.maNhanVien = ? and bl.trangThai = 1
         `;
         let values = [maNhanVien];
         

@@ -43,7 +43,7 @@
               />
             </el-form-item>
 
-            <div class="grid grid-cols-2 gap-3 md:gap-4 -mt-1 md:-mt-2">
+            <div class="grid grid-cols-2 gap-3 md:gap-4">
               <el-form-item label="Chờ OT (Phút)">
                 <el-input-number 
                   v-model="formData.tgChoTangCa" 

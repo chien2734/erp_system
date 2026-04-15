@@ -50,13 +50,11 @@ const SalesModel = {
     // PHẦN 2: NGHIỆP VỤ BÁN HÀNG (TẠO HÓA ĐƠN)
     // ==============================================
     // Dữ liệu đầu vào: maKH, maNhanVien, giamGia, mangSerial (Mảng các mã máy được quét)
-    taoHoaDonBanHang: async (maKH, maNhanVien, giamGia, mangSerial) => {
+    taoHoaDonBanHang: async (maKH, maNhanVien, giamGia, mangSerial, tienKhachDua) => {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
-            // Bước 1: Lấy thông tin giá bán của các mã máy (Serial) được quét
-            // Dùng dấu ? lặp lại tùy theo số lượng máy trong mảng
             const placeholders = mangSerial.map(() => '?').join(','); 
             const sqlGiaBan = `
                 SELECT mt.maMay, mt.maSP, sp.tenSP, sp.giaBan 
@@ -70,49 +68,44 @@ const SalesModel = {
                 throw new Error('Có máy tính không tồn tại hoặc đã được bán!');
             }
 
-            // Tính tổng tiền (Giá bán mặc định = Giá nhập + 20% lợi nhuận)
-            // Trong thực tế, bạn có thể tạo thêm cột GiaBan trong bảng SanPham. Ở đây mình tính nội suy.
             let tongTien = 0;
             const chiTietGomNhom = {}; 
 
             danhSachMay.forEach(may => {
-                const donGiaBan = may.giaBan ; // Lãi 20%
+                const donGiaBan = may.giaBan; 
                 tongTien += donGiaBan;
 
-                // Gom nhóm theo maSP để insert vào bảng chitiethoadon
                 if (!chiTietGomNhom[may.maSP]) {
                     chiTietGomNhom[may.maSP] = { soLuong: 0, donGia: donGiaBan};
                 }
                 chiTietGomNhom[may.maSP].soLuong += 1;
             });
 
+            // Doanh thu thực tế
             const thanhTien = tongTien - (giamGia || 0);
+            
+            const khachDua = tienKhachDua ? parseInt(tienKhachDua) : thanhTien;
 
-            // Bước 2: Tạo Hóa đơn
-            const sqlHoaDon = `INSERT INTO hoadon (maKH, maNhanVien, ngayLap, tongTien, giamGia, thanhTien) VALUES (?, ?, NOW(), ?, ?, ?)`;
-            const [hoaDonResult] = await connection.query(sqlHoaDon, [maKH, maNhanVien, tongTien, giamGia, thanhTien]);
+            const sqlHoaDon = `INSERT INTO hoadon (maKH, maNhanVien, ngayLap, tongTien, giamGia, thanhTien, tienKhachDua) VALUES (?, ?, NOW(), ?, ?, ?, ?)`;
+            const [hoaDonResult] = await connection.query(sqlHoaDon, [maKH, maNhanVien, tongTien, giamGia, thanhTien, khachDua]);
             const maHoaDon = hoaDonResult.insertId;
 
-            // Bước 3: Lưu Chi tiết hóa đơn và Trừ tồn kho
             for (const maSP in chiTietGomNhom) {
                 const item = chiTietGomNhom[maSP];
                 const thanhTienChiTiet = item.soLuong * item.donGia;
                 
-                // 3.1 Lưu bảng chitiethoadon
                 const sqlCTHD = `INSERT INTO chitiethoadon (maHoaDon, maSP, soLuong, donGia, thanhTien) VALUES (?, ?, ?, ?, ?)`;
                 await connection.query(sqlCTHD, [maHoaDon, maSP, item.soLuong, item.donGia, thanhTienChiTiet]);
 
-                // 3.2 Trừ số lượng tồn kho
                 const sqlTruTonKho = `UPDATE sanpham SET soLuongTon = soLuongTon - ? WHERE maSP = ?`;
                 await connection.query(sqlTruTonKho, [item.soLuong, maSP]);
             }
 
-            // Bước 4: Cập nhật trạng thái của từng cái máy tính cụ thể (Serial)
             const sqlUpdateMayTinh = `UPDATE maytinh SET maHoaDon = ?, trangThai = 'Đã bán' WHERE maMay IN (${placeholders})`;
             await connection.query(sqlUpdateMayTinh, [maHoaDon, ...mangSerial]);
 
             await connection.commit();
-            return { maHoaDon, tongTien, thanhTien };
+            return { maHoaDon, tongTien, thanhTien, tienKhachDua: khachDua };
 
         } catch (error) {
             await connection.rollback();

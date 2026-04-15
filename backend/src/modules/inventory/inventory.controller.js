@@ -327,13 +327,24 @@ const InventoryController = {
 
     getInventoryReport: async (req, res) => {
         try {
-            const reportData = await InventoryModel.getInventoryReport(req.query);
+            // Lấy parameters từ Frontend gửi lên (gồm maHang, month, year)
+            const filters = req.query;
             
-            // Tính toán tổng gom nhóm cho toàn báo cáo
+            if (filters.month && filters.year) {
+                console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu cuối kỳ: Tháng ${filters.month} Năm ${filters.year}`);
+            } else {
+                console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu Real-time hiện tại...`);
+            }
+
+            // Gọi Model xử lý (Khâu phức tạp nhất đã được Model lo)
+            const reportData = await InventoryModel.getInventoryReport(filters);
+            
+            // Tính toán 3 con số tổng trên thẻ hiển thị (Summary)
             const tongSanPham = reportData.length;
             const tongSoLuongTon = reportData.reduce((sum, item) => sum + Number(item.soLuongTon), 0);
             const tongGiaTriKho = reportData.reduce((sum, item) => sum + Number(item.tongGiaTriTon), 0);
 
+            // Gửi dữ liệu về Frontend
             res.status(200).json({ 
                 success: true, 
                 summary: { tongSanPham, tongSoLuongTon, tongGiaTriKho },

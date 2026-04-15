@@ -1,104 +1,132 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      <div>
-        <h2 class="text-2xl font-bold text-slate-900">Báo Cáo Sản Phẩm Đã Xuất</h2>
-        <p class="text-slate-500">Thống kê số lượng xuất, doanh thu và lợi nhuận theo tháng, quý hoặc năm.</p>
+  <div class="space-y-4 md:space-y-6 max-w-7xl mx-auto p-2 sm:p-4 md:p-0">
+    
+    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
+      <div class="shrink-0">
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Báo Cáo Sản Phẩm Đã Xuất</h2>
+        <p class="text-xs md:text-sm text-slate-500 mt-1">Thống kê số lượng xuất, doanh thu và lợi nhuận theo kỳ.</p>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <el-radio-group v-model="selectedType" size="default" class="mr-3">
-          <el-radio-button label="month">Theo tháng</el-radio-button>
-          <el-radio-button label="quarter">Theo quý</el-radio-button>
-          <el-radio-button label="year">Theo năm</el-radio-button>
-        </el-radio-group>
+      
+      <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-start xl:justify-end gap-3 w-full xl:w-auto">
+        
+        <div class="w-full sm:w-auto overflow-x-auto">
+          <el-radio-group v-model="selectedType" size="default" class="whitespace-nowrap flex">
+            <el-radio-button label="month">Theo tháng</el-radio-button>
+            <el-radio-button label="quarter">Theo quý</el-radio-button>
+            <el-radio-button label="year">Theo năm</el-radio-button>
+          </el-radio-group>
+        </div>
 
-        <el-date-picker
-          v-if="selectedType === 'month'"
-          v-model="selectedMonth"
-          type="month"
-          placeholder="Chọn tháng"
-          format="MM/YYYY"
-          value-format="YYYY-MM"
-          :clearable="false"
-          class="w-44"
-        />
-
-        <div v-if="selectedType === 'quarter'" class="flex items-center gap-2">
-          <el-select v-model="selectedQuarter" placeholder="Chọn quý" class="w-32">
-            <el-option v-for="quy in [1,2,3,4]" :key="quy" :label="`Quý ${quy}`" :value="quy" />
-          </el-select>
+        <div class="flex gap-2 w-full sm:w-auto">
           <el-date-picker
+            v-if="selectedType === 'month'"
+            v-model="selectedMonth"
+            type="month"
+            placeholder="Chọn tháng"
+            format="MM/YYYY"
+            value-format="YYYY-MM"
+            :clearable="false"
+            class="!w-full sm:!w-32"
+          />
+
+          <div v-if="selectedType === 'quarter'" class="flex gap-2 w-full sm:w-auto">
+            <el-select v-model="selectedQuarter" placeholder="Quý" class="flex-1 sm:!w-24">
+              <el-option v-for="quy in [1,2,3,4]" :key="quy" :label="`Quý ${quy}`" :value="quy" />
+            </el-select>
+            <el-date-picker
+              v-model="selectedYear"
+              type="year"
+              placeholder="Năm"
+              format="YYYY"
+              value-format="YYYY"
+              :clearable="false"
+              class="flex-1 sm:!w-24"
+            />
+          </div>
+
+          <el-date-picker
+            v-if="selectedType === 'year'"
             v-model="selectedYear"
             type="year"
             placeholder="Chọn năm"
             format="YYYY"
             value-format="YYYY"
             :clearable="false"
-            class="w-32"
+            class="!w-full sm:!w-28"
           />
         </div>
 
-        <el-date-picker
-          v-if="selectedType === 'year'"
-          v-model="selectedYear"
-          type="year"
-          placeholder="Chọn năm"
-          format="YYYY"
-          value-format="YYYY"
-          :clearable="false"
-          class="w-32!"
-        />
+        <div class="flex gap-2 w-full sm:w-auto">
+          <el-button type="primary" @click="loadReport" :loading="fetching" class="flex-1 sm:flex-none font-bold shadow-md shadow-blue-500/30">
+            <el-icon class="mr-1 sm:mr-2"><RefreshRight /></el-icon> <span>Xem báo cáo</span>
+          </el-button>
+          <el-button type="success" plain @click="exportExcel" :disabled="reportList.length === 0" class="flex-1 sm:flex-none px-3">
+            <el-icon><Download /></el-icon>
+          </el-button>
+          <el-button type="info" plain @click="handlePrint" :disabled="reportList.length === 0" class="flex-1 sm:flex-none px-3">
+            <el-icon><Printer /></el-icon>
+          </el-button>
+        </div>
 
-        <el-button type="primary" size="large" @click="loadReport" :loading="fetching" class="font-bold shadow-md shadow-blue-500/30">
-          Xem báo cáo
-        </el-button>
-        <el-button type="success" size="large" plain @click="exportExcel" :disabled="reportList.length === 0">
-          <el-icon class="mr-2"><Download /></el-icon> Xuất Excel
-        </el-button>
-        <el-button type="info" size="large" plain @click="handlePrint" :disabled="reportList.length === 0">
-          <el-icon class="mr-2"><Printer /></el-icon> In báo cáo
-        </el-button>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" v-loading="fetching">
-      <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-        <p class="text-sm text-slate-500 font-semibold mb-1">Tổng sản phẩm xuất</p>
-        <p class="text-2xl font-black text-blue-600">{{ summary.tongSoLuong }}</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4" v-loading="fetching">
+      <div class="bg-white p-3 md:p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+        <p class="text-[11px] md:text-sm text-slate-500 font-semibold mb-1 truncate">Tổng sản phẩm xuất</p>
+        <p class="text-xl md:text-2xl font-black text-blue-600 truncate" :title="summary.tongSoLuong">{{ summary.tongSoLuong }}</p>
       </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-        <p class="text-sm text-slate-500 font-semibold mb-1">Tổng doanh thu</p>
-        <p class="text-xl font-bold text-emerald-600">{{ formatPrice(summary.tongDoanhThu) }}</p>
+      <div class="bg-white p-3 md:p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+        <p class="text-[11px] md:text-sm text-slate-500 font-semibold mb-1 truncate">Tổng doanh thu</p>
+        <p class="text-base md:text-xl font-bold text-emerald-600 truncate" :title="formatPrice(summary.tongDoanhThu)">{{ formatPrice(summary.tongDoanhThu) }}</p>
       </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-        <p class="text-sm text-slate-500 font-semibold mb-1">Tổng giá vốn</p>
-        <p class="text-xl font-bold text-slate-800">{{ formatPrice(summary.tongGiaVon) }}</p>
+      <div class="bg-white p-3 md:p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+        <p class="text-[11px] md:text-sm text-slate-500 font-semibold mb-1 truncate">Tổng giá vốn</p>
+        <p class="text-base md:text-xl font-bold text-slate-800 truncate" :title="formatPrice(summary.tongGiaVon)">{{ formatPrice(summary.tongGiaVon) }}</p>
       </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
-        <p class="text-sm text-slate-500 font-semibold mb-1">Tổng lợi nhuận</p>
-        <p class="text-2xl font-black text-rose-600">{{ formatPrice(summary.tongLoiNhuan) }}</p>
+      <div class="bg-white p-3 md:p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
+        <p class="text-[11px] md:text-sm text-slate-500 font-semibold mb-1 truncate">Tổng lợi nhuận</p>
+        <p class="text-xl md:text-2xl font-black text-rose-600 truncate" :title="formatPrice(summary.tongLoiNhuan)">{{ formatPrice(summary.tongLoiNhuan) }}</p>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" v-loading="fetching">
-      <el-table :data="reportList" style="width: 100%" size="large" stripe border>
-        <el-table-column prop="tenSP" label="Sản phẩm" min-width="240" />
-        <el-table-column prop="soLuongDaXuat" label="Số lượng xuất" width="150" align="center">
+    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto" v-loading="fetching">
+      <el-table :data="reportList" style="width: 100%" size="large" stripe border class="min-w-[700px] print-table">
+        <el-table-column prop="tenSP" label="Sản phẩm" min-width="200">
           <template #default="{ row }">
-            <span class="font-bold">{{ row.soLuongDaXuat }}</span>
+            <span class="font-semibold text-slate-800 text-xs md:text-sm line-clamp-2" :title="row.tenSP">{{ row.tenSP }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="doanhThu" label="Doanh thu" width="180" align="right">
-          <template #default="{ row }">{{ formatPrice(row.doanhThu) }}</template>
+        
+        <el-table-column prop="soLuongDaXuat" label="Số lượng xuất" min-width="120" align="center">
+          <template #default="{ row }">
+            <span class="font-bold text-blue-600 text-sm md:text-base">{{ row.soLuongDaXuat }}</span>
+          </template>
         </el-table-column>
-        <el-table-column prop="tongGiaVon" label="Giá vốn" width="180" align="right">
-          <template #default="{ row }">{{ formatPrice(row.tongGiaVon) }}</template>
+        
+        <el-table-column prop="doanhThu" label="Doanh thu" min-width="140" align="right">
+          <template #default="{ row }"><span class="whitespace-nowrap text-xs md:text-sm font-medium">{{ formatPrice(row.doanhThu) }}</span></template>
         </el-table-column>
-        <el-table-column prop="loiNhuan" label="Lợi nhuận" width="180" align="right">
-          <template #default="{ row }">{{ formatPrice(row.loiNhuan) }}</template>
+        
+        <el-table-column prop="tongGiaVon" label="Giá vốn" min-width="140" align="right">
+          <template #default="{ row }"><span class="whitespace-nowrap text-xs md:text-sm font-medium text-slate-500">{{ formatPrice(row.tongGiaVon) }}</span></template>
+        </el-table-column>
+        
+        <el-table-column prop="loiNhuan" label="Lợi nhuận" min-width="140" align="right">
+          <template #default="{ row }">
+            <span class="whitespace-nowrap text-xs md:text-sm font-bold" :class="row.loiNhuan < 0 ? 'text-red-500' : 'text-emerald-600'">
+              {{ formatPrice(row.loiNhuan) }}
+            </span>
+          </template>
         </el-table-column>
       </el-table>
+      
+      <div v-if="reportList.length === 0 && !fetching" class="text-center py-12 bg-slate-50 border border-dashed border-slate-300">
+         <el-icon class="text-4xl text-slate-300 mb-2"><DataAnalysis /></el-icon>
+         <p class="text-slate-500 font-medium">Không có dữ liệu xuất bán trong kỳ này.</p>
+      </div>
     </div>
+    
   </div>
 </template>
 
@@ -227,4 +255,38 @@ watch([selectedType, selectedMonth, selectedQuarter, selectedYear], () => {
 
 <style scoped>
 :deep(.el-table__header) { background-color: #f8fafc; }
+
+/* Tùy chỉnh Scrollbar ngang để người dùng biết có thể vuốt */
+.overflow-x-auto::-webkit-scrollbar { height: 6px; }
+.overflow-x-auto::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Css dành riêng cho chế độ In (Print) */
+@media print {
+  /* Ẩn header, các nút bấm và background màu mè khi in giấy */
+  .flex-col.md\:flex-row { display: none !important; }
+  .space-y-4 { margin: 0 !important; padding: 0 !important; }
+  .shadow-sm { box-shadow: none !important; border: 1px solid #000 !important; }
+  .print-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  body { background-color: #fff; }
+}
+</style><style scoped>
+:deep(.el-table__header) { background-color: #f8fafc; }
+
+/* Tùy chỉnh Scrollbar ngang để người dùng biết có thể vuốt */
+.overflow-x-auto::-webkit-scrollbar { height: 6px; }
+.overflow-x-auto::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Css dành riêng cho chế độ In (Print) */
+@media print {
+  /* Ẩn header, các nút bấm và background màu mè khi in giấy */
+  .flex-col.md\:flex-row { display: none !important; }
+  .space-y-4 { margin: 0 !important; padding: 0 !important; }
+  .shadow-sm { box-shadow: none !important; border: 1px solid #000 !important; }
+  .print-table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  body { background-color: #fff; }
+}
 </style>
