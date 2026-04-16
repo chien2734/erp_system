@@ -149,7 +149,7 @@ const fetchDashboardData = async () => {
     try {
         const res = await api.get('/dashboard/summary');
         
-        // 👉 SỬA LỖI BÓC VỎ AXIOS
+        // SỬA LỖI BÓC VỎ AXIOS
         // Vì api.js đã return response.data rồi, nên res ở đây chính là response.data
         const dbData = res.data; 
 

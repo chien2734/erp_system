@@ -30,7 +30,7 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="filteredSuppliers" v-loading="loading" style="width: 100%" size="large" stripe border class="min-w-[800px]">
+      <el-table :data="paginatedData" v-loading="loading" style="width: 100%" size="large" stripe border class="min-w-[800px]">
         
         <el-table-column prop="maNCC" label="Mã NCC" width="90" align="center" fixed="left">
           <template #default="scope">
@@ -98,6 +98,24 @@
       </el-table>
     </div>
 
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
+    </div>
+
     <el-dialog 
       v-model="dialogVisible" 
       :title="isEditMode ? 'Cập nhật Nhà Cung Cấp' : 'Thêm Nhà Cung Cấp'" 
@@ -157,6 +175,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../services/api';
 import { useAuthStore } from '../auth/auth.store';
 import { CHUCNANG } from '../../utils/constants';
+import { usePagination } from '../../composables/usePagination';
 
 const authStore = useAuthStore();
 
@@ -187,7 +206,7 @@ const rules = reactive({
 const fetchSuppliers = async () => {
   loading.value = true;
   try {
-    const res = await api.get('/inventory/ncc'); // 👉 Điều chỉnh lại prefix nếu file backend của bạn đặt khác
+    const res = await api.get('/inventory/ncc'); // Điều chỉnh lại prefix nếu file backend của bạn đặt khác
     suppliers.value = res.data?.data || res.data || [];
   } catch (error) {
     ElMessage.error('Lỗi tải danh sách nhà cung cấp');
@@ -205,6 +224,13 @@ const filteredSuppliers = computed(() => {
     s.tenNCC?.toLowerCase().includes(query) || s.sdt?.includes(query)
   );
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredSuppliers, 10);
 
 // --- HÀNH ĐỘNG ---
 const openAddDialog = () => {
@@ -246,16 +272,16 @@ const handleSubmit = async (formEl) => {
 
 const handleDelete = (row) => {
   ElMessageBox.confirm(
-    `Bạn có chắc chắn muốn xóa nhà cung cấp "${row.tenNCC}" không?`,
-    'Xác nhận xóa',
+    `Bạn có chắc chắn muốn ngừng hợp tác với nhà cung cấp "${row.tenNCC}" không?`,
+    'Xác nhận',
     { confirmButtonText: 'Xóa', cancelButtonText: 'Hủy', type: 'danger' }
   ).then(async () => {
     try {
       await api.delete(`/inventory/ncc/${row.maNCC}`);
-      ElMessage.success('Đã xóa thành công!');
+      ElMessage.success('Đã ngừng hợp tác với nhà cung cấp thành công!');
       fetchSuppliers();
     } catch (error) {
-      ElMessage.error('Lỗi khi xóa nhà cung cấp!');
+      ElMessage.error('Lỗi khi ngừng hợp tác với nhà cung cấp!');
     }
   }).catch(() => {});
 };

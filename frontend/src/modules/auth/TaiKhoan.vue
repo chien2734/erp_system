@@ -32,7 +32,7 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <el-table :data="filteredAccounts" style="width: 100%" size="large" border stripe class="min-w-[850px]">
+            <el-table :data="paginatedData" style="width: 100%" size="large" border stripe class="min-w-[850px]">
               <el-table-column label="Nhân viên" min-width="220" fixed="left">
                 <template #default="scope">
                   <div class="flex items-center gap-3">
@@ -83,6 +83,25 @@
               </el-table-column>
             </el-table>
           </div>
+
+          <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+            <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+              Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+            </p>
+            
+            <div class="w-full sm:w-1/3 flex justify-center">
+              <el-pagination
+                v-model:current-page="currentPage"
+                :page-size="pageSize"
+                :total="totalItems"
+                background
+                layout="prev, pager, next"
+              />
+            </div>
+
+            <div class="hidden sm:block sm:w-1/3"></div>
+          </div>
+
         </div>
       </el-tab-pane>
 
@@ -208,7 +227,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, EditPen, Key, User, Check } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api from '../../services/api'; // Đường dẫn API của bạn
+import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const loadingData = ref(false);
@@ -247,6 +267,13 @@ const filteredAccounts = computed(() => {
     return matchSearch && matchRole;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredAccounts, 10);
 
 // --- LIFECYCLE ---
 onMounted(async () => {

@@ -428,7 +428,7 @@ const processCheckout = () => {
   const currentCustomer = selectedCustomer.value;
   const mangSerial = cart.value.flatMap(item => item.serials);
   
-  // 👉 SỬA LỖI Ở ĐÂY: Gọt sạch ký tự dấu phẩy trước khi chuyển thành số
+  // SỬA LỖI Ở ĐÂY: Gọt sạch ký tự dấu phẩy trước khi chuyển thành số
   const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
   let khachDua = parseInt(rawString) || 0;
   

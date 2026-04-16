@@ -120,7 +120,7 @@ const fetchInitialData = async () => {
     // Gọi API có truyền maNhanVien
     const attRes = await api.get(`/hr/chamcong?thang=${thang}&nam=${nam}&maNhanVien=${maNV}`);
     
-    // 👉 CẢI TIẾN 1: Quét mọi lớp vỏ dữ liệu (Giống hệt ChamCong.vue)
+    // CẢI TIẾN 1: Quét mọi lớp vỏ dữ liệu (Giống hệt ChamCong.vue)
     let history = [];
     const resData = attRes.data || attRes; 
     
@@ -141,7 +141,7 @@ const fetchInitialData = async () => {
     const day = String(now.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
-    // 👉 ĐÃ FIX MÚI GIỜ: Khôi phục lại hàm new Date() để nó tự động +7 tiếng
+    // ĐÃ FIX MÚI GIỜ: Khôi phục lại hàm new Date() để nó tự động +7 tiếng
     const todayRecord = history.find(item => {
         if (!item.ngayLamViec) return false;
         

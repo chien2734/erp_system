@@ -35,7 +35,7 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="filteredPhiếu" style="width: 100%" size="large" stripe class="min-w-[800px]">
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe class="min-w-[800px]">
         
         <el-table-column prop="maPhieuNhap" label="Mã Phiếu" width="120" fixed="left">
           <template #default="scope">
@@ -84,6 +84,24 @@
         </el-table-column>
 
       </el-table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
     </div>
 
     <el-dialog 
@@ -203,6 +221,7 @@ import { Search, Calendar, Back, FullScreen, Printer, User } from '@element-plus
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
 import PhieuNhapPrintDialog from './PhieuNhapPrintDialog.vue';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const dbPhieuNhap = ref([]);
@@ -232,7 +251,7 @@ onMounted(() => {
 });
 
 // --- COMPUTED ---
-const filteredPhiếu = computed(() => {
+const filteredPhieu = computed(() => {
   return dbPhieuNhap.value.filter(phieu => {
     const matchSearch = phieu.maPhieuNhap.toString().includes(searchQuery.value);
     // Tích hợp lọc theo Ngày (nếu có chọn DateRange)
@@ -245,6 +264,13 @@ const filteredPhiếu = computed(() => {
     return matchSearch;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredPhieu, 10);
 
 // --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -310,7 +336,7 @@ const handlePrint = () => {
 .overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 .overflow-x-auto::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* 👉 SỨC MẠNH CSS DÀNH CHO VIỆC IN ẤN (PRINT MEDIA) */
+/* SỨC MẠNH CSS DÀNH CHO VIỆC IN ẤN (PRINT MEDIA) */
 @media print {
   /* 1. Ẩn toàn bộ giao diện web */
   body * {

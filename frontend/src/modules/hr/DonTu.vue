@@ -74,7 +74,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" v-loading="loading">
-      <el-table :data="filteredLeaves" style="width: 100%" size="large" stripe>
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe>
         
         <el-table-column label="Người gửi" min-width="220" fixed="left">
           <template #default="scope">
@@ -149,9 +149,27 @@
             <span v-else class="text-xs text-slate-400 whitespace-nowrap"><el-icon><Lock /></el-icon> Đã chốt</span>
           </template>
         </el-table-column>
-
       </el-table>
     </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+        <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+          Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+        </p>
+        
+        <div class="w-full sm:w-1/3 flex justify-center">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="totalItems"
+            background
+            layout="prev, pager, next"
+          />
+        </div>
+
+        <div class="hidden sm:block sm:w-1/3"></div>
+      </div>
+
   </div>
 </template>
 
@@ -160,6 +178,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Search, BellFilled, CircleCheckFilled, CircleCloseFilled, Check, Close, Lock, Refresh } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const leaveRequests = ref([]);
@@ -209,7 +228,7 @@ const filteredLeaves = computed(() => {
     const matchStatus = filterStatus.value ? don.trangThai === filterStatus.value : true;
     const matchType = filterType.value ? don.loaiDon === filterType.value : true;
     
-    // 👉 FIX LỖI LỆCH MÚI GIỜ KHI LỌC NGÀY NỘP
+    // FIX LỖI LỆCH MÚI GIỜ KHI LỌC NGÀY NỘP
     let matchDate = true;
     if (filterCreatedDate.value && don.ngayTao) {
       // 1. Chuyển chuỗi từ DB thành Date Object
@@ -229,6 +248,13 @@ const filteredLeaves = computed(() => {
     return matchSearch && matchStatus && matchType && matchDate;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredLeaves, 10);
 
 // --- THỐNG KÊ NHANH TRÊN HEADER ---
 const countStatus = (status) => leaveRequests.value.filter(d => d.trangThai === status).length;

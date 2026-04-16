@@ -75,7 +75,7 @@ const HrController = {
             const roleNguoiDangSua = req.user.maNhomQuyen; // Lấy role từ token
             const maChucVuMoi = req.body.maChucVu;
 
-            // 👉 CHỐT CHẶN BỔ NHIỆM LÚC TẠO MỚI
+            // CHỐT CHẶN BỔ NHIỆM LÚC TẠO MỚI
             if (roleNguoiDangSua !== 1 && maChucVuMoi) {
                 const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
                 if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
@@ -106,7 +106,7 @@ const HrController = {
                 return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
             }
 
-            // 👉 CHỐT CHẶN 1: BẢO VỆ HỒ SƠ SẾP
+            //  CHỐT CHẶN 1: BẢO VỆ HỒ SƠ SẾP
             if (roleNguoiDangSua !== 1 && targetEmployee.maNhomQuyen === 1) {
                 return res.status(403).json({ 
                     success: false, 
@@ -114,7 +114,7 @@ const HrController = {
                 });
             }
 
-            // 👉 CHỐT CHẶN 2: BẢO VỆ GHẾ SẾP (Chống thăng chức)
+            // CHỐT CHẶN 2: BẢO VỆ GHẾ SẾP (Chống thăng chức)
             const maChucVuMoi = req.body.maChucVu;
             // Chỉ check nếu Quản lý đổi chức vụ sang một mã khác với chức vụ hiện tại
             if (roleNguoiDangSua !== 1 && maChucVuMoi && maChucVuMoi !== targetEmployee.maChucVu) {

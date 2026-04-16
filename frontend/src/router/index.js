@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../modules/auth/auth.store';
-import { CHUCNANG } from '../utils/constants'; // 👉 Thêm bộ từ điển quyền
-import { ElMessage } from 'element-plus'; // 👉 Để hiện thông báo chặn
+import { CHUCNANG } from '../utils/constants'; // Thêm bộ từ điển quyền
+import { ElMessage } from 'element-plus'; // Để hiện thông báo chặn
 
 const routes = [
     {

@@ -30,7 +30,7 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="filteredCustomers" style="width: 100%" size="large" stripe border class="min-w-[700px]">
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe border class="min-w-[700px]">
         
         <el-table-column label="Khách hàng" min-width="220" fixed="left">
           <template #default="scope">
@@ -70,6 +70,24 @@
         </el-table-column>
 
       </el-table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
     </div>
 
     <el-dialog v-model="dialogVisible" :title="isEdit ? 'CẬP NHẬT THÔNG TIN' : 'THÊM KHÁCH HÀNG MỚI'" width="500px" class="custom-dialog responsive-dialog">
@@ -137,7 +155,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, EditPen, ShoppingBag, Avatar } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
-import api from '../../services/api'; // Import api kết nối Backend
+import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
+
 
 // --- STATE ---
 const dbKhachHang = ref([]);
@@ -178,6 +198,13 @@ const filteredCustomers = computed(() => {
            kh.sdt.includes(searchQuery.value);
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredCustomers, 10);
 
 // --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);

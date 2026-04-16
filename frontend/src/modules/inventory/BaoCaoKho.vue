@@ -51,7 +51,7 @@
       </div>
 
       <div class="overflow-x-auto rounded-lg border border-slate-200">
-        <el-table :data="filteredData" style="width: 100%" v-loading="loading" stripe class="min-w-[800px]">
+        <el-table :data="paginatedData" style="width: 100%" v-loading="loading" stripe class="min-w-[800px]">
           
           <el-table-column type="index" label="STT" width="60" align="center" fixed="left" />
           
@@ -87,6 +87,25 @@
 
         </el-table>
       </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+        <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+          Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+        </p>
+        
+        <div class="w-full sm:w-1/3 flex justify-center">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="totalItems"
+            background
+            layout="prev, pager, next"
+          />
+        </div>
+
+        <div class="hidden sm:block sm:w-1/3"></div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -97,13 +116,14 @@ import { Download, Search } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import ExcelJS from 'exceljs'; 
 import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 const loading = ref(false);
 const isExporting = ref(false); 
 const reportData = ref([]);
 const summary = ref({ tongSanPham: 0, tongSoLuongTon: 0, tongGiaTriKho: 0 });
 
-const filterMonth = ref(''); // 👉 BIẾN LƯU THÁNG/NĂM
+const filterMonth = ref(''); // BIẾN LƯU THÁNG/NĂM
 const filterHang = ref(null);
 const listHang = ref([]);
 const searchQuery = ref('');
@@ -115,6 +135,13 @@ const filteredData = computed(() => {
     item.tenSP.toLowerCase().includes(searchQuery.value.toLowerCase())
   );
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredData, 10);
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
@@ -129,7 +156,7 @@ const fetchHang = async () => {
 };
 
 // ==========================================
-// 👉 GỌI API BÁO CÁO (KÈM THÁNG NĂM)
+// GỌI API BÁO CÁO (KÈM THÁNG NĂM)
 // ==========================================
 const fetchReport = async () => {
   loading.value = true;

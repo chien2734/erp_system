@@ -137,7 +137,7 @@
           </div>
 
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <el-table :data="filteredAttendance" style="width: 100%" stripe size="large" class="min-w-[750px]">
+            <el-table :data="paginatedData" style="width: 100%" stripe size="large" class="min-w-[750px]">
               
               <el-table-column prop="ngayLamViec" label="Ngày làm việc" min-width="150" align="center">
                 <template #default="scope"><span class="font-bold whitespace-nowrap">{{ formatDateVN(scope.row.ngayLamViec) }}</span></template>
@@ -170,9 +170,27 @@
             </el-table>
           </div>
 
-          <div v-if="filteredAttendance.length === 0" class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 mt-4">
+          <div v-if="paginatedData.length === 0" class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-300 mt-4">
             <el-icon class="text-3xl md:text-4xl text-slate-300 mb-2"><Calendar /></el-icon>
             <p class="text-sm md:text-base text-slate-500 font-medium">Không có dữ liệu phù hợp với bộ lọc</p>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+            <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+              Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+            </p>
+            
+            <div class="w-full sm:w-1/3 flex justify-center">
+              <el-pagination
+                v-model:current-page="currentPage"
+                :page-size="pageSize"
+                :total="totalItems"
+                background
+                layout="prev, pager, next"
+              />
+            </div>
+
+            <div class="hidden sm:block sm:w-1/3"></div>
           </div>
 
         </div>
@@ -384,12 +402,13 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { User, Medal, Calendar, Key, Money, DocumentAdd, CircleCheck, Warning, Remove, Printer, Plus, Minus, Trophy, CollectionTag } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE QUẢN LÝ TÀI KHOẢN ---
 const currentUser = ref({});
 const activeTab = ref('attendance');
 
-// 👉 STATE MỚI: DỮ LIỆU LỊCH SỬ THĂNG TIẾN
+// STATE MỚI: DỮ LIỆU LỊCH SỬ THĂNG TIẾN
 const myCareer = ref([]);
 
 // Form Đổi thông tin
@@ -428,7 +447,7 @@ const loadAllData = async () => {
 
     // Gọi tải dữ liệu các tab
     await fetchAttendance();
-    await fetchCareer(); // 👉 GỌI API LỊCH SỬ THĂNG TIẾN
+    await fetchCareer(); // GỌI API LỊCH SỬ THĂNG TIẾN
     await fetchPayslips();
     await fetchLeaves();
   } catch (error) {
@@ -442,7 +461,7 @@ onMounted(() => {
 });
 
 // ==========================================
-// 👉 1.5. TẢI LỊCH SỬ THĂNG TIẾN
+// 1.5. TẢI LỊCH SỬ THĂNG TIẾN
 // ==========================================
 const fetchCareer = async () => {
   try {
@@ -541,6 +560,13 @@ const filteredAttendance = computed(() => {
     return matchMonth && matchStatus;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredAttendance, 10);
 
 const countAttendanceStatus = (type) => {
   const listInMonth = myAttendance.value.filter(a => {

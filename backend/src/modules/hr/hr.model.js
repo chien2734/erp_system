@@ -596,7 +596,7 @@ const HrModel = {
     getBangLuong: async (filters) => {
         const { thang, nam, maNhanVien } = filters;
         
-        // 👉 ĐÃ SỬA: Dùng LEFT JOIN cho bảng chucvu
+        // ĐÃ SỬA: Dùng LEFT JOIN cho bảng chucvu
         let sql = `
             SELECT bl.*, nv.hoTen, cv.tenChucVu 
             FROM bangluong bl
@@ -663,7 +663,7 @@ const HrModel = {
             values.push(`%${keyword}%`, `%${keyword}%`);
         }
 
-        sql += ` ORDER BY bl.thucLanh DESC`; // Xếp người lương cao nhất lên đầu
+        sql += ` ORDER BY bl.thang ASC`; // Xếp người lương cao nhất lên đầu
         const [rows] = await db.query(sql, values);
         return rows;
     },
@@ -746,7 +746,7 @@ const HrModel = {
     getAllLeaveRequest: async (filters) => {
         const { trangThai, thang, nam } = filters;
         
-        // 👉 ĐÃ SỬA: Chuyển toàn bộ thành LEFT JOIN để chống thất thoát dữ liệu
+        // ĐÃ SỬA: Chuyển toàn bộ thành LEFT JOIN để chống thất thoát dữ liệu
         let sql = `
             SELECT dt.*, nv.hoTen, cv.tenChucVu, nd.hoTen as tenNguoiDuyet
             FROM dontu dt
@@ -816,7 +816,7 @@ const HrModel = {
                             trangThaiNghi, gioTinhLuong
                         ]);
                         
-                        // 👉 LƯU Ý TỐI QUAN TRỌNG: Lệnh cộng thêm 1 ngày PHẢI NẰM Ở CUỐI CÙNG
+                        // LƯU Ý TỐI QUAN TRỌNG: Lệnh cộng thêm 1 ngày PHẢI NẰM Ở CUỐI CÙNG
                         currentDate.setDate(currentDate.getDate() + 1);
                     }
                 }

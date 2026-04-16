@@ -19,7 +19,7 @@ const DashboardController = {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 
-                // 👉 ĐÃ SỬA: So sánh trực tiếp Ngày, Tháng, Năm để không bị lệch múi giờ UTC
+                // ĐÃ SỬA: So sánh trực tiếp Ngày, Tháng, Năm để không bị lệch múi giờ UTC
                 const found = doanhThu7Ngay.find(item => {
                     const itemDate = new Date(item.ngay);
                     return itemDate.getDate() === d.getDate() && 
@@ -39,7 +39,7 @@ const DashboardController = {
                         doanhThuNgay: thongKeNgay.doanhThuNgay,
                         donHangMoi: thongKeNgay.soDonHangMoi,
                         sanPhamTon: tongTonKho,
-                        nhanVienDiLam: thongKeNgay.soNhanVienDiLam // 👉 Đã thêm biến này
+                        nhanVienDiLam: thongKeNgay.soNhanVienDiLam // Đã thêm biến này
                     },
                     chart: {
                         data: chartData,     

@@ -60,7 +60,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <el-table :data="filteredAttendanceList" style="width: 100%" size="large" stripe>
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe>
         
         <el-table-column prop="maNhanVien" label="Mã NV" width="100" align="center">
           <template #default="scope">
@@ -129,6 +129,24 @@
       </el-table>
     </div>
 
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
+    </div>
+
     <el-dialog v-model="dialogVisible" title="ĐIỀU CHỈNH CHẤM CÔNG" width="400px" destroy-on-close class="custom-dialog">
       <div v-if="editingRecord" class="space-y-4">
         <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm mb-4">
@@ -170,6 +188,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { UserFilled, Check, Warning, Remove, EditPen, Search } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api'; 
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const today = new Date();
@@ -278,11 +297,18 @@ const filteredAttendanceList = computed(() => {
   });
 });
 
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredAttendanceList, 10);
+
 // --- THỐNG KÊ NHANH ---
 const totalEmployees = computed(() => dbNhanVien.value.length);
 const countPresent = computed(() => attendanceList.value.filter(item => item.gioVao !== null || item.trangThai.includes('Đúng giờ')).length);
 const countLateEarly = computed(() => attendanceList.value.filter(item => item.trangThai.includes('Đi trễ') || item.trangThai.includes('Về sớm')).length);
-// 👉 ĐÃ SỬA: Đếm chuẩn "Nghỉ có phép"
+// Đếm chuẩn "Nghỉ có phép"
 const countLeave = computed(() => attendanceList.value.filter(item => item.trangThai.includes('Nghỉ có phép')).length);
 
 // --- METHODS ---
@@ -299,7 +325,7 @@ const isLate = (gioVao) => {
 
 const getStatusType = (status) => {
   if (!status || status === 'Chưa chấm công') return 'info';
-  // 👉 ĐÃ SỬA: Bắt chuẩn chuỗi "Nghỉ có phép"
+  // Bắt chuẩn chuỗi "Nghỉ có phép"
   if (status.includes('Nghỉ có phép')) return 'info';
   if (status.includes('Đi trễ') && status.includes('Về sớm')) return 'danger'; 
   if (status.includes('Đi trễ') || status.includes('Về sớm')) return 'warning'; 

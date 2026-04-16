@@ -131,7 +131,7 @@ const openPrint = (data) => {
 };
 
 // ==========================================
-// 👉 HÀM TỰ XUẤT PDF ĐÃ ĐƯỢC FIX LỖI TRIỆT ĐỂ
+// HÀM TỰ XUẤT PDF ĐÃ ĐƯỢC FIX LỖI TRIỆT ĐỂ
 // ==========================================
 const handleExportPDF = async () => {
   exporting.value = true;
