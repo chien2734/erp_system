@@ -574,10 +574,24 @@ const HrModel = {
     // Xem phiếu lương cá nhân (Dành cho trang Profile)
     xemLuong: async (thang, nam, maNhanVien) => {
         let sql = `
-            SELECT bl.*, nv.hoTen, cv.tenChucVu 
+            SELECT 
+                bl.*, 
+                nv.hoTen, 
+                COALESCE(
+                    (
+                        SELECT cv_hist.tenChucVu 
+                        FROM thaydoichucvu td 
+                        JOIN chucvu cv_hist ON td.maChucVu = cv_hist.maChucVu 
+                        WHERE td.maNhanVien = bl.maNhanVien 
+                          AND td.ngayBatDau <= LAST_DAY(STR_TO_DATE(CONCAT(bl.nam, '-', bl.thang, '-01'), '%Y-%m-%d'))
+                        ORDER BY td.ngayBatDau DESC 
+                        LIMIT 1
+                    ),
+                    cv_curr.tenChucVu
+                ) as tenChucVu
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
-            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN chucvu cv_curr ON nv.maChucVu = cv_curr.maChucVu
             WHERE bl.maNhanVien = ? and bl.trangThai = 1
         `;
         let values = [maNhanVien];
@@ -592,16 +606,29 @@ const HrModel = {
         return rows;
     },
 
-    // Lấy bảng lương (Đã cập nhật LEFT JOIN để chống mất data)
+    // Lấy bảng lương
     getBangLuong: async (filters) => {
         const { thang, nam, maNhanVien } = filters;
         
-        // ĐÃ SỬA: Dùng LEFT JOIN cho bảng chucvu
         let sql = `
-            SELECT bl.*, nv.hoTen, cv.tenChucVu 
+            SELECT 
+                bl.*, 
+                nv.hoTen, 
+                COALESCE(
+                    (
+                        SELECT cv_hist.tenChucVu 
+                        FROM thaydoichucvu td 
+                        JOIN chucvu cv_hist ON td.maChucVu = cv_hist.maChucVu 
+                        WHERE td.maNhanVien = bl.maNhanVien 
+                          AND td.ngayBatDau <= LAST_DAY(STR_TO_DATE(CONCAT(bl.nam, '-', bl.thang, '-01'), '%Y-%m-%d'))
+                        ORDER BY td.ngayBatDau DESC 
+                        LIMIT 1
+                    ),
+                    cv_curr.tenChucVu
+                ) as tenChucVu
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
-            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN chucvu cv_curr ON nv.maChucVu = cv_curr.maChucVu
             WHERE 1=1
         `;
         let values = [];
@@ -642,10 +669,21 @@ const HrModel = {
             SELECT 
                 bl.*, 
                 nv.hoTen, 
-                cv.tenChucVu
+                COALESCE(
+                    (
+                        SELECT cv_hist.tenChucVu 
+                        FROM thaydoichucvu td 
+                        JOIN chucvu cv_hist ON td.maChucVu = cv_hist.maChucVu 
+                        WHERE td.maNhanVien = bl.maNhanVien 
+                          AND td.ngayBatDau <= LAST_DAY(STR_TO_DATE(CONCAT(bl.nam, '-', bl.thang, '-01'), '%Y-%m-%d'))
+                        ORDER BY td.ngayBatDau DESC 
+                        LIMIT 1
+                    ),
+                    cv_curr.tenChucVu
+                ) as tenChucVu
             FROM bangluong bl
             JOIN nhanvien nv ON bl.maNhanVien = nv.maNhanVien
-            LEFT JOIN chucvu cv ON nv.maChucVu = cv.maChucVu
+            LEFT JOIN chucvu cv_curr ON nv.maChucVu = cv_curr.maChucVu
             WHERE 1=1
         `;
         let values = [];

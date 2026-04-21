@@ -106,6 +106,7 @@
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto" v-loading="fetching">
       <el-table 
+        :key="selectedPeriodType"
         :data="paginatedData" 
         style="width: 100%" 
         size="large" 
@@ -113,7 +114,7 @@
         border
         show-summary
         :summary-method="getSummaries"
-        class="min-w-[1200px]"
+        class="min-w-[1200px] custom-table"
       >
         <el-table-column label="Nhân viên" min-width="200" fixed="left">
           <template #default="scope">
@@ -223,8 +224,9 @@
         </div>
 
         <el-form label-position="top">
-          <el-form-item label="Số tiền thưởng thêm (VNĐ):" class="mb-0">
-            <el-input-number v-model="formEdit.thuong" :min="0" :step="100000" class="!w-full !text-left" size="large" controls-position="right" />
+          <el-form-item label="Số tiền thưởng thêm / Truy lĩnh (VNĐ):" class="mb-0">
+            <el-input-number v-model="formEdit.thuong" :min="0" :step="50000" class="!w-full !text-left" size="large" controls-position="right" />
+            <p class="text-[10px] text-slate-400 mt-1 italic">* Để xóa thưởng, hãy nhập 0 và nhấn Lưu.</p>
           </el-form-item>
         </el-form>
       </div>

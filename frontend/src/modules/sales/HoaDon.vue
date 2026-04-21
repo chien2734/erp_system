@@ -26,6 +26,10 @@
           class="!w-full sm:!w-60 md:!w-72"
           size="large"
         />
+        <el-select v-model="filterPayment" placeholder="Phương thức" class="!w-full sm:!w-32" size="large" clearable>
+           <el-option label="Tiền mặt" value="Tiền mặt" />
+           <el-option label="Chuyển khoản" value="Chuyển khoản" />
+        </el-select>
       </div>
     </div>
 
@@ -56,6 +60,14 @@
         <el-table-column label="Số điện thoại" min-width="130" align="center">
           <template #default="scope">
             <p class="font-bold text-slate-500 whitespace-nowrap">{{ scope.row.sdt }}</p>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="Phương thức" min-width="120" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.phuongThucThanhToan === 'Chuyển khoản' ? 'primary' : 'info'" effect="light">
+              {{ scope.row.phuongThucThanhToan || 'Tiền mặt' }}
+            </el-tag>
           </template>
         </el-table-column>
 
@@ -218,6 +230,7 @@ const detailLoading = ref(false);
 
 const searchQuery = ref('');
 const dateRange = ref('');
+const filterPayment = ref('');
 const dialogVisible = ref(false);
 const selectedHoaDon = ref(null);
 
@@ -248,15 +261,17 @@ const filteredHoaDon = computed(() => {
     const matchSearch = hd.maHoaDon.toString().includes(query) || 
                         (hd.sdt && hd.sdt.includes(query)) ||
                         (hd.tenKH && hd.tenKH.toLowerCase().includes(query));
+    
+    const matchPayment = !filterPayment.value || hd.phuongThucThanhToan === filterPayment.value;
                         
     if (dateRange.value && dateRange.value.length === 2) {
       const pDate = new Date(hd.ngayLap).getTime();
       const start = new Date(dateRange.value[0]).getTime();
       const end = new Date(dateRange.value[1]).setHours(23, 59, 59, 999);
-      return matchSearch && (pDate >= start && pDate <= end);
+      return matchSearch && matchPayment && (pDate >= start && pDate <= end);
     }
     
-    return matchSearch;
+    return matchSearch && matchPayment;
   });
 });
 
@@ -305,7 +320,9 @@ const handlePrintAgain = () => {
     giamGia: selectedHoaDon.value.giamGia, 
     khachDua: selectedHoaDon.value.tienKhachDua, 
     tenKhachHang: selectedHoaDon.value.tenKH,
-    tenThuNgan: selectedHoaDon.value.tenNhanVien, 
+    tenThuNgan: selectedHoaDon.value.tenNhanVien,
+    phuongThuc: selectedHoaDon.value.phuongThucThanhToan || 'Tiền mặt',
+    ngayTao: formatDate(selectedHoaDon.value.ngayLap),
     items: selectedHoaDon.value.chiTiet.map(sp => ({
       tenSP: sp.tenSP,
       giaBan: sp.donGia,

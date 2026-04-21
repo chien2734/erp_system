@@ -50,7 +50,7 @@ const SalesModel = {
     // PHẦN 2: NGHIỆP VỤ BÁN HÀNG (TẠO HÓA ĐƠN)
     // ==============================================
     // Dữ liệu đầu vào: maKH, maNhanVien, giamGia, mangSerial (Mảng các mã máy được quét)
-    taoHoaDonBanHang: async (maKH, maNhanVien, giamGia, mangSerial, tienKhachDua) => {
+    taoHoaDonBanHang: async (maKH, maNhanVien, giamGia, mangSerial, tienKhachDua, phuongThucThanhToan) => {
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
@@ -86,8 +86,8 @@ const SalesModel = {
             
             const khachDua = tienKhachDua ? parseInt(tienKhachDua) : thanhTien;
 
-            const sqlHoaDon = `INSERT INTO hoadon (maKH, maNhanVien, ngayLap, tongTien, giamGia, thanhTien, tienKhachDua) VALUES (?, ?, NOW(), ?, ?, ?, ?)`;
-            const [hoaDonResult] = await connection.query(sqlHoaDon, [maKH, maNhanVien, tongTien, giamGia, thanhTien, khachDua]);
+            const sqlHoaDon = `INSERT INTO hoadon (maKH, maNhanVien, ngayLap, tongTien, giamGia, thanhTien, tienKhachDua, phuongThucThanhToan) VALUES (?, ?, NOW(), ?, ?, ?, ?, ?)`;
+            const [hoaDonResult] = await connection.query(sqlHoaDon, [maKH, maNhanVien, tongTien, giamGia, thanhTien, khachDua, phuongThucThanhToan || 'Tiền mặt']);
             const maHoaDon = hoaDonResult.insertId;
 
             for (const maSP in chiTietGomNhom) {

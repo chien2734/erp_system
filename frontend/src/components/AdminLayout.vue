@@ -56,6 +56,7 @@
                             <span>Kho & Sản phẩm</span>
                         </template>
                         <el-menu-item index="/inventory/products" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Danh mục Sản phẩm</el-menu-item>
+                        <el-menu-item index="/inventory/brands" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Quản lý Hãng</el-menu-item>
                         <el-menu-item index="/inventory/suppliers" v-if="authStore.hasPermission(CHUCNANG.SAN_PHAM)">Nhà Cung Cấp</el-menu-item>
                         <el-menu-item index="/inventory/stock" v-if="authStore.hasPermission(CHUCNANG.NHAP_KHO)">Nhập kho</el-menu-item>
                         <el-menu-item index="/inventory/serial" v-if="authStore.hasPermission(CHUCNANG.SERIAL)">Quản lý Serial</el-menu-item>
@@ -72,7 +73,7 @@
                         <el-menu-item index="/hr/attendance" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý chấm công</el-menu-item>
                         <el-menu-item index="/hr/payroll" v-if="authStore.hasPermission(CHUCNANG.TINH_LUONG)">Bảng tính lương</el-menu-item>
                         <el-menu-item index="/hr/leaves" v-if="authStore.hasPermission(CHUCNANG.CHAM_CONG)">Quản lý Đơn từ</el-menu-item>
-                        <el-menu-item index="/inventory/report-salary" v-if="authStore.hasPermission(CHUCNANG.BAO_CAO)">Báo cáo lương</el-menu-item>
+                        <el-menu-item index="/hr/report-salary" v-if="authStore.hasPermission(CHUCNANG.BAO_CAO)">Báo cáo lương</el-menu-item>
                     </el-sub-menu>
 
                     <el-menu-item index="/settings" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">
@@ -83,6 +84,11 @@
                     <el-menu-item index="/auth/accounts" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">
                         <el-icon><User /></el-icon>
                         <span>Quản lý Phân quyền</span>
+                    </el-menu-item>
+
+                    <el-menu-item index="/audit/logs" v-if="authStore.hasPermission(CHUCNANG.PHAN_QUYEN)">
+                        <el-icon><Timer /></el-icon>
+                        <span>Lịch sử hệ thống</span>
                     </el-menu-item>
                 </el-menu>
             </div>
@@ -152,7 +158,7 @@
 import { ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../modules/auth/auth.store';
-import { Monitor, ShoppingCart, Box, UserFilled, Setting, User, Location, SwitchButton, Menu, Close } from '@element-plus/icons-vue';
+import { Monitor, ShoppingCart, Box, UserFilled, Setting, User, Location, SwitchButton, Menu, Close, Timer } from '@element-plus/icons-vue';
 import { CHUCNANG } from '../utils/constants';
 
 const router = useRouter();

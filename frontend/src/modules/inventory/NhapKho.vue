@@ -57,15 +57,15 @@
 
             <div class="w-full sm:w-40 md:w-48 shrink-0 mt-2 sm:mt-0">
               <label class="block text-xs md:text-sm font-semibold text-slate-600 mb-1.5 md:mb-2">2. Đơn giá nhập</label>
-              <el-input-number 
-                v-model="currentItem.giaNhap" 
+              <el-input 
+                v-model="giaNhapDisplay" 
                 size="large" 
-                class="w-full !text-left" 
-                :min="0" 
-                :step="100000"
-                controls-position="right"
+                class="w-full" 
+                placeholder="0"
                 :disabled="!currentItem.maSP"
-              />
+              >
+                <template #append>₫</template>
+              </el-input>
             </div>
 
           </div>
@@ -200,6 +200,16 @@ onMounted(() => {
 const totalMachines = computed(() => phieuNhap.items.reduce((sum, item) => sum + item.serials.length, 0));
 const totalCost = computed(() => phieuNhap.items.reduce((sum, item) => sum + (item.giaNhap * item.serials.length), 0));
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
+
+const giaNhapDisplay = computed({
+  get: () => {
+    if (!currentItem.giaNhap) return '';
+    return new Intl.NumberFormat('vi-VN').format(currentItem.giaNhap);
+  },
+  set: (val) => {
+    currentItem.giaNhap = Number(val.replace(/[^0-9]/g, '')) || 0;
+  }
+});
 
 const handleSelectProduct = (maSP) => {
   const sp = dbSanPham.value.find(s => s.maSP === maSP); // Đổi dbSanPham thành dbSanPham.value

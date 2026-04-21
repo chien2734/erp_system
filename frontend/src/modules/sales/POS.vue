@@ -138,43 +138,73 @@
       <div class="bg-white border-t border-slate-200 p-3 lg:p-5 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] shrink-0">
         <div class="space-y-2 lg:space-y-3 text-slate-600 text-xs lg:text-sm mb-3 lg:mb-4">
           
-          <div class="flex justify-between border-b border-slate-100 pb-1.5 lg:pb-2">
-            <span>Tổng số lượng:</span>
-            <span class="font-bold text-slate-800">{{ totalMachines }} máy</span>
-          </div>
-          
-          <div class="flex justify-between items-center text-base lg:text-lg mt-2 pt-1 lg:pt-2">
-            <span class="font-bold text-slate-800">CẦN TRẢ</span>
-            <span class="font-black text-blue-600 text-xl lg:text-2xl">{{ formatPrice(cartTotal) }}</span>
-          </div>
+          <!-- Payment Method Selector -->
+          <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 mt-4">
+             <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-slate-700 text-[10px] uppercase tracking-wider">Phương thức thanh toán</span>
+                <el-radio-group v-model="paymentMethod" size="small" class="!flex">
+                  <el-radio-button label="Tiền mặt" />
+                  <el-radio-button label="Chuyển khoản" />
+                </el-radio-group>
+             </div>
 
-          <div class="flex justify-between items-center pt-1 lg:pt-2">
-            <span>Khách đưa:</span>
-            <el-input v-model="customerMoney" placeholder="Nhập tiền..." class="!w-28 lg:!w-36" size="small">
-              <template #append>₫</template>
-            </el-input>
-          </div>
-          
-          <div class="flex justify-between items-center" :class="changeMoney < 0 ? 'text-red-500' : 'text-emerald-600'">
-            <span class="font-bold">Tiền thừa:</span>
-            <span class="font-bold">{{ formatPrice(changeMoney > 0 ? changeMoney : 0) }}</span>
+             <div v-if="paymentMethod === 'Tiền mặt'" class="space-y-2">
+                <div class="flex justify-between items-center">
+                  <span>Khách đưa:</span>
+                  <el-input v-model="customerMoney" placeholder="Nhập tiền..." class="!w-28 lg:!w-36" size="small">
+                    <template #append>₫</template>
+                  </el-input>
+                </div>
+                <!-- Smart Validation Messages -->
+                <div v-if="customerMoneyRaw" class="text-[10px] text-right space-y-1">
+                  <p v-if="Number(customerMoneyRaw) % 1000 !== 0" class="text-red-500 italic font-semibold">
+                    * Tiền mặt không được có số lẻ dưới 1.000đ
+                  </p>
+                  <p v-if="!isCashReasonable && Number(customerMoneyRaw) >= cartTotal" class="text-red-500 italic font-bold">
+                    * Số tiền vô lý! (Vượt quá mốc thanh toán logic)
+                  </p>
+                </div>
+                <div class="flex justify-between items-center pt-1 border-t border-slate-100" :class="changeMoney < 0 ? 'text-red-500' : 'text-emerald-600'">
+                  <span class="font-bold">Tiền thừa:</span>
+                  <span class="font-bold">{{ formatPrice(changeMoney > 0 ? changeMoney : 0) }}</span>
+                </div>
+             </div>
+
+             <div v-else class="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <div class="bg-white p-2 rounded-lg shadow-sm border border-blue-200 flex items-center justify-center shrink-0">
+                   <!-- Inline SVG Logo VNPay chuẩn -->
+                   <svg width="60" height="20" viewBox="0 0 162 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18.1563 35.25L0 0H7.78125L21.8438 27.6562L35.9062 0H43.6875L25.5312 35.25H18.1563Z" fill="#005BAA"/>
+                      <path d="M68.0625 35.25L53.4375 10.9688V35.25H46.125V0H53.5312L68.1562 24.2812V0H75.4688V35.25H68.0625Z" fill="#005BAA"/>
+                      <path d="M84.1875 19.5V35.25H77.1562V0H93.0938C100.969 0 106.312 4.40625 106.312 11.25C106.312 18.0938 100.969 22.5 93.0938 22.5H84.1875V19.5ZM84.1875 16.5H93.0938C96.9375 16.5 99.2812 14.5312 99.2812 11.25C99.2812 7.96875 96.9375 6 93.0938 6H84.1875V16.5Z" fill="#E41F26"/>
+                      <path d="M129.562 35.25L127.125 28.5938H113.812L111.375 35.25H104.062L117.188 0H123.75L136.875 35.25H129.562ZM115.688 23.4375H125.25L120.469 10.4062L115.688 23.4375Z" fill="#E41F26"/>
+                      <path d="M149.25 19.5938L138 0H145.594L152.906 13.0312L160.219 0H167.812L156.562 19.5938V35.25H149.25V19.5938Z" fill="#E41F26"/>
+                   </svg>
+                </div>
+                <div class="flex-1">
+                   <p class="text-[11px] font-black text-indigo-700 uppercase tracking-tight">Cổng thanh toán VNPay</p>
+                   <p class="text-[10px] text-indigo-500 leading-tight">An toàn - Nhanh chóng - Tiện lợi</p>
+                </div>
+             </div>
           </div>
         </div>
 
         <el-button 
           type="primary" 
           class="w-full !h-12 lg:!h-14 text-base lg:text-lg font-bold shadow-lg shadow-blue-500/30 !rounded-xl"
-          :disabled="cart.length === 0 || changeMoney < 0"
+          :disabled="cart.length === 0 || (paymentMethod === 'Tiền mặt' && (changeMoney < 0 || !isCashReasonable))"
           @click="processCheckout"
         >
           <div class="flex items-center justify-center gap-2">
-            <el-icon><Money /></el-icon> THANH TOÁN & IN
+            <el-icon><CreditCard /></el-icon> {{ paymentMethod === 'Tiền mặt' ? 'THANH TOÁN & IN' : 'THANH TOÁN VNPAY' }}
           </div>
         </el-button>
       </div>
 
     </div>
   </div>
+
+  <!-- XÓA QR DIALOG VÌ ĐÃ DÙNG VNPAY -->
 
   <el-dialog v-model="dialogNewCustomerVisible" title="THÊM KHÁCH HÀNG MỚI" width="400px" class="custom-dialog">
     <el-form label-position="top">
@@ -200,7 +230,7 @@
 <script setup>
 import BillPrintDialog from './BillPrintDialog.vue';
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { Search, ShoppingCart, UserFilled, Monitor, Money, FullScreen, Delete } from '@element-plus/icons-vue';
+import { Search, ShoppingCart, UserFilled, Monitor, Money, FullScreen, Delete, CreditCard } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
 import api from '../../services/api'; // Gọi 'xe chở hàng' Axios
 
@@ -225,6 +255,28 @@ const newCustomerForm = ref({ sdt: '', tenKH: '', diaChi: '' });
 const newCustomerNameRef = ref(null);
 
 const customerMoneyRaw = ref('');
+const paymentMethod = ref('Tiền mặt');
+const showQrDialog = ref(false);
+
+// Thông tin ngân hàng của shop (Bạn có thể sửa ở đây)
+const shopBank = {
+    bankId: 'MSB', // MSB (Maritime Bank)
+    accountNo: '0988776655', // THAY SỐ TÀI KHOẢN MSB CỦA BẠN VÀO ĐÂY
+    accountName: 'TEN CUA BAN' // THAY TÊN CỦA BẠN VÀO ĐÂY (VIẾT HOA KHÔNG DẤU)
+};
+
+const transferInfo = computed(() => {
+    // Tạo nội dung chuyển khoản ngẫu nhiên hoặc dựa trên thời gian
+    const randomId = Math.random().toString(36).substring(7).toUpperCase();
+    return {
+        amount: cartTotal.value,
+        description: `CHIE_LAPTOP_${randomId}`
+    }
+});
+
+const vietQrUrl = computed(() => {
+    return `https://img.vietqr.io/image/${shopBank.bankId}-${shopBank.accountNo}-compact.png?amount=${transferInfo.value.amount}&addInfo=${transferInfo.value.description}&accountName=${encodeURIComponent(shopBank.accountName)}`;
+});
 
 // ==========================================
 // 1. HÀM GỌI API KHỞI TẠO DỮ LIỆU BAN ĐẦU
@@ -262,6 +314,35 @@ const loadInitialData = async () => {
 
 onMounted(() => {
   loadInitialData();
+  
+  // KIỂM TRA NẾU QUAY VỀ TỪ VNPAY
+  const urlParams = new URLSearchParams(window.location.search);
+  const vnpResponseCode = urlParams.get('vnp_ResponseCode');
+  
+  if (vnpResponseCode === '00') {
+      // 1. Lấy lại dữ liệu giỏ hàng đã lưu trước khi đi sang VNPay
+      const savedData = localStorage.getItem('vnpay_pending_checkout');
+      if (savedData) {
+          const { customer, total, paidAmount, serials, cartItems, method } = JSON.parse(savedData);
+          
+          // 2. Tự động hoàn tất hóa đơn với đúng phương thức đã lưu
+          finalizeCheckout(customer, total, paidAmount, serials, cartItems, method || 'Chuyển khoản');
+          
+          ElMessageBox.alert('Thanh toán qua VNPay thành công! Hóa đơn đã được tạo.', 'THÀNH CÔNG', {
+              confirmButtonText: 'Đã hiểu',
+              type: 'success'
+          });
+          
+          // 3. Dọn dẹp
+          localStorage.removeItem('vnpay_pending_checkout');
+      }
+      
+      window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (vnpResponseCode && vnpResponseCode !== '00') {
+      ElMessage.error('Thanh toán VNPay thất bại hoặc đã bị hủy.');
+      localStorage.removeItem('vnpay_pending_checkout');
+      window.history.replaceState({}, document.title, window.location.pathname);
+  }
 });
 
 // ==========================================
@@ -291,8 +372,13 @@ const filteredProducts = computed(() => {
 // 3. TÍNH TOÁN TIỀN BẠC
 // ==========================================
 const customerMoney = computed({
-  get: () => customerMoneyRaw.value,
-  set: (val) => { customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); }
+  get: () => {
+    if (!customerMoneyRaw.value) return '';
+    return new Intl.NumberFormat('vi-VN').format(customerMoneyRaw.value);
+  },
+  set: (val) => { 
+    customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); 
+  }
 });
 
 const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
@@ -301,8 +387,26 @@ const finalTotal = computed(() => cartTotal.value);
 const changeMoney = computed(() => {
   const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
   const moneyGiven = parseInt(rawString) || 0;
-  
   return moneyGiven - finalTotal.value; 
+});
+
+const isCashReasonable = computed(() => {
+  if (paymentMethod.value === 'Chuyển khoản') return true;
+  if (!customerMoneyRaw.value) return true;
+  const money = Number(customerMoneyRaw.value);
+  if (money < cartTotal.value) return true; // Để hiện lỗi Tiền thừa < 0 màu đỏ thay vì chặn nút sớm quá
+  
+  // 1. Phải chia hết cho 1000
+  if (money % 1000 !== 0) return false;
+  
+  // 2. Logic mốc tối đa: Làm tròn lên 1 triệu gần nhất
+  // Ví dụ: 12.570.000 -> Max là 13.000.000
+  const nextMillion = Math.ceil(cartTotal.value / 1000000) * 1000000;
+  
+  // Nếu tổng đã là số tròn triệu (VD: 12.000.000), cho phép khách đưa thêm tối đa 500k lẻ
+  const limit = (cartTotal.value % 1000000 === 0) ? cartTotal.value + 500000 : nextMillion;
+  
+  return money <= limit;
 });
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -428,58 +532,98 @@ const processCheckout = () => {
   const currentCustomer = selectedCustomer.value;
   const mangSerial = cart.value.flatMap(item => item.serials);
   
-  // SỬA LỖI Ở ĐÂY: Gọt sạch ký tự dấu phẩy trước khi chuyển thành số
-  const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
-  let khachDua = parseInt(rawString) || 0;
-  
-  if (khachDua < currentTotal) {
-    khachDua = currentTotal; 
+  let khachDua = currentTotal;
+  if (paymentMethod.value === 'Tiền mặt') {
+      const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
+      khachDua = parseInt(rawString) || 0;
+      if (khachDua % 1000 !== 0) {
+        ElMessage.warning('Số tiền khách đưa phải là bội số của 1.000đ!');
+        return;
+      }
   }
 
   ElMessageBox.confirm(
-    `Xuất bán <b>${totalMachines.value} máy</b>. Tổng phải thu: <b class="text-blue-600">${formatPrice(currentTotal)}</b>?`,
+    `Xác nhận thanh toán <b>${paymentMethod.value}</b> cho hóa đơn <b>${formatPrice(currentTotal)}</b>?`,
     'TẠO HÓA ĐƠN XUẤT',
-    { confirmButtonText: 'Lưu & In', cancelButtonText: 'Hủy', type: 'success', dangerouslyUseHTMLString: true }
+    { confirmButtonText: 'Xác nhận', cancelButtonText: 'Hủy', type: 'success', dangerouslyUseHTMLString: true }
   ).then(async () => {
+    const loading = ElLoading.service({ lock: true, text: 'Đang xử lý...' });
     
-    // Payload Backend
-    const payloadBackend = {
-      maKH: currentCustomer.maKH,
+    try {
+      if (paymentMethod.value === 'Chuyển khoản') {
+        const paymentRes = await api.post('/sales/create-vnpay-url', {
+          amount: currentTotal,
+          orderDescription: transferInfo.value.description,
+          orderType: 'other',
+          language: 'vn'
+        });
+
+        loading.close();
+        
+        if (paymentRes && paymentRes.redirectUrl) {
+            // LƯU TRẠNG THÁI TRƯỚC KHI RỜI TRANG
+            localStorage.setItem('vnpay_pending_checkout', JSON.stringify({
+                customer: currentCustomer,
+                total: currentTotal,
+                paidAmount: khachDua,
+                serials: mangSerial,
+                cartItems: currentCart,
+                method: paymentMethod.value // Lưu thêm phương thức thanh toán
+            }));
+
+            // Chuyển hướng sang VNPay
+            window.location.href = paymentRes.redirectUrl;
+        } else {
+            ElMessage.error(paymentRes?.message || 'Không thể khởi tạo cổng thanh toán VNPay');
+        }
+      } else {
+        await finalizeCheckout(currentCustomer, currentTotal, khachDua, mangSerial, currentCart);
+        loading.close();
+      }
+    } catch (error) {
+      loading.close();
+      const errorMsg = error.response?.data?.message || error.message || 'Lỗi khi kết nối cổng thanh toán';
+      ElMessage.error(errorMsg);
+    }
+  }).catch(() => {});
+};
+
+const finalizeCheckout = async (customer, total, paidAmount, serials, cartItems, customMethod = null) => {
+    const finalMethod = customMethod || paymentMethod.value;
+    
+    const payload = {
+      maKH: customer.maKH,
       giamGia: 0, 
-      thanhTien: currentTotal, 
-      tienKhachDua: khachDua,
-      mangSerial: mangSerial
+      thanhTien: total, 
+      tienKhachDua: paidAmount,
+      mangSerial: serials,
+      phuongThucThanhToan: finalMethod
     };
 
     try {
-      const loading = ElLoading.service({ lock: true, text: 'Đang xử lý hóa đơn...' });
-      
-      // Gọi API POST tạo hóa đơn
-      const response = await api.post('/sales/hoadon', payloadBackend);
-      
-      loading.close();
+      const response = await api.post('/sales/hoadon', payload);
       ElMessage.success('Thanh toán thành công!');
 
       if (billDialogRef.value) {
         billDialogRef.value.openBill({
-          maHoaDon: response.data?.maHoaDon || response.data?.data?.maHoaDon || response.data?.data?.maHD || 'HD-NEW',
-          items: currentCart, 
-          tongTien: currentTotal,
+          maHoaDon: response.maHoaDon || response.data?.maHoaDon || 'HD-' + Date.now(),
+          items: cartItems, 
+          tongTien: total,
           giamGia: 0,
-          khachDua: khachDua, 
-          tenKhachHang: currentCustomer.tenKH
+          khachDua: paidAmount, 
+          tenKhachHang: customer.tenKH,
+          phuongThuc: finalMethod
         });
       }
 
       cart.value = []; 
       customerMoneyRaw.value = '';
+      paymentMethod.value = 'Tiền mặt';
       clearCustomer(); 
-      loadInitialData(); // Load lại kho để cập nhật số lượng tồn
-
+      loadInitialData();
     } catch (error) {
-      ElMessage.error(error.response?.data?.message || 'Lỗi hệ thống khi tạo hóa đơn');
+      ElMessage.error('Lỗi khi lưu hóa đơn: ' + (error.response?.data?.message || error.message));
     }
-  }).catch(() => {}); // Hủy confirm
 };
 
 // ==========================================

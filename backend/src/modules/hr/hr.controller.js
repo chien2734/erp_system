@@ -1,4 +1,5 @@
 const HrModel = require('./hr.model');
+const { recordLog } = require('../../../utils/helpers');
 
 const HrController = {
     // ==========================================
@@ -22,6 +23,8 @@ const HrController = {
             await HrModel.updateProfileInfo(maNhanVien, req.body);
             
             res.status(200).json({ success: true, message: 'Đã cập nhật thông tin liên hệ!' });
+            
+            await recordLog(maNhanVien, 'Cập nhật Profile', { updates: req.body });
         } catch (error) {
             console.error("Lỗi updateProfileInfo:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật thông tin' });
@@ -88,6 +91,8 @@ const HrController = {
 
             const newId = await HrModel.createNhanVien(req.body);
             res.status(201).json({ success: true, message: 'Thêm nhân viên thành công', id: newId });
+            
+            await recordLog(req.user.maNhanVien, 'Thêm nhân viên', { maNhanVien: newId, hoTen: req.body.hoTen });
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Lỗi khi thêm nhân viên' });
@@ -136,6 +141,8 @@ const HrController = {
             }
             
             res.status(200).json({ success: true, message: 'Cập nhật nhân viên thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật nhân viên', { maNhanVien: id, hoTen: req.body.hoTen });
         } catch (error) {
             console.error("Lỗi cập nhật NV:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật nhân viên' });
@@ -157,6 +164,8 @@ const HrController = {
                 success: true,
                 message: 'Đã xóa nhân viên'
             });
+
+            await recordLog(req.user.maNhanVien, 'Xóa nhân viên', { maNhanVien: id });
         } catch (error) {
             console.error(error);
             res.status(500).json({
@@ -181,6 +190,8 @@ const HrController = {
                 success: true,
                 message: 'Đã cập nhật chức vụ và lưu lịch sử thành công!'
             });
+
+            await recordLog(req.user.maNhanVien, 'Thay đổi chức vụ', { maNhanVien: id, maChucVuMoi, ngayHieuLuc });
         } catch (error) {
             console.error(error);
             res.status(500).json({
@@ -213,6 +224,8 @@ const HrController = {
             }
             await HrModel.createChucVu(req.body);
             res.status(201).json({ success: true, message: 'Thêm chức vụ mới thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Thêm chức vụ', { tenChucVu });
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Lỗi khi tạo chức vụ' });
@@ -230,6 +243,8 @@ const HrController = {
             const affectedRows = await HrModel.updateChucVu(id, req.body);
             if (affectedRows === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy chức vụ' });
             res.status(200).json({ success: true, message: 'Cập nhật chức vụ thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật chức vụ', { maChucVu: id, tenChucVu });
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật chức vụ' });
@@ -243,6 +258,8 @@ const HrController = {
             const affectedRows = await HrModel.deleteChucVu(id);
             if (affectedRows === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy chức vụ' });
             res.status(200).json({ success: true, message: 'Đã xóa chức vụ thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Xóa chức vụ', { maChucVu: id });
         } catch (error) {
             // Bắt lỗi MySQL: Nếu chức vụ đang có người làm, mã lỗi là 1451 (ER_ROW_IS_REFERENCED)
             if (error.errno === 1451) {
@@ -466,7 +483,9 @@ const HrController = {
             }
 
             await HrModel.adminUpdateChamCong(maNhanVien, ngayLamViec, gioVao, gioRa, soGioLam, trangThaiMoi);
-            return res.status(200).json({ success: true, message: 'Cập nhật chấm công thành công!' });
+            res.status(200).json({ success: true, message: 'Cập nhật chấm công thành công!' });
+            
+            await recordLog(req.user.maNhanVien, 'Điều chỉnh chấm công', { maNhanVien, ngayLamViec, trangThaiMoi });
         } catch (error) {
             console.error("Lỗi update chấm công:", error);
             return res.status(500).json({ success: false, message: 'Lỗi server khi cập nhật' });
@@ -505,10 +524,12 @@ const HrController = {
                     message: 'Không có nhân viên nào được tính lương'
                 });
             } else {
-                return res.status(200).json({
+                res.status(200).json({
                     success: true,
                     message: 'Đã tính lương cho ' + dsNhanVien + ' nhân viên!'
                 });
+                
+                await recordLog(req.user.maNhanVien, 'Tính lương tháng', { thang, nam });
             }
         } catch (error) {
             if (error.message === 'ĐÃ_CHỐT') {
@@ -539,10 +560,12 @@ const HrController = {
                 });
             }
 
-            return res.status(200).json({ 
+            res.status(200).json({ 
                 success: true, 
                 message: `Đã chốt bảng lương tháng ${thang}/${nam} thành công! Nhân viên đã có thể xem phiếu lương.` 
             });
+
+            await recordLog(req.user.maNhanVien, 'Chốt bảng lương', { thang, nam });
         } catch (error) {
             console.error("Lỗi khi chốt lương:", error);
             return res.status(500).json({ success: false, message: 'Lỗi hệ thống khi chốt lương' });
@@ -616,7 +639,8 @@ const HrController = {
     updateBangLuong: async (req, res) => {
         try {
             const { thang, nam, dsNhanVien, thuong } = req.body;
-            if (!thang || !nam || !thuong) {
+            // Cho phép thưởng bằng 0 (Sửa lỗi !thuong chặn số 0)
+            if (!thang || !nam || (thuong === undefined || thuong === null)) {
                 return res.status(400).json({
                     success: false,
                     message: 'Dữ liệu không hợp lệ, vui lòng nhập lại!'
@@ -634,10 +658,12 @@ const HrController = {
                 message: 'Không tìm thấy nhân viên hợp lệ!'
             });
 
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 message: 'Đã thêm tiền thưởng thành công!'
             });
+
+            await recordLog(req.user.maNhanVien, 'Cập nhật thưởng/phạt lương', { thang, nam, count: dsNhanVien.length });
         } catch(error) {
             console.log(error)
             return res.status(500).json({
@@ -737,6 +763,8 @@ const HrController = {
 
             await HrModel.updateCauHinh(data);
             res.status(200).json({ success: true, message: 'Cập nhật cấu hình hệ thống thành công!' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật cấu hình hệ thống', { data });
         } catch (error) {
             console.error("Lỗi cập nhật cấu hình:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi lưu cấu hình' });
@@ -801,6 +829,8 @@ const HrController = {
             await HrModel.createLeaveRequest(maNhanVien, req.body);
             
             res.status(201).json({ success: true, message: 'Đã gửi đơn xin nghỉ phép thành công. Vui lòng chờ quản lý duyệt!' });
+            
+            await recordLog(maNhanVien, 'Gửi đơn nghỉ phép', { loaiDon, ngayBatDau, ngayKetThuc });
         } catch (error) {
             console.log(error);
             res.status(500).json({ success: false, message: 'Lỗi khi tạo đơn nghỉ phép' });
@@ -869,6 +899,8 @@ const HrController = {
             }
 
             res.status(200).json({ success: true, message: `Đã ${trangThai.toLowerCase()} đơn nghỉ phép!` });
+            
+            await recordLog(nguoiDuyet, 'Duyệt đơn nghỉ phép', { maDon: id, trangThai });
         } catch (error) {
             console.error("Lỗi duyệt đơn:", error);
             res.status(500).json({ success: false, message: 'Lỗi hệ thống khi xử lý đơn' });
