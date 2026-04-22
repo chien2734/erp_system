@@ -21,6 +21,24 @@ const InventoryModel = {
         const [rows] = await db.query(sql, values);
         return rows;
     },
+
+    createHangSP: async (tenHang) => {
+        const sql = `INSERT INTO hangsp (tenHang) VALUES (?)`;
+        const [result] = await db.query(sql, [tenHang]);
+        return result.insertId;
+    },
+
+    updateHangSP: async (maHang, tenHang) => {
+        const sql = `UPDATE hangsp SET tenHang = ? WHERE maHang = ?`;
+        const [result] = await db.query(sql, [tenHang, maHang]);
+        return result.affectedRows;
+    },
+
+    deleteHangSP: async (maHang) => {
+        const sql = `DELETE FROM hangsp WHERE maHang = ?`;
+        const [result] = await db.query(sql, [maHang]);
+        return result.affectedRows;
+    },
     // NCC
     getAllNCC: async (filters) => {
         const { id, tenNCC, trangThai } = filters; 

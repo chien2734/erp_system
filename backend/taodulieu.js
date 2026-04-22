@@ -57,13 +57,13 @@ for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             soGioLam = 8 - (mVao / 60) + (hRa - 18) + (mRa / 60); 
             trangThai = 'Đi trễ và Tăng ca';
         } else if (rand < 0.99) {
-            // 👉 MỚI: 3% Đúng giờ và Tăng ca (Max OT) (Vào 07:45-07:59 | Ra 20:00-21:30)
+            // MỚI: 3% Đúng giờ và Tăng ca (Max OT) (Vào 07:45-07:59 | Ra 20:00-21:30)
             hVao = 7; mVao = ranMin(45, 59);
             hRa = ranMin(20, 21); mRa = ranMin(0, 30);
             soGioLam = 10; // Bị chặn cứng ở mức 10 tiếng (8 hành chính + 2 OT)
             trangThai = 'Đúng giờ và Tăng ca (Max OT)';
         } else {
-            // 👉 MỚI: 1% Đi trễ và Tăng ca (Max OT) (Vào 08:05-08:20 | Ra 20:00-21:00)
+            // MỚI: 1% Đi trễ và Tăng ca (Max OT) (Vào 08:05-08:20 | Ra 20:00-21:00)
             hVao = 8; mVao = ranMin(5, 20);
             hRa = 20; mRa = ranMin(0, 59);
             soGioLam = 10 - (mVao / 60); // Bị chặn Max OT 2h, nhưng vẫn bị trừ tiền đi trễ

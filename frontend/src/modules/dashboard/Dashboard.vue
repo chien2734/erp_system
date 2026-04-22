@@ -27,22 +27,7 @@
                     <el-tag type="info" effect="plain" round class="font-bold">Đơn vị: Triệu VNĐ</el-tag>
                 </div>
                 
-                <div class="flex items-end justify-between h-64 px-4 border-b border-slate-100 pb-2">
-                    
-                    <div v-for="(val, idx) in chartData" :key="idx" class="flex flex-col items-center justify-end gap-2 w-full group h-full">
-                        
-                        <div 
-                            class="w-8 bg-blue-500 rounded-t-lg transition-all duration-500 group-hover:bg-blue-600 relative flex-shrink-0"
-                            :style="{ height: val === 0 ? '4px' : Math.min(val * 2, 100) + '%' }" 
-                        >
-                            <span class="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                                {{ val }}tr
-                            </span>
-                        </div>
-
-                        <span class="text-xs text-slate-400 font-medium">{{ chartLabels[idx] }}</span>
-                    </div>
-                </div>
+                <div ref="mainChartRef" class="w-full h-64 md:h-72"></div>
             </div>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -115,8 +100,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import { Plus, Money, ShoppingBag, Box, UserFilled, Warning, Document } from '@element-plus/icons-vue';
+import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
 
@@ -139,6 +125,8 @@ const alerts = ref({
 });
 
 const recentSales = ref([]);
+const mainChartRef = ref(null);
+let chartInstance = null;
 
 const formatPrice = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 
@@ -149,7 +137,7 @@ const fetchDashboardData = async () => {
     try {
         const res = await api.get('/dashboard/summary');
         
-        // 👉 SỬA LỖI BÓC VỎ AXIOS
+        // SỬA LỖI BÓC VỎ AXIOS
         // Vì api.js đã return response.data rồi, nên res ở đây chính là response.data
         const dbData = res.data; 
 
@@ -166,6 +154,8 @@ const fetchDashboardData = async () => {
             // 2. Cập nhật Biểu đồ
             chartData.value = dbData.chart.data;
             chartLabels.value = dbData.chart.labels;
+            await nextTick();
+            initChart();
 
             // 3. Cập nhật Việc cần làm
             alerts.value = dbData.alerts;
@@ -183,8 +173,59 @@ const fetchDashboardData = async () => {
     }
 };
 
+const initChart = () => {
+    if (!mainChartRef.value) return;
+    if (chartInstance) chartInstance.dispose();
+    chartInstance = echarts.init(mainChartRef.value);
+    
+    chartInstance.setOption({
+        tooltip: { 
+            trigger: 'axis', 
+            axisPointer: { type: 'shadow' },
+            formatter: (params) => {
+                const item = params[0];
+                return `${item.marker} ${item.name}<br/>
+                        <span style="font-weight:bold; margin-left: 14px;">${item.value} triệu VNĐ</span>`;
+            }
+        },
+        grid: { left: '0%', right: '0%', bottom: '0%', top: '10%', containLabel: true },
+        xAxis: { 
+            type: 'category', 
+            data: chartLabels.value,
+            axisLine: { lineStyle: { color: '#e2e8f0' } },
+            axisLabel: { color: '#64748b', fontSize: 11 }
+        },
+        yAxis: { 
+            type: 'value',
+            splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } },
+            axisLabel: { color: '#94a3b8', fontSize: 10 }
+        },
+        series: [{
+            name: 'Doanh thu',
+            type: 'bar',
+            data: chartData.value,
+            barWidth: '40%',
+            itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: '#3b82f6' },
+                    { offset: 1, color: '#60a5fa' }
+                ]),
+                borderRadius: [6, 6, 0, 0]
+            }
+        }]
+    });
+};
+
+const handleResize = () => chartInstance && chartInstance.resize();
+
 onMounted(() => {
     fetchDashboardData();
+    window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleResize);
+    if (chartInstance) chartInstance.dispose();
 });
 </script>
 

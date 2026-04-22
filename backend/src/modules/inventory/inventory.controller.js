@@ -1,4 +1,5 @@
 const InventoryModel = require('./inventory.model');
+const { recordLog } = require('../../../utils/helpers');
 const cloudinary = require('cloudinary').v2;
 
 // 1. Cấu hình Cloudinary
@@ -36,6 +37,56 @@ const InventoryController = {
                 success: false,
                 message: 'Lỗi lấy danh sách hãng sản phẩm'
             });
+        }
+    },
+
+    createHangSP: async (req, res) => {
+        try {
+            const { tenHang } = req.body;
+            if (!tenHang) {
+                return res.status(400).json({ success: false, message: 'Vui lòng nhập tên hãng' });
+            }
+            const newId = await InventoryModel.createHangSP(tenHang);
+            res.status(201).json({
+                success: true,
+                message: 'Thêm hãng sản phẩm thành công',
+                maHang: newId
+            });
+            await recordLog(req.user.maNhanVien, 'Thêm hãng SP', { maHang: newId, tenHang });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi khi thêm hãng sản phẩm' });
+        }
+    },
+
+    updateHangSP: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { tenHang } = req.body;
+            if (!tenHang) {
+                return res.status(400).json({ success: false, message: 'Vui lòng nhập tên hãng' });
+            }
+            const affectedRows = await InventoryModel.updateHangSP(id, tenHang);
+            if (affectedRows === 0) {
+                return res.status(404).json({ success: false, message: 'Hãng sản phẩm không tồn tại' });
+            }
+            res.status(200).json({ success: true, message: 'Cập nhật hãng thành công' });
+            await recordLog(req.user.maNhanVien, 'Cập nhật hãng SP', { maHang: id, tenHang });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi khi cập nhật hãng sản phẩm' });
+        }
+    },
+
+    deleteHangSP: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const affectedRows = await InventoryModel.deleteHangSP(id);
+            if (affectedRows === 0) {
+                return res.status(404).json({ success: false, message: 'Hãng sản phẩm không tồn tại' });
+            }
+            res.status(200).json({ success: true, message: 'Đã xóa hãng sản phẩm' });
+            await recordLog(req.user.maNhanVien, 'Xóa hãng SP', { maHang: id });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi khi xóa hãng sản phẩm. Lưu ý: Không thể xóa hãng đã có sản phẩm.' });
         }
     },
 
@@ -77,6 +128,8 @@ const InventoryController = {
                 message: 'Thêm nhà cung cấp thành công',
                 maNCC: newId
             });
+
+            await recordLog(req.user.maNhanVien, 'Thêm nhà cung cấp', { maNCC: newId, tenNCC });
         } catch (error) {
             console.error("Lỗi API Thêm NCC:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi thêm nhà cung cấp' });
@@ -91,6 +144,8 @@ const InventoryController = {
                 return res.status(404).json({ success: false, message: 'Nhà cung cấp không tồn tại' });
             }
             res.status(200).json({ success: true, message: 'Cập nhật thông tin thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật nhà cung cấp', { maNCC: id, tenNCC: req.body.tenNCC });
         } catch (error) {
             console.error("Lỗi API Cập nhật NCC:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi cập nhật nhà cung cấp' });
@@ -107,6 +162,8 @@ const InventoryController = {
                 return res.status(404).json({ success: false, message: 'Nhà cung cấp không tồn tại' });
             }
             res.status(200).json({ success: true, message: 'Đã xóa nhà cung cấp' });
+            
+            await recordLog(req.user.maNhanVien, 'Xóa nhà cung cấp', { maNCC: id });
         } catch (error) {
             console.error("Lỗi API Xóa NCC:", error);
             res.status(500).json({ success: false, message: 'Lỗi khi xóa nhà cung cấp' });
@@ -156,6 +213,8 @@ const InventoryController = {
 
             const newId = await InventoryModel.createProduct(data);
             res.status(201).json({ success: true, message: 'Thêm sản phẩm thành công', id: newId });
+            
+            await recordLog(req.user.maNhanVien, 'Thêm sản phẩm', { maSP: newId, tenSP: req.body.tenSP });
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Lỗi máy chủ khi tạo sản phẩm' });
@@ -179,6 +238,8 @@ const InventoryController = {
                 return res.status(404).json({ success: false, message: 'Sản phẩm không tồn tại' });
             }
             res.status(200).json({ success: true, message: 'Đã cập nhật sản phẩm' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật sản phẩm', { maSP: id, tenSP: req.body.tenSP });
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: 'Lỗi máy chủ khi cập nhật sản phẩm' });
@@ -191,6 +252,8 @@ const InventoryController = {
             const affectedRows = await InventoryModel.deleteProduct(id);
             if (affectedRows === 0) return res.status(404).json({ success: false, message: 'Sản phẩm không tồn tại' });
             res.status(200).json({ success: true, message: 'Đã xóa sản phẩm' });
+            
+            await recordLog(req.user.maNhanVien, 'Xóa sản phẩm', { maSP: id });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Lỗi khi xóa' });
         }
@@ -229,6 +292,8 @@ const InventoryController = {
                 maPhieuNhap: maPhieuNhapKho,
                 tongTien: tongTien
             });
+
+            await recordLog(maNhanVien, 'Nhập kho', { maPhieuNhap: maPhieuNhapKho, tongTien, count: danhSachSanPham.length });
         } catch (error) {
             // BẮT LỖI TRÙNG SERIAL TỪ MODEL NÉM LÊN
             if (error.message && error.message.startsWith('DUP_SERIAL:')) {
@@ -318,6 +383,8 @@ const InventoryController = {
             }
 
             res.status(200).json({ success: true, message: 'Cập nhật trạng thái máy thành công!' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật Serial', { maMay, trangThai });
 
         } catch (error) {
             console.error("Lỗi API Cập nhật trạng thái Serial:", error);

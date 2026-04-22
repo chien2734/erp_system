@@ -26,11 +26,15 @@
           class="!w-full sm:!w-60 md:!w-72"
           size="large"
         />
+        <el-select v-model="filterPayment" placeholder="Phương thức" class="!w-full sm:!w-32" size="large" clearable>
+           <el-option label="Tiền mặt" value="Tiền mặt" />
+           <el-option label="Chuyển khoản" value="Chuyển khoản" />
+        </el-select>
       </div>
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="filteredHoaDon" style="width: 100%" size="large" stripe class="min-w-[700px]">
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe class="min-w-[700px]">
         
         <el-table-column prop="maHoaDon" label="Mã Hóa Đơn" min-width="120" fixed="left">
           <template #default="scope">
@@ -59,6 +63,14 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="Phương thức" min-width="120" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.phuongThucThanhToan === 'Chuyển khoản' ? 'primary' : 'info'" effect="light">
+              {{ scope.row.phuongThucThanhToan || 'Tiền mặt' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="Thanh Toán" min-width="150" align="right">
           <template #default="scope">
             <span class="font-black text-emerald-600 whitespace-nowrap">{{ formatPrice(scope.row.thanhTien) }}</span>
@@ -74,6 +86,24 @@
         </el-table-column>
 
       </el-table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
     </div>
 
     <el-dialog 
@@ -190,8 +220,8 @@ import { ref, computed, onMounted } from 'vue';
 import { Search, Calendar, Phone, FullScreen, Printer, User } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
-// Nhúng Component In hóa đơn giống như bên Pos.vue
-import BillPrintDialog from './BillPrintDialog.vue'; 
+import BillPrintDialog from './BillPrintDialog.vue';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const dbHoaDon = ref([]);
@@ -200,10 +230,11 @@ const detailLoading = ref(false);
 
 const searchQuery = ref('');
 const dateRange = ref('');
+const filterPayment = ref('');
 const dialogVisible = ref(false);
 const selectedHoaDon = ref(null);
 
-// 👉 Biến tham chiếu tới Component In Bill
+// Biến tham chiếu tới Component In Bill
 const billDialogRef = ref(null);
 
 // --- FETCH DATA TỪ BACKEND ---
@@ -230,17 +261,26 @@ const filteredHoaDon = computed(() => {
     const matchSearch = hd.maHoaDon.toString().includes(query) || 
                         (hd.sdt && hd.sdt.includes(query)) ||
                         (hd.tenKH && hd.tenKH.toLowerCase().includes(query));
+    
+    const matchPayment = !filterPayment.value || hd.phuongThucThanhToan === filterPayment.value;
                         
     if (dateRange.value && dateRange.value.length === 2) {
       const pDate = new Date(hd.ngayLap).getTime();
       const start = new Date(dateRange.value[0]).getTime();
       const end = new Date(dateRange.value[1]).setHours(23, 59, 59, 999);
-      return matchSearch && (pDate >= start && pDate <= end);
+      return matchSearch && matchPayment && (pDate >= start && pDate <= end);
     }
     
-    return matchSearch;
+    return matchSearch && matchPayment;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredHoaDon, 10);
 
 // --- METHODS ---
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
@@ -280,7 +320,9 @@ const handlePrintAgain = () => {
     giamGia: selectedHoaDon.value.giamGia, 
     khachDua: selectedHoaDon.value.tienKhachDua, 
     tenKhachHang: selectedHoaDon.value.tenKH,
-    tenThuNgan: selectedHoaDon.value.tenNhanVien, 
+    tenThuNgan: selectedHoaDon.value.tenNhanVien,
+    phuongThuc: selectedHoaDon.value.phuongThucThanhToan || 'Tiền mặt',
+    ngayTao: formatDate(selectedHoaDon.value.ngayLap),
     items: selectedHoaDon.value.chiTiet.map(sp => ({
       tenSP: sp.tenSP,
       giaBan: sp.donGia,

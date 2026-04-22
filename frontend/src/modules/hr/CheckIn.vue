@@ -26,32 +26,44 @@
         </p>
       </div>
 
-      <div class="space-y-4">
-        <el-button 
-          v-if="!attendanceData.gioVao" 
-          type="primary" 
-          @click="handleAttendance('in')"
-          class="w-full !h-16 text-xl font-bold !rounded-xl shadow-lg shadow-blue-500/30"
-          :loading="loading"
-        >
-          <el-icon class="mr-2 text-2xl"><Location /></el-icon> CHECK IN (VÀO CA)
-        </el-button>
+        <div class="space-y-4">
+          <!-- TRƯỜNG HỢP: ĐANG NGHỈ PHÉP (Nghỉ phép năm hoặc nghỉ việc riêng) -->
+          <div v-if="isOnLeave" class="bg-blue-50 text-blue-600 p-6 rounded-xl border border-blue-200 font-bold flex flex-col items-center justify-center gap-3">
+            <el-icon class="text-3xl"><Calendar /></el-icon>
+            <div>
+              <p class="text-lg uppercase">Hôm nay bạn đang nghỉ phép</p>
+              <p class="text-xs font-normal opacity-80 mt-1">Trạng thái: {{ attendanceData.trangThai }}</p>
+            </div>
+          </div>
 
-        <el-button 
-          v-else-if="!attendanceData.gioRa" 
-          type="warning" 
-          @click="handleAttendance('out')"
-          class="w-full !h-16 text-xl font-bold !rounded-xl shadow-lg shadow-amber-500/30"
-          :loading="loading"
-        >
-          <el-icon class="mr-2 text-2xl"><Timer /></el-icon> CHECK OUT (KẾT THÚC)
-        </el-button>
+          <!-- TRƯỜNG HỢP: ĐI LÀM BÌNH THƯỜNG -->
+          <template v-else>
+            <el-button 
+              v-if="!attendanceData.gioVao" 
+              type="primary" 
+              @click="handleAttendance('in')"
+              class="w-full !h-16 text-xl font-bold !rounded-xl shadow-lg shadow-blue-500/30"
+              :loading="loading"
+            >
+              <el-icon class="mr-2 text-2xl"><Location /></el-icon> CHECK IN (VÀO CA)
+            </el-button>
 
-        <div v-else class="bg-emerald-50 text-emerald-600 p-4 rounded-xl border border-emerald-200 font-bold flex items-center justify-center gap-2 animate-bounce">
-          <el-icon class="text-xl"><CircleCheckFilled /></el-icon>
-          ĐÃ HOÀN THÀNH CÔNG VIỆC HÔM NAY
+            <el-button 
+              v-else-if="!attendanceData.gioRa" 
+              type="warning" 
+              @click="handleAttendance('out')"
+              class="w-full !h-16 text-xl font-bold !rounded-xl shadow-lg shadow-amber-500/30"
+              :loading="loading"
+            >
+              <el-icon class="mr-2 text-2xl"><Timer /></el-icon> CHECK OUT (KẾT THÚC)
+            </el-button>
+
+            <div v-else class="bg-emerald-50 text-emerald-600 p-4 rounded-xl border border-emerald-200 font-bold flex items-center justify-center gap-2 animate-bounce">
+              <el-icon class="text-xl"><CircleCheckFilled /></el-icon>
+              ĐÃ HOÀN THÀNH CÔNG VIỆC HÔM NAY
+            </div>
+          </template>
         </div>
-      </div>
 
       <div class="grid grid-cols-2 gap-4 mt-8 pt-8 border-t border-slate-100">
         <div>
@@ -73,11 +85,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { Location, Timer, CircleCheckFilled } from '@element-plus/icons-vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Location, Timer, CircleCheckFilled, Calendar } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { useAuthStore } from '../auth/auth.store'; // Đường dẫn chuẩn của bạn
-import api from '../../services/api'; // Đường dẫn chuẩn của bạn
+import { useAuthStore } from '../auth/auth.store';
+import api from '../../services/api';
 
 // --- STATE ---
 const authStore = useAuthStore();
@@ -91,7 +103,16 @@ let timer = null;
 const employeeProfile = ref(null);
 const attendanceData = ref({
   gioVao: null,
-  gioRa: null
+  gioRa: null,
+  trangThai: '',
+  loaiCong: ''
+});
+
+// Kiểm tra xem có phải đang ngày nghỉ phép không
+const isOnLeave = computed(() => {
+  const status = attendanceData.value.trangThai || '';
+  const leaveTypes = ['Nghỉ phép năm', 'Nghỉ không lương', 'Nghỉ ốm', 'Nghỉ thai sản', 'Nghỉ việc riêng'];
+  return leaveTypes.includes(status);
 });
 
 // --- CLOCK LOGIC ---
@@ -120,7 +141,7 @@ const fetchInitialData = async () => {
     // Gọi API có truyền maNhanVien
     const attRes = await api.get(`/hr/chamcong?thang=${thang}&nam=${nam}&maNhanVien=${maNV}`);
     
-    // 👉 CẢI TIẾN 1: Quét mọi lớp vỏ dữ liệu (Giống hệt ChamCong.vue)
+    // CẢI TIẾN 1: Quét mọi lớp vỏ dữ liệu (Giống hệt ChamCong.vue)
     let history = [];
     const resData = attRes.data || attRes; 
     
@@ -141,7 +162,7 @@ const fetchInitialData = async () => {
     const day = String(now.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
-    // 👉 ĐÃ FIX MÚI GIỜ: Khôi phục lại hàm new Date() để nó tự động +7 tiếng
+    // ĐÃ FIX MÚI GIỜ: Khôi phục lại hàm new Date() để nó tự động +7 tiếng
     const todayRecord = history.find(item => {
         if (!item.ngayLamViec) return false;
         
@@ -159,7 +180,9 @@ const fetchInitialData = async () => {
     if (todayRecord) {
       attendanceData.value = {
         gioVao: todayRecord.gioVao,
-        gioRa: todayRecord.gioRa
+        gioRa: todayRecord.gioRa,
+        trangThai: todayRecord.trangThai || '',
+        loaiCong: todayRecord.loaiCong || ''
       };
     }
   } catch (error) {

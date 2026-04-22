@@ -1,70 +1,71 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+  <div class="space-y-4 md:space-y-6 max-w-7xl mx-auto p-2 sm:p-4 md:p-0">
+    
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-2xl font-bold text-slate-900">Quản lý Chức vụ & Cấp bậc</h2>
-        <p class="text-slate-500">Thiết lập chức danh, mức lương cơ sở theo giờ và phụ cấp trách nhiệm</p>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản lý Chức vụ & Cấp bậc</h2>
+        <p class="text-xs md:text-sm text-slate-500 mt-1">Thiết lập chức danh, mức lương cơ sở theo giờ và phụ cấp trách nhiệm</p>
       </div>
-      <el-button type="primary" size="large" @click="openModal(null)" class="font-bold shadow-md shadow-blue-500/30">
+      <el-button type="primary" size="large" @click="openModal(null)" class="w-full md:w-auto font-bold shadow-md shadow-blue-500/30 shrink-0 m-0">
         <el-icon class="mr-2"><Plus /></el-icon> THÊM CHỨC VỤ MỚI
       </el-button>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" v-loading="loading">
-      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4" v-loading="loading">
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-5 rounded-xl border border-blue-100 shadow-sm flex items-center justify-between">
         <div>
-          <p class="text-sm text-blue-700 font-semibold mb-1">Tổng số chức vụ</p>
-          <p class="text-3xl font-black text-blue-600">{{ chucVuList.length }}</p>
+          <p class="text-xs md:text-sm text-blue-700 font-semibold mb-1 uppercase tracking-wide">Tổng số chức vụ</p>
+          <p class="text-2xl md:text-3xl font-black text-blue-600">{{ chucVuList.length }}</p>
         </div>
-        <div class="p-3 bg-blue-100 text-blue-600 rounded-full"><el-icon class="text-3xl"><Medal /></el-icon></div>
+        <div class="p-2 md:p-3 bg-blue-100 text-blue-600 rounded-full"><el-icon class="text-2xl md:text-3xl"><Medal /></el-icon></div>
       </div>
-      <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
+      <div class="bg-white p-4 md:p-5 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
         <div>
-          <p class="text-sm text-slate-500 font-semibold mb-1">Lương theo giờ trung bình</p>
-          <p class="text-2xl font-bold text-slate-800">{{ formatPrice(avgHourlyRate) }} /h</p>
+          <p class="text-xs md:text-sm text-slate-500 font-semibold mb-1 uppercase tracking-wide">Lương / giờ trung bình</p>
+          <p class="text-xl md:text-2xl font-bold text-slate-800">{{ formatPrice(avgHourlyRate) }} đ/h</p>
         </div>
-        <div class="p-3 bg-slate-50 text-slate-500 rounded-full"><el-icon class="text-2xl"><Money /></el-icon></div>
+        <div class="p-2 md:p-3 bg-slate-50 text-slate-500 rounded-full"><el-icon class="text-xl md:text-2xl"><Money /></el-icon></div>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden" v-loading="loading">
-      <el-table :data="chucVuList" style="width: 100%" size="large" stripe>
+    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto" v-loading="loading">
+      <el-table :data="chucVuList" style="width: 100%" size="large" stripe class="min-w-[650px]">
         
-        <el-table-column prop="maChucVu" label="ID" width="80" align="center">
+        <el-table-column prop="maChucVu" label="ID" width="60" align="center" fixed="left">
           <template #default="scope">
-            <span class="font-bold text-slate-400">#{{ scope.row.maChucVu }}</span>
+            <span class="font-bold text-slate-400 text-xs">#{{ scope.row.maChucVu }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="tenChucVu" label="Tên Chức Vụ" min-width="200">
+        <el-table-column prop="tenChucVu" label="Tên Chức Vụ" min-width="180" fixed="left">
           <template #default="scope">
-            <span class="font-bold text-slate-800 text-base">{{ scope.row.tenChucVu }}</span>
+            <span class="font-bold text-slate-800 text-sm md:text-base line-clamp-2" :title="scope.row.tenChucVu">{{ scope.row.tenChucVu }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="luongTheoGio" label="Mức Lương / Giờ" width="180" align="right">
+        <el-table-column prop="luongTheoGio" label="Mức Lương / Giờ" min-width="150" align="right">
           <template #default="scope">
-            <span class="font-bold text-blue-600">{{ formatPrice(scope.row.luongTheoGio) }}</span>
+            <span class="font-bold text-blue-600 whitespace-nowrap">{{ formatPrice(scope.row.luongTheoGio) }} ₫</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="phuCapTrachNhiem" label="Phụ cấp Trách nhiệm / Tháng" width="250" align="right">
+        <el-table-column prop="phuCapTrachNhiem" label="Phụ cấp Trách nhiệm / Tháng" min-width="200" align="right">
           <template #default="scope">
-            <span class="font-semibold text-emerald-600" v-if="scope.row.phuCapTrachNhiem > 0">
-              + {{ formatPrice(scope.row.phuCapTrachNhiem) }}
+            <span class="font-semibold text-emerald-600 whitespace-nowrap" v-if="scope.row.phuCapTrachNhiem > 0">
+              + {{ formatPrice(scope.row.phuCapTrachNhiem) }} ₫
             </span>
-            <span class="text-slate-400 italic" v-else>Không có</span>
+            <span class="text-xs text-slate-400 italic" v-else>Không có</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="Thao tác" width="120" align="center" fixed="right">
+        <el-table-column label="Thao tác" width="100" align="center" fixed="right">
           <template #default="scope">
-            <div class="flex justify-center gap-2">
+            <div class="flex justify-center gap-1 md:gap-2">
               <el-button type="primary" link title="Chỉnh sửa" @click="openModal(scope.row)">
-                <el-icon class="text-xl"><EditPen /></el-icon>
+                <el-icon class="text-lg md:text-xl"><EditPen /></el-icon>
               </el-button>
               <el-button type="danger" link title="Xóa" @click="handleDelete(scope.row)">
-                <el-icon class="text-xl"><Delete /></el-icon>
+                <el-icon class="text-lg md:text-xl"><Delete /></el-icon>
               </el-button>
             </div>
           </template>
@@ -78,44 +79,45 @@
       :title="isEdit ? 'CẬP NHẬT CHỨC VỤ' : 'THÊM CHỨC VỤ MỚI'" 
       width="450px"
       destroy-on-close
-      class="custom-dialog"
+      class="custom-dialog responsive-dialog"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="mt-2">
-        <el-form-item label="Tên chức vụ" prop="tenChucVu">
+        <el-form-item label="Tên chức vụ" prop="tenChucVu" class="mb-5">
           <el-input v-model="form.tenChucVu" placeholder="Ví dụ: Trưởng phòng Marketing" size="large" />
         </el-form-item>
 
-        <el-form-item label="Mức lương cơ bản theo giờ (VNĐ)" prop="luongTheoGio">
+        <el-form-item label="Mức lương cơ bản theo giờ (VNĐ)" prop="luongTheoGio" class="mb-5">
           <el-input-number 
             v-model="form.luongTheoGio" 
             :min="10000" 
             :step="5000" 
             size="large" 
-            class="!w-full" 
+            class="!w-full !text-left" 
             controls-position="right" 
           />
         </el-form-item>
 
-        <el-form-item label="Phụ cấp trách nhiệm / Tháng (Nếu có)" prop="phuCapTrachNhiem">
+        <el-form-item label="Phụ cấp trách nhiệm / Tháng (Nếu có)" prop="phuCapTrachNhiem" class="mb-2">
           <el-input-number 
             v-model="form.phuCapTrachNhiem" 
             :min="0" 
             :step="100000" 
             size="large" 
-            class="!w-full" 
+            class="!w-full !text-left" 
             controls-position="right" 
           />
         </el-form-item>
       </el-form>
       
-      <div v-if="isEdit" class="text-xs text-amber-600 bg-amber-50 p-3 rounded-lg mb-2">
-        <el-icon><WarningFilled /></el-icon> Lưu ý: Mức lương mới sẽ được áp dụng cho toàn bộ nhân viên thuộc chức vụ này từ kỳ lương tiếp theo.
+      <div v-if="isEdit" class="text-[11px] md:text-xs text-amber-700 bg-amber-50 p-2.5 md:p-3 rounded-lg mt-4 border border-amber-100 flex items-start gap-2">
+        <el-icon class="mt-0.5 shrink-0"><WarningFilled /></el-icon> 
+        <p class="leading-relaxed">Lưu ý: Mức lương mới sẽ được áp dụng cho toàn bộ nhân viên thuộc chức vụ này từ kỳ lương tiếp theo.</p>
       </div>
 
       <template #footer>
-        <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
-          <el-button @click="dialogVisible = false" size="large">Hủy bỏ</el-button>
-          <el-button type="primary" @click="submitForm" :loading="saving" size="large" class="font-bold">
+        <div class="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 pt-3 md:pt-4 border-t border-slate-100 mt-2">
+          <el-button @click="dialogVisible = false" size="large" class="w-full sm:w-auto">Hủy bỏ</el-button>
+          <el-button type="primary" @click="submitForm" :loading="saving" size="large" class="font-bold w-full sm:w-auto m-0">
             {{ isEdit ? 'LƯU THAY ĐỔI' : 'TẠO MỚI' }}
           </el-button>
         </div>
@@ -264,6 +266,19 @@ const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0)
 
 <style scoped>
 :deep(.custom-dialog) { border-radius: 16px; overflow: hidden; }
-:deep(.custom-dialog .el-dialog__header) { background-color: #f8fafc; margin-right: 0; padding: 20px 24px; border-bottom: 1px solid #f1f5f9; }
+:deep(.custom-dialog .el-dialog__header) { background-color: #f8fafc; margin-right: 0; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; }
+@media (min-width: 768px) { :deep(.custom-dialog .el-dialog__header) { padding: 20px 24px; } }
 :deep(.custom-dialog .el-dialog__title) { font-weight: 800; color: #0f172a; }
+
+/* Bóp Dialog tự động trên Mobile */
+:deep(.responsive-dialog) { max-width: 95vw !important; }
+
+/* In đậm nhãn Form */
+:deep(.el-form-item__label) { font-weight: 600; color: #475569; padding-bottom: 4px; }
+
+/* Tùy chỉnh Scrollbar cho bảng mượt mà hơn */
+.overflow-x-auto::-webkit-scrollbar { height: 6px; }
+.overflow-x-auto::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.overflow-x-auto::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 </style>

@@ -19,32 +19,33 @@
 
       <div class="mb-3 space-y-1 text-[11px] md:text-xs">
         <h3 class="text-center text-base md:text-lg font-bold mb-2">HÓA ĐƠN BÁN HÀNG</h3>
-        <p><strong>Mã HĐ:</strong> HD-{{ billData.maHoaDon }}</p>
-        <p><strong>Ngày:</strong> {{ getCurrentDateTime() }}</p>
-        <p><strong>Thu ngân:</strong> {{ billData.tenThuNgan || authStore.user?.hoten || authStore.user?.username || 'Admin' }}</p>
-        <p><strong>Khách hàng:</strong> {{ billData.tenKhachHang }}</p>
+        <p><strong>Mã HĐ:</strong> {{ billData.maHoaDon }}</p>
+        <p><strong>Ngày:</strong> {{ billData.ngayTao || getCurrentDateTime() }}</p>
+        <p><strong>Thu ngân:</strong> {{ billData.tenThuNgan || authStore.user?.hoten || 'Admin' }}</p>
+        <p><strong>Khách hàng:</strong> {{ billData.tenKhachHang || 'Khách lẻ' }}</p>
+        <p><strong>Phương thức:</strong> <span class="font-bold">{{ billData.phuongThuc || 'Tiền mặt' }}</span></p>
       </div>
 
       <div class="border-b border-dashed border-slate-400 mb-3"></div>
 
       <div class="mb-3 text-[11px] md:text-xs">
         <div class="flex font-bold border-b border-slate-800 pb-1 mb-2">
-          <div class="flex-1">TÊN HÀNG / ĐƠN GIÁ</div>
+          <div class="flex-1">TÊN SẢN PHẨM</div>
           <div class="w-8 text-center shrink-0">SL</div>
           <div class="w-[85px] text-right shrink-0">TTIỀN</div>
         </div>
 
         <div v-for="(item, index) in billData.items" :key="index" class="mb-2">
-          <div class="font-bold mb-0.5 leading-tight">{{ item.tenSP }}</div>
+          <div class="font-bold mb-0.5 leading-tight">{{ item.tenSP || item.TenSP }}</div>
           
           <div class="flex text-slate-800 mb-1 items-start">
-            <div class="flex-1 text-slate-600">{{ formatPrice(item.giaBan) }}</div>
-            <div class="w-8 text-center shrink-0">{{ item.serials ? item.serials.length : item.soLuong }}</div>
-            <div class="w-[85px] text-right font-bold shrink-0">{{ formatPrice(item.giaBan * (item.serials ? item.serials.length : item.soLuong)) }}</div>
+            <div class="flex-1 text-slate-600">{{ formatPrice(item.giaBan || item.GiaBan) }}</div>
+            <div class="w-8 text-center shrink-0">{{ item.serials ? item.serials.length : (item.soLuong || 1) }}</div>
+            <div class="w-[85px] text-right font-bold shrink-0">{{ formatPrice((item.giaBan || item.GiaBan) * (item.serials ? item.serials.length : (item.soLuong || 1))) }}</div>
           </div>
           
           <div class="text-[10px] text-slate-500 pl-2 border-l border-slate-300" v-if="item.serials && item.serials.length > 0">
-            SN: <span v-for="(sn, i) in item.serials" :key="sn">{{ sn }}{{ i < item.serials.length - 1 ? ', ' : '' }}</span>
+            Serial: <span v-for="(sn, i) in item.serials" :key="sn">{{ sn }}{{ i < item.serials.length - 1 ? ', ' : '' }}</span>
           </div>
         </div>
       </div>
@@ -64,14 +65,23 @@
           <span>TỔNG THANH TOÁN:</span>
           <span>{{ formatPrice(billData.tongTien - billData.giamGia) }}</span>
         </div>
-        <div class="flex justify-between mt-2">
-          <span>Khách đưa:</span>
-          <span>{{ formatPrice(billData.khachDua) }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span>Tiền thừa:</span>
-          <span>{{ formatPrice(billData.khachDua - (billData.tongTien - billData.giamGia)) }}</span>
-        </div>
+        
+        <!-- Chỉ hiện thông tin tiền mặt nếu thanh toán bằng tiền mặt -->
+        <template v-if="billData.phuongThuc === 'Tiền mặt'">
+          <div class="flex justify-between mt-2">
+            <span>Khách đưa:</span>
+            <span>{{ formatPrice(billData.khachDua) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Tiền thừa:</span>
+            <span>{{ formatPrice(billData.khachDua - (billData.tongTien - billData.giamGia)) }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="text-right italic text-[10px] mt-2 text-slate-500">
+            * Đã thanh toán qua {{ billData.phuongThuc }}
+          </div>
+        </template>
       </div>
 
       <div class="border-b border-dashed border-slate-400 my-3"></div>
@@ -79,7 +89,7 @@
       <div class="text-center text-[10px] md:text-xs space-y-1">
         <p class="font-bold">Cảm ơn Quý Khách!</p>
         <p class="italic">Hóa đơn có giá trị lưu giữ để bảo hành.</p>
-        <p class="italic text-[9px] mt-2 text-slate-500">Powered by SGU Dev Team</p>
+        <p class="italic text-[9px] mt-2 text-slate-500">Powered by ERP System</p>
       </div>
     </div>
 
@@ -108,7 +118,9 @@ const billData = ref({
   items: [],
   tongTien: 0,
   giamGia: 0,
-  khachDua: 0
+  khachDua: 0,
+  phuongThuc: 'Tiền mặt',
+  ngayTao: ''
 });
 
 const formatPrice = (value) => {
@@ -124,16 +136,21 @@ const getCurrentDateTime = () => {
 };
 
 const openBill = (data) => {
-  billData.value = data;
+  // Đồng nhất dữ liệu từ nhiều nguồn (POS hoặc Lịch sử)
+  billData.value = {
+    ...data,
+    phuongThuc: data.phuongThucThanhToan || data.phuongThuc || 'Tiền mặt',
+    khachDua: data.tienKhachDua || data.khachDua || 0,
+    maHoaDon: data.maHoaDon || data.maHD || data.id || 'N/A'
+  };
   isVisible.value = true;
 };
 
-// Hàm IN cực xịn: Thêm class vào body để CSS toàn cục bắt tín hiệu
+// Hàm IN
 const handlePrint = () => {
   document.body.classList.add('printing-bill');
   window.print();
   
-  // Xóa class sau khi hộp thoại In tắt đi (dù in hay hủy)
   setTimeout(() => {
     document.body.classList.remove('printing-bill');
   }, 500);

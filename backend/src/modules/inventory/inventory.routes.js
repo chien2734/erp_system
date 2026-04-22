@@ -15,6 +15,9 @@ const upload = multer({
 router.use(verifyToken); 
 
 router.get('/hangsp', InventoryController.getAllHangSP); // Lấy danh sách hãng sản phẩm
+router.post('/hangsp', InventoryController.createHangSP);
+router.put('/hangsp/:id', InventoryController.updateHangSP);
+router.delete('/hangsp/:id', InventoryController.deleteHangSP);
 
 router.get('/ncc', InventoryController.getAllNCC);
 router.get('/ncc/active', InventoryController.getActiveNCC);

@@ -1,61 +1,51 @@
-# 💻 Hệ thống Quản lý Cửa hàng Laptop (ERP System) - Phân hệ Frontend
+# 💻 ERP System Frontend - Vue 3 Enterprise Suite
 
-Dự án này là phân hệ Frontend (Giao diện người dùng) cho hệ thống quản lý cửa hàng kinh doanh Laptop, bao gồm các chức năng bán hàng POS, quản lý kho (Serial/IMEI), và quản trị nhân sự - tiền lương.
-Dự án được xây dựng dựa trên **Vue 3** (Composition API) và công cụ build siêu tốc **Vite**.
+Giao diện quản trị hiện đại, chuyên nghiệp dành cho hệ thống quản lý Laptop. Được thiết kế tối ưu cho trải nghiệm người dùng (UX) và hiệu năng cực cao.
 
-## 🛠 Công nghệ sử dụng
+## 🎨 Công Nghệ & UI/UX
+*   **Core:** Vue 3 (Composition API).
+*   **Build Tool:** Vite (Tốc độ khởi động và HMR siêu nhanh).
+*   **Styling:** Tailwind CSS (Giao diện tùy biến theo phong cách hiện đại).
+*   **UI Library:** Element Plus (Hệ thống component phong phú, mạnh mẽ).
+*   **State Management:** Pinia (Quản lý trạng thái đăng nhập, phân quyền và giỏ hàng).
+*   **Responsive:** Thiết kế đa thiết bị, tối ưu cho cả Desktop, Tablet và Mobile.
 
-- **Framework:** Vue 3
-- **Build Tool:** Vite
-- **Router:** Vue Router (Quản lý luồng chuyển trang)
-- **State Management:** Pinia (Quản lý trạng thái đăng nhập, giỏ hàng POS)
-- **HTTP Client:** Axios (Giao tiếp với Backend API)
-- **UI Framework:** Element Plus / Tailwind CSS _(Cập nhật theo thực tế dự án)_
+## 🚀 Các Phân Hệ Chính (src/modules)
 
----
+### 📊 1. Dashboard & Báo Cáo
+*   **Dashboard:** Tổng quan doanh thu, số lượng đơn hàng và biểu đồ tăng trưởng.
+*   **Báo cáo Kho:** Thống kê giá trị tồn kho, sản phẩm sắp hết hàng.
+*   **Báo cáo Lương:** Phân tích quỹ lương, chi phí nhân sự theo tháng/năm.
 
-## 🚀 Hướng dẫn cài đặt và chạy dự án (Setup Guide)
+### 👥 2. Quản Trị Nhân Sự (HR)
+*   **Hồ sơ:** Quản lý nhân viên, chức vụ và quyền hạn.
+*   **Chấm công:** Cổng chấm công cá nhân và màn hình quản lý chấm công tập trung.
+*   **Đơn từ:** Giao diện nộp đơn nghỉ phép và duyệt đơn trực quan.
+*   **Bảng lương:** Bảng tính lương linh hoạt, cho phép điều chỉnh thưởng/phạt và in phiếu lương.
 
-Yêu cầu môi trường: Cài đặt sẵn [Node.js](https://nodejs.org/) (phiên bản 18.x trở lên).
+### 📦 3. Quản Lý Kho (Inventory)
+*   **Danh mục:** Quản lý Sản phẩm, Hãng sản xuất, Nhà cung cấp.
+*   **Nhập kho:** Giao diện nhập hàng hỗ trợ quét/nhập mã Serial hàng loạt.
+*   **Serial Tracking:** Tra cứu lịch sử vòng đời của từng mã máy cụ thể.
 
-### Bước 1: Clone dự án về máy
+### 🛒 4. Bán Hàng & POS (Sales)
+*   **POS:** Màn hình bán hàng tối ưu, hỗ trợ quét mã máy, tính tiền tự động.
+*   **Thanh toán:** Tích hợp quy trình thanh toán QR VNPay an toàn.
+*   **Hóa đơn:** Quản lý lịch sử hóa đơn, bộ lọc phương thức thanh toán và tính năng in lại hóa đơn.
 
-Mở Terminal / Git Bash và chạy lệnh:
-`git clone <đường-dẫn-repo-của-bạn>`
-`cd erp_system/frontend`
+### 🔐 5. Hệ Thống & Bảo Mật
+*   **Phân quyền (RBAC):** Giao diện quản lý quyền hạn chi tiết cho từng chức vụ.
+*   **Audit Logs:** Xem nhật ký hoạt động của toàn bộ hệ thống.
+*   **Cấu hình:** Thiết lập các thông số hệ thống (giờ làm việc, hệ số lương...).
 
-### Bước 2: Cài đặt các thư viện phụ thuộc (Dependencies)
+## 📁 Cấu Trúc Thư Mục
+*   `src/components/`: Các component dùng chung (Layout, Sidebar, Charts...).
+*   `src/modules/`: Chứa mã nguồn chia theo từng phân hệ nghiệp vụ riêng biệt.
+*   `src/services/`: Cấu hình API Axios và các interceptors xử lý token.
+*   `src/stores/`: Quản lý trạng thái toàn cục bằng Pinia.
+*   `src/utils/`: Các hàm bổ trợ, định dạng tiền tệ, ngày tháng và hằng số.
 
-`npm install`
-`npm install vue-router pinia axios element-plus`
-
-### Bước 3: Cấu hình biến môi trường (Environment Variables)
-
-Tạo một file có tên là .env tại thư mục gốc của frontend (ngang hàng với file package.json).
-Copy nội dung sau vào file .env và chỉnh sửa port cho khớp với server Backend của bạn:
-
-` VITE_API_BASE_URL=http://localhost:3000/api`
-
-### Bước 4: Khởi chạy Server ở môi trường phát triển
-
-`npm run dev`
-
-Sau khi chạy lệnh, Terminal sẽ hiển thị một đường dẫn Localhost (thường là http://localhost:5173). Nhấn Ctrl + Click vào link đó để mở giao diện trên trình duyệt.
-
----
-
-## 📁 Cấu trúc thư mục dự án
-
-Để thuận tiện cho việc phối hợp phát triển, code được phân chia theo kiến trúc sau:
-
-src/assets/: Chứa các tài nguyên tĩnh như hình ảnh, file CSS/SCSS dùng chung.
-
-src/components/: Chứa các thành phần UI dùng lại nhiều lần (VD: Navbar, Sidebar, CustomButton).
-
-src/router/: Chứa cấu hình đường dẫn (Routes) để điều hướng các màn hình.
-
-src/services/: Chứa các file cấu hình Axios để gọi API (VD: authService.js, posService.js).
-
-src/stores/: Chứa các file Pinia quản lý State toàn cục (VD: thông tin User đang đăng nhập, Giỏ hàng).
-
-src/views/: Chứa các Component đóng vai trò là Trang màn hình đầy đủ (VD: Login.vue, POS.vue, BangLuong.vue).
+## 🚀 Khởi Chạy
+1. `npm install`
+2. `npm run dev`
+3. Truy cập: `http://localhost:5173`

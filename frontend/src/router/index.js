@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../modules/auth/auth.store';
-import { CHUCNANG } from '../utils/constants'; // 👉 Thêm bộ từ điển quyền
-import { ElMessage } from 'element-plus'; // 👉 Để hiện thông báo chặn
+import { CHUCNANG } from '../utils/constants'; // Thêm bộ từ điển quyền
+import { ElMessage } from 'element-plus'; // Để hiện thông báo chặn
 
 const routes = [
     {
@@ -77,6 +77,12 @@ const routes = [
             meta: { permission: CHUCNANG.SAN_PHAM } // Dùng chung quyền bảo vệ với Danh mục SP
         },
         {
+            path: '/inventory/brands',
+            name: 'Quản lý Hãng',
+            component: () => import('../modules/inventory/HangSP.vue'),
+            meta: { permission: CHUCNANG.SAN_PHAM }
+        },
+        {
             path: '/inventory/serial',
             name: 'Quản lý Serial',
             component: () => import('../modules/inventory/Serial.vue'),
@@ -143,10 +149,16 @@ const routes = [
             meta: { permission: CHUCNANG.PHAN_QUYEN } 
         },
         {
-            path: '/inventory/report-salary',
+            path: '/hr/report-salary',
             name: 'Báo cáo Lương',
             component: () => import('../modules/hr/BaoCaoLuong.vue'),
             meta: { permission: CHUCNANG.BAO_CAO }
+        },
+        {
+            path: '/audit/logs',
+            name: 'Lịch sử hệ thống',
+            component: () => import('../modules/audit/AuditLogs.vue'),
+            meta: { permission: CHUCNANG.PHAN_QUYEN }
         },
         ],
         meta: { requiresAuth: true }

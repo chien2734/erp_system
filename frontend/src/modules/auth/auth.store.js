@@ -43,7 +43,7 @@ export const useAuthStore = defineStore('auth', {
 
         return data; 
       } catch (error) {
-        // 👉 ĐÃ SỬA: Bóc lớp vỏ của Axios ngay tại đây
+        // ĐÃ SỬA: Bóc lớp vỏ của Axios ngay tại đây
         // Lấy đúng câu "Tài khoản hoặc mật khẩu không đúng!" từ Backend
         const backendMessage = error.response?.data?.message || 'Sai tài khoản hoặc mật khẩu!';
         

@@ -36,7 +36,7 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="filteredSerials" style="width: 100%" size="large" stripe v-loading="loading" class="min-w-[900px]">
+      <el-table :data="paginatedData" style="width: 100%" size="large" stripe v-loading="loading" class="min-w-[900px]">
         
         <el-table-column prop="maMay" label="Mã Máy (S/N)" min-width="140" fixed="left">
           <template #default="scope">
@@ -104,6 +104,24 @@
           </template>
         </el-table-column>
       </el-table>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
+      <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
+      </p>
+      
+      <div class="w-full sm:w-1/3 flex justify-center">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="totalItems"
+          background
+          layout="prev, pager, next"
+        />
+      </div>
+
+      <div class="hidden sm:block sm:w-1/3"></div>
     </div>
 
     <el-dialog 
@@ -203,6 +221,7 @@ import { ref, computed, onMounted } from 'vue';
 import { FullScreen, Cpu, EditPen } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 // --- STATE ---
 const dbSanPham = ref([]);
@@ -252,6 +271,13 @@ const filteredSerials = computed(() => {
     return matchQuery && matchSP && matchStatus;
   });
 });
+
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredSerials, 10);
 
 const availableStatusOptions = computed(() => {
   // Tránh lỗi khi vừa mở trang lên chưa click vào máy nào

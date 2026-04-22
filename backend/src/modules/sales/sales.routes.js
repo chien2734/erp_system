@@ -15,5 +15,6 @@ router.get('/hoadon/:id', SalesController.getChiTietHoaDon);
 
 router.get('/thongke/sanpham', SalesController.getThongKeSanPham);
 router.get('/thongke/loinhuan', SalesController.getThongKeLoiNhuan);
+router.post('/create-vnpay-url', SalesController.createVnpayUrl);
 
 module.exports = router;

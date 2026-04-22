@@ -1,5 +1,6 @@
 const AuthModel = require('./auth.model');
 const jwt = require('jsonwebtoken');
+const { recordLog } = require('../../../utils/helpers');
 
 const AuthController = {
     // ==========================================
@@ -46,6 +47,8 @@ const AuthController = {
                 token: token, 
                 user: { ...user, permissions: permissionsMap }
             });
+
+            await recordLog(user.maNhanVien, 'Đăng nhập', { username: user.username });
             
         } catch (error) {
             console.error("Lỗi đăng nhập:", error);
@@ -79,6 +82,8 @@ const AuthController = {
 
             await AuthModel.changePassword(req.user.maNhanVien, newPassword);
             res.status(200).json({ success: true, message: 'Đổi mật khẩu thành công' });
+
+            await recordLog(req.user.maNhanVien, 'Đổi mật khẩu', { status: 'success' });
         } catch (error) { res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đổi mật khẩu' }); }
     },
 
@@ -107,6 +112,8 @@ const AuthController = {
         try {
             await AuthModel.createAccount(req.body);
             res.status(200).json({ success: true, message: 'Cấp tài khoản thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cấp tài khoản', { maNhanVien: req.body.maNhanVien, username: req.body.username });
         } catch (e) { res.status(500).json({ success: false, message: 'Username đã tồn tại hoặc lỗi server' }); }
     },
 
@@ -115,6 +122,8 @@ const AuthController = {
         try {
             await AuthModel.updateAccountRole(req.params.id, req.body.maNhomQuyen);
             res.status(200).json({ success: true, message: 'Cập nhật quyền thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật quyền tài khoản', { id: req.params.id, maNhomQuyen: req.body.maNhomQuyen });
         } catch (e) { res.status(500).json({ success: false, message: 'Lỗi cập nhật quyền' }); }
     },
 
@@ -127,6 +136,8 @@ const AuthController = {
         try {
             await AuthModel.updateAccountStatus(req.params.id, req.body.trangThai);
             res.status(200).json({ success: true, message: 'Đổi trạng thái thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Đổi trạng thái tài khoản', { id: req.params.id, trangThai: req.body.trangThai });
         } catch (e) { res.status(500).json({ success: false, message: 'Lỗi đổi trạng thái' }); }
     },
 
@@ -135,6 +146,8 @@ const AuthController = {
         try {
             await AuthModel.changePassword(req.params.id, '123456');
             res.status(200).json({ success: true, message: 'Mật khẩu đã được reset về 123456' });
+            
+            await recordLog(req.user.maNhanVien, 'Reset mật khẩu nhân viên', { id: req.params.id });
         } catch (e) { res.status(500).json({ success: false, message: 'Lỗi reset mật khẩu' }); }
     },
 
@@ -150,6 +163,8 @@ const AuthController = {
         try {
             await AuthModel.createRole(req.body);
             res.status(200).json({ success: true, message: 'Tạo nhóm quyền mới thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Tạo nhóm quyền', { tenNhomQuyen: req.body.tenNhomQuyen });
         } catch (e) { res.status(500).json({ success: false, message: 'Lỗi tạo nhóm quyền' }); }
     },
 
@@ -174,6 +189,8 @@ const AuthController = {
         try {
             await AuthModel.updateRolePermissions(req.params.id, req.body.permissions);
             res.status(200).json({ success: true, message: 'Lưu ma trận phân quyền thành công' });
+            
+            await recordLog(req.user.maNhanVien, 'Cập nhật ma trận phân quyền', { maNhomQuyen: req.params.id });
         } catch (e) { 
             console.error(e);
             res.status(500).json({ success: false, message: 'Lỗi hệ thống khi lưu quyền' }); 
