@@ -1,84 +1,61 @@
-# 💻 Hệ Thống Quản Lý Cửa Hàng Laptop (ERP / POS) - Backend API
+# 🚀 ERP System Backend - Node.js API
 
-Đây là hệ thống Backend API RESTful được xây dựng để phục vụ cho phần mềm quản lý tổng thể cửa hàng bán máy tính/laptop. Hệ thống xử lý các nghiệp vụ phức tạp như quản lý nhân sự, nhập kho tự động sinh mã Serial, và bán hàng POS trừ tồn kho.
+Hệ thống API mạnh mẽ điều khiển toàn bộ nghiệp vụ của hệ thống quản lý Laptop. Được thiết kế theo kiến trúc Module-based giúp dễ dàng mở rộng và bảo trì.
 
-## 🚀 Công Nghệ Sử Dụng
+## 🛠️ Công Nghệ Cốt Lõi
+*   **Engine:** Node.js & Express.js
+*   **Database:** MySQL (Sử dụng `mysql2` với Connection Pool tối ưu hiệu năng)
+*   **Bảo mật:** JSON Web Token (JWT) cho Authentication & Middleware phân quyền.
+*   **Lưu trữ:** Cloudinary API (Quản lý hình ảnh sản phẩm).
+*   **Thanh toán:** VNPay Integration (Xử lý giao dịch trực tuyến).
+*   **Tiện ích:** `moment` (xử lý thời gian), `multer` (xử lý file), `recordLog` (tự động ghi nhật ký hệ thống).
 
-* **Runtime Environment:** Node.js
-* **Framework:** Express.js
-* **Database:** MySQL (Sử dụng thư viện `mysql2` với Connection Pool)
-* **Authentication:** JSON Web Token (JWT)
-* **Kiến trúc:** Module-based / Domain-driven Design
+## 📁 Cấu Trúc Module (src/modules)
 
-## ✨ Các Phân Hệ & Tính Năng Nổi Bật
+### 🔐 1. Phân hệ Auth & Hệ thống
+*   **Tài khoản:** Đăng ký, đăng nhập, quản lý danh sách tài khoản.
+*   **Phân quyền (RBAC):** Quản lý quyền hạn động dựa trên Chức năng và Hành động (Xem/Thêm/Sửa/Xóa).
+*   **Audit Log:** Tự động ghi lại mọi hành động nhạy cảm của người dùng để truy vết.
 
-Hệ thống được chia thành 4 module chính, tích hợp xử lý **Transaction** chặt chẽ để đảm bảo toàn vẹn dữ liệu:
+### 👥 2. Phân hệ Nhân Sự & Lương (HR)
+*   **Nhân viên & Chức vụ:** Quản lý hồ sơ, lịch sử thăng tiến và điều chuyển công tác.
+*   **Chấm công:** Logic check-in/out linh hoạt, tự động tính giờ làm việc.
+*   **Đơn từ:** Quy trình nộp và duyệt đơn nghỉ phép tự động trừ công.
+*   **Tính lương:** Cơ chế tính lương phức tạp bao gồm lương cơ bản, tăng ca, phụ cấp, bảo hiểm và phạt đi trễ. Đặc biệt hỗ trợ tra cứu **chức vụ lịch sử** tại thời điểm tính lương.
 
-1. **🔐 Phân hệ Quản trị (Auth):**
-   * Đăng nhập và cấp phát JWT Token.
-   * Lấy thông tin Profile và danh sách quyền hạn động theo chức vụ.
-   * Đổi mật khẩu an toàn.
+### 📦 3. Phân hệ Kho & Sản Phẩm (Inventory)
+*   **Quản lý Danh mục:** Hãng sản xuất, Sản phẩm, Nhà cung cấp.
+*   **Nhập kho:** Quy trình nhập kho chặt chẽ, tự động sinh mã **Serial/IMEI** duy nhất cho từng máy.
+*   **Theo dõi Serial:** Quản lý trạng thái vòng đời sản phẩm (Trong kho, Đã bán, Bảo hành).
 
-2. **👥 Phân hệ Nhân Sự & Tiền Lương (HR):**
-   * Quản lý danh sách nhân viên, chức vụ (CRUD).
-   * Nghiệp vụ thăng chức/điều chuyển: Tự động lưu lịch sử thay đổi chức vụ qua Transaction.
+### 🛒 4. Phân hệ Bán Hàng (Sales)
+*   **POS API:** Xử lý đơn hàng, tự động trừ kho theo mã Serial, cập nhật doanh thu.
+*   **VNPay:** Xử lý IPN và Return URL để xác nhận thanh toán trực tuyến an toàn.
+*   **Khách hàng:** Quản lý thông tin và lịch sử mua hàng.
 
-3. **📦 Phân hệ Kho & Sản Phẩm (Inventory):**
-   * Quản lý danh mục Hãng sản xuất và Sản phẩm.
-   * Tìm kiếm, lọc và phân trang (Pagination) thông minh.
-   * **Nghiệp vụ Nhập Kho:** Tự động cộng dồn tồn kho và tự động sinh mã Serial (mã máy) duy nhất cho từng chiếc laptop dựa trên số lượng nhập.
+## ⚙️ Cấu Hình .env
+```env
+PORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=erp_system
+JWT_SECRET=your_secret_key
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+VNP_TMN_CODE=...
+VNP_HASH_SECRET=...
+VNP_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNP_RETURN_URL=http://localhost:5173/sales/pos
+```
 
-4. **🛒 Phân hệ Bán Hàng (Sales):**
-   * Quản lý thông tin Khách hàng.
-   * **Nghiệp vụ POS:** Quét mã Serial máy tính -> Tự động tính tiền -> Tạo hóa đơn -> Trừ số lượng tồn kho -> Cập nhật trạng thái máy thành "Đã bán".
+## 🗄️ Cài đặt Cơ sở dữ liệu
+1. Tạo database tên là `erp_system` trong MySQL.
+2. Tìm file `erp_system.sql` tại thư mục gốc của dự án.
+3. Import file này vào database vừa tạo để có đầy đủ cấu trúc bảng và dữ liệu mẫu.
 
----
-
-## 🛠️ Hướng Dẫn Cài Đặt & Khởi Chạy
-
-### 1. Yêu cầu hệ thống
-* [Node.js](https://nodejs.org/) (Phiên bản 16.x trở lên)
-* MySQL Server (XAMPP, WAMP, hoặc MySQL Workbench)
-
-### 2. Cài đặt CSDL (Database)
-1. Mở công cụ quản lý MySQL của bạn.
-2. Tạo database mới hoặc import trực tiếp file `quanlycuahanglaptop.sql` có sẵn trong dự án.
-
-### 3. Cài đặt Source Code
-Mở Terminal/Command Prompt, di chuyển vào thư mục backend và chạy lệnh:
-
-    npm install
-
-### 4. Thiết lập Biến Môi Trường
-Tạo một file **.env** ở thư mục gốc của backend và cấu hình các thông số sau:
-
-    PORT=5000
-    DB_HOST=127.0.0.1
-    DB_USER=root
-    DB_PASSWORD=
-    DB_NAME=erp_system
-    JWT_SECRET=YourSuperSecretKeyHere_2026 # ghi gi cung duoc
-
-### 5. Khởi chạy Server
-Để chạy server trong môi trường phát triển (tự động reload khi sửa code):
-
-    npm run dev
-
-Server sẽ chạy tại địa chỉ: *http://localhost:5000*
-
-## 📂 Cấu Trúc Thư Mục
-
-    backend/
-    ├── src/
-    │   ├── config/             # Cấu hình kết nối MySQL Pool
-    │   ├── middlewares/        # Các hàm trung gian (verifyToken bảo vệ API)
-    │   ├── modules/            # Các phân hệ nghiệp vụ chính
-    │   │   ├── auth/           # API Đăng nhập, Tài khoản
-    │   │   ├── hr/             # API Nhân viên, Chức vụ, Bảng Lương, Chấm Công
-    │   │   ├── inventory/      # API Sản phẩm, Nhập kho
-    │   │   └── sales/          # API Khách hàng, Bán hàng
-    │   ├── routes/             # File tổng hợp định tuyến (index.js)
-    ├── .env                    # Biến môi trường (Bảo mật)
-    ├── .gitignore
-    ├── package.json
-    └── server.js               # File khởi chạy gốc
+## 🚀 Khởi Chạy
+1. `npm install`
+2. `npm run dev`
+3. Server sẽ chạy tại `http://localhost:5000`
