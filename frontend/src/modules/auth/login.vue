@@ -147,22 +147,13 @@ const handleLogin = async (formEl) => {
         await authStore.login(loginForm.username, loginForm.password, rememberMe.value);
         ElMessage.success(`Đăng nhập thành công! Chào mừng ${authStore.user?.hoten || authStore.user?.username || 'Người dùng' }`);
         
-        // Hệ thống sẽ thử từng "Cửa" theo thứ tự ưu tiên. Cửa nào mở (có quyền xem) thì nhảy vào.
-        if (authStore.hasPermission(CHUCNANG.POS)) {
-          // Bán hàng/Thu ngân ưu tiên vào POS luôn cho nhanh
-          router.push('/sales/pos');
-        } 
-        else if (authStore.hasPermission(CHUCNANG.NHAP_KHO) || authStore.hasPermission(CHUCNANG.SERIAL)) {
-          // Thủ kho ưu tiên vào Nhập kho
-          router.push('/inventory/stock');
-        } 
-        else if (authStore.hasPermission(CHUCNANG.NHAN_VIEN) || authStore.hasPermission(CHUCNANG.TINH_LUONG)) {
-          // Quản lý Nhân sự vào bảng chấm công/nhân viên
-          router.push('/hr/attendance');
-        } 
-        else {
-          // Mặc định (như Admin/Ban Giám Đốc hoặc người mới tinh): Vào Dashboard
+        // ĐIỀU HƯỚNG THEO YÊU CẦU:
+        // 1. Giám đốc (maNhomQuyen === 1) -> Vào Dashboard
+        // 2. Tất cả các bộ phận khác -> Phải vào Check-in trước
+        if (authStore.user?.maNhomQuyen === 1) {
           router.push('/');
+        } else {
+          router.push('/hr/checkin');
         }
 
       } catch (error) {

@@ -1,9 +1,10 @@
 const DashboardModel = require('./dashboard.model');
+const moment = require('moment');
 
 const DashboardController = {
     getSummary: async (req, res) => {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const today = moment().format('YYYY-MM-DD');
 
             const [thongKeNgay, tongTonKho, doanhThu7Ngay, donHangMoi, canhBao] = await Promise.all([
                 DashboardModel.getThongKeNgay(today),
@@ -16,20 +17,16 @@ const DashboardController = {
             const chartData = [];
             const labels = [];
             for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
+                const d = moment().subtract(i, 'days');
+                const dateStr = d.format('YYYY-MM-DD');
                 
-                // ĐÃ SỬA: So sánh trực tiếp Ngày, Tháng, Năm để không bị lệch múi giờ UTC
                 const found = doanhThu7Ngay.find(item => {
-                    const itemDate = new Date(item.ngay);
-                    return itemDate.getDate() === d.getDate() && 
-                           itemDate.getMonth() === d.getMonth() && 
-                           itemDate.getFullYear() === d.getFullYear();
+                    return moment(item.ngay).format('YYYY-MM-DD') === dateStr;
                 });
 
                 const doanhThuTriệu = found ? (Number(found.doanhThu) / 1000000).toFixed(1) : 0;
                 chartData.push(Number(doanhThuTriệu));
-                labels.push(`${d.getDate()}/${d.getMonth()+1}`);
+                labels.push(d.format('DD/MM'));
             }
 
             res.status(200).json({

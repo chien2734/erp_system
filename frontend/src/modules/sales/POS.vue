@@ -137,6 +137,14 @@
 
       <div class="bg-white border-t border-slate-200 p-3 lg:p-5 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] shrink-0">
         <div class="space-y-2 lg:space-y-3 text-slate-600 text-xs lg:text-sm mb-3 lg:mb-4">
+          <div class="flex justify-between items-center">
+            <span class="font-medium">Số lượng máy:</span>
+            <span class="font-bold text-slate-800">{{ totalMachines }} máy</span>
+          </div>
+          <div class="flex justify-between items-center text-base lg:text-xl border-t border-slate-100 pt-2 mt-2">
+            <span class="font-black text-slate-900">TỔNG CỘNG:</span>
+            <span class="font-black text-blue-600">{{ formatPrice(cartTotal) }}</span>
+          </div>
           
           <!-- Payment Method Selector -->
           <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 mt-4">
@@ -151,7 +159,14 @@
              <div v-if="paymentMethod === 'Tiền mặt'" class="space-y-2">
                 <div class="flex justify-between items-center">
                   <span>Khách đưa:</span>
-                  <el-input v-model="customerMoney" placeholder="Nhập tiền..." class="!w-28 lg:!w-36" size="small">
+                  <el-input 
+                    :model-value="customerMoneyDisplay" 
+                    @input="handleMoneyInput"
+                    @keypress="onlyNumber"
+                    placeholder="Nhập tiền..." 
+                    class="!w-28 lg:!w-36" 
+                    size="small"
+                  >
                     <template #append>₫</template>
                   </el-input>
                 </div>
@@ -371,22 +386,35 @@ const filteredProducts = computed(() => {
 // ==========================================
 // 3. TÍNH TOÁN TIỀN BẠC
 // ==========================================
-const customerMoney = computed({
-  get: () => {
-    if (!customerMoneyRaw.value) return '';
-    return new Intl.NumberFormat('vi-VN').format(customerMoneyRaw.value);
-  },
-  set: (val) => { 
-    customerMoneyRaw.value = val.replace(/[^0-9]/g, ''); 
+const customerMoneyDisplay = ref('');
+
+const handleMoneyInput = (val) => {
+  // 1. Lọc chỉ lấy số
+  const raw = String(val).replace(/[^0-9]/g, '');
+  
+  // 2. Cập nhật giá trị thô để tính toán tiền thừa
+  customerMoneyRaw.value = raw;
+  
+  // 3. Cập nhật giá trị hiển thị đã được định dạng
+  if (!raw) {
+    customerMoneyDisplay.value = '';
+  } else {
+    customerMoneyDisplay.value = new Intl.NumberFormat('vi-VN').format(raw);
   }
-});
+};
+
+const onlyNumber = (event) => {
+  const charCode = event.which ? event.which : event.keyCode;
+  if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+    event.preventDefault();
+  }
+};
 
 const totalMachines = computed(() => cart.value.reduce((sum, item) => sum + item.serials.length, 0));
 const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.giaBan * item.serials.length), 0));
 const finalTotal = computed(() => cartTotal.value); 
 const changeMoney = computed(() => {
-  const rawString = String(customerMoneyRaw.value || customerMoney.value || '0').replace(/[^0-9]/g, '');
-  const moneyGiven = parseInt(rawString) || 0;
+  const moneyGiven = parseInt(customerMoneyRaw.value) || 0;
   return moneyGiven - finalTotal.value; 
 });
 
@@ -618,6 +646,7 @@ const finalizeCheckout = async (customer, total, paidAmount, serials, cartItems,
 
       cart.value = []; 
       customerMoneyRaw.value = '';
+      customerMoneyDisplay.value = '';
       paymentMethod.value = 'Tiền mặt';
       clearCustomer(); 
       loadInitialData();

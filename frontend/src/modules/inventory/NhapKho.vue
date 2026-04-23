@@ -48,9 +48,20 @@
                 size="large" filterable @change="handleSelectProduct"
                 :disabled="!phieuNhap.maNCC" 
               >
-                <el-option v-for="sp in dbSanPham" :key="sp.maSP" :label="sp.tenSP" :value="sp.maSP">
-                  <span class="float-left font-bold text-xs md:text-sm truncate max-w-[200px] sm:max-w-none" :title="sp.tenSP">{{ sp.tenSP }}</span>
-                  <span class="float-right text-slate-400 text-xs md:text-sm pl-4 font-mono">SP{{ sp.maSP }}</span>
+                <el-option 
+                  v-for="sp in dbSanPham" 
+                  :key="sp.maSP" 
+                  :label="sp.tenSP" 
+                  :value="sp.maSP"
+                  style="height: auto; padding: 8px 20px;"
+                >
+                  <div class="flex justify-between items-center w-full">
+                    <div class="flex flex-col py-1">
+                      <span class="font-bold text-xs md:text-sm truncate max-w-[220px] sm:max-w-none" :title="sp.tenSP">{{ sp.tenSP }}</span>
+                      <span class="text-[10px] md:text-[11px] text-blue-500 font-semibold italic">Giá bán hiện tại: {{ formatPrice(sp.giaBan) }}</span>
+                    </div>
+                    <span class="text-slate-400 text-xs md:text-sm pl-4 font-mono">SP{{ sp.maSP }}</span>
+                  </div>
                 </el-option>
               </el-select>
             </div>
@@ -66,6 +77,11 @@
               >
                 <template #append>₫</template>
               </el-input>
+              <div v-if="currentItem.maSP && currentItem.giaNhap > 0" class="mt-1">
+                <p v-if="currentItem.giaNhap > currentItem.giaBan" class="text-red-500 text-[10px] md:text-[11px] font-bold leading-tight">
+                  LỖI: Giá nhập không được cao hơn giá bán ({{ formatPrice(currentItem.giaBan) }})!
+                </p>
+              </div>
             </div>
 
           </div>
@@ -74,17 +90,18 @@
             <label class="block text-xs md:text-sm font-semibold text-slate-700 mb-2 md:mb-3">3. Quét mã Serial (S/N) trên từng hộp máy</label>
             
             <el-alert v-if="currentItem.giaNhap <= 0" title="Vui lòng nhập Đơn giá nhập > 0 để quét mã!" type="warning" show-icon :closable="false" class="mb-3 md:mb-4" />
+            <el-alert v-else-if="currentItem.giaNhap > currentItem.giaBan" title="Giá nhập đang cao hơn giá bán. Không thể nhập lô hàng lỗ!" type="error" show-icon :closable="false" class="mb-3 md:mb-4" />
 
             <div class="flex flex-col sm:flex-row gap-2 md:gap-3 mb-3 md:mb-4">
               <el-input 
                 v-model="scanSerial" 
                 placeholder="Quét Serial (Enter)..." 
                 size="large" class="w-full font-mono" @keyup.enter="addSerial" :prefix-icon="FullScreen"
-                :disabled="currentItem.giaNhap <= 0"
+                :disabled="currentItem.giaNhap <= 0 || currentItem.giaNhap > currentItem.giaBan"
               />
               <div class="flex gap-2 w-full sm:w-auto shrink-0">
-                 <el-button type="success" plain size="large" @click="addSerial" :disabled="currentItem.giaNhap <= 0" class="flex-1 sm:flex-none m-0">Thêm</el-button>
-                 <el-button type="warning" plain size="large" @click="generateRandomSerials" :disabled="currentItem.giaNhap <= 0" class="flex-1 sm:flex-none m-0">+5 (Test)</el-button>
+                 <el-button type="success" plain size="large" @click="addSerial" :disabled="currentItem.giaNhap <= 0 || currentItem.giaNhap > currentItem.giaBan" class="flex-1 sm:flex-none m-0">Thêm</el-button>
+                 <el-button type="warning" plain size="large" @click="generateRandomSerials" :disabled="currentItem.giaNhap <= 0 || currentItem.giaNhap > currentItem.giaBan" class="flex-1 sm:flex-none m-0">+5 (Test)</el-button>
               </div>
             </div>
 
@@ -101,7 +118,7 @@
             </div>
             
             <div class="mt-3 md:mt-4">
-              <el-button type="primary" size="large" @click="saveItemToPhieu" :disabled="currentItem.serials.length === 0" class="w-full font-bold shadow-md shadow-blue-500/20">
+              <el-button type="primary" size="large" @click="saveItemToPhieu" :disabled="currentItem.serials.length === 0 || currentItem.giaNhap > currentItem.giaBan" class="w-full font-bold shadow-md shadow-blue-500/20">
                 Đưa vào Phiếu Nhập ({{ currentItem.serials.length }} máy)
               </el-button>
             </div>
@@ -174,7 +191,7 @@ const dbSanPham = ref([]);
 const dbNhaCungCap = ref([]);
 
 const phieuNhap = reactive({ maNCC: null, items: [] });
-const currentItem = reactive({ maSP: '', tenSP: '', giaNhap: 0, serials: [] });
+const currentItem = reactive({ maSP: '', tenSP: '', giaNhap: 0, giaBan: 0, serials: [] });
 const scanSerial = ref('');
 const isSubmitting = ref(false);
 
@@ -212,8 +229,13 @@ const giaNhapDisplay = computed({
 });
 
 const handleSelectProduct = (maSP) => {
-  const sp = dbSanPham.value.find(s => s.maSP === maSP); // Đổi dbSanPham thành dbSanPham.value
-  if (sp) { currentItem.tenSP = sp.tenSP; currentItem.giaNhap = sp.giaNhap || 0; currentItem.serials = []; }
+  const sp = dbSanPham.value.find(s => s.maSP === maSP); 
+  if (sp) { 
+    currentItem.tenSP = sp.tenSP; 
+    currentItem.giaNhap = sp.giaNhap || 0; 
+    currentItem.giaBan = sp.giaBan || 0; 
+    currentItem.serials = []; 
+  }
 };
 
 const addSerial = () => {

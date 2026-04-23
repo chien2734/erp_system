@@ -299,9 +299,9 @@ const SalesController = {
             vnp_Params['vnp_SecureHash'] = signed;
             vnpUrl += '?' + qs.stringify(vnp_Params, { encode: false });
 
-            console.log('--- VNPAY DEBUG ---');
-            console.log('TMN CODE:', tmnCode);
-            console.log('URL GỐC:', vnpUrl);
+            // console.log('--- VNPAY DEBUG ---');
+            // console.log('TMN CODE:', tmnCode);
+            // console.log('URL GỐC:', vnpUrl);
             
             res.status(200).json({ success: true, redirectUrl: vnpUrl });
         } catch (error) {

@@ -56,50 +56,48 @@
         <div class="overflow-x-auto">
           <el-table 
             v-loading="loading" 
-            :data="filteredLogs" 
+            :data="paginatedData" 
             style="width: 100%"
             :header-cell-style="{ background: '#f8fafc', color: '#64748b', fontWeight: '800', fontSize: '11px' }"
             class="audit-table"
           >
-            <el-table-column label="THỜI GIAN" min-width="140">
+            <el-table-column label="THỜI GIAN" min-width="110">
               <template #default="{ row }">
                 <div class="flex flex-col">
-                  <span class="font-bold text-slate-700 text-xs md:text-sm">{{ formatDate(row.ngayTao) }}</span>
-                  <span class="text-[10px] text-slate-400 font-mono">{{ formatTime(row.ngayTao) }}</span>
+                  <span class="font-bold text-slate-700 text-[11px] sm:text-sm">{{ formatDate(row.ngayTao) }}</span>
+                  <span class="text-[10px] text-slate-400 font-mono hidden sm:block">{{ formatTime(row.ngayTao) }}</span>
+                  <span class="text-[9px] text-slate-400 font-mono sm:hidden">{{ dayjs(row.ngayTao).format('HH:mm') }}</span>
                 </div>
               </template>
             </el-table-column>
 
-            <el-table-column label="NHÂN VIÊN" min-width="180">
+            <el-table-column label="NHÂN VIÊN" min-width="120">
               <template #default="{ row }">
-                <div class="flex items-center gap-2 md:gap-3">
-                  <el-avatar :size="28" class="!bg-blue-100 !text-blue-600 font-bold hidden xs:flex">
-                    {{ row.tenNhanVien ? row.tenNhanVien.charAt(0) : '?' }}
-                  </el-avatar>
+                <div class="flex items-center gap-2">
                   <div class="flex flex-col min-w-0">
-                    <span class="font-bold text-slate-800 leading-tight truncate text-xs md:text-sm">{{ row.tenNhanVien || 'N/A' }}</span>
-                    <span class="text-[10px] text-slate-500 truncate">@{{ row.username || 'unknown' }}</span>
+                    <span class="font-bold text-slate-800 leading-tight truncate text-[11px] sm:text-sm">{{ row.tenNhanVien || 'N/A' }}</span>
+                    <span class="text-[10px] text-slate-500 truncate hidden sm:block">@{{ row.username || 'unknown' }}</span>
                   </div>
                 </div>
               </template>
             </el-table-column>
 
-            <el-table-column label="HÀNH ĐỘNG" min-width="130">
+            <el-table-column label="HÀNH ĐỘNG" min-width="160" class-name="hidden-xs-only">
               <template #default="{ row }">
-                <el-tag :type="getActionTagType(row.hanhDong)" effect="dark" class="!font-bold !text-[10px] !px-2 !h-6">
+                <el-tag :type="getActionTagType(row.hanhDong)" effect="dark" class="!font-bold !text-[9px] !px-1.5 !h-5">
                   {{ row.hanhDong.toUpperCase() }}
                 </el-tag>
               </template>
             </el-table-column>
 
-            <el-table-column label="CHI TIẾT" min-width="200" class-name="hidden-sm-and-down">
+            <el-table-column label="MÔ TẢ HOẠT ĐỘNG" min-width="200">
               <template #default="{ row }">
-                <el-tooltip placement="top" :content="row.chiTiet" effect="light" v-if="row.chiTiet">
-                  <span class="text-[11px] text-slate-500 font-mono truncate block max-w-[200px] italic">
-                    {{ formatChiTiet(row.chiTiet) }}
+                <div class="flex items-start gap-1.5 py-0.5">
+                  <div :class="['mt-1.5 w-1.5 h-1.5 rounded-full shrink-0', getStatusColorClass(row.hanhDong)]"></div>
+                  <span class="text-[11px] sm:text-xs md:text-sm text-slate-700 leading-relaxed font-medium">
+                    {{ generateSummary(row) }}
                   </span>
-                </el-tooltip>
-                <span v-else class="text-slate-300 text-[10px] italic">Không có chi tiết</span>
+                </div>
               </template>
             </el-table-column>
 
@@ -266,11 +264,67 @@ const getActionTagType = (action) => {
     return 'info';
 };
 
-const formatChiTiet = (str) => {
-    try {
-        const obj = JSON.parse(str);
-        return JSON.stringify(obj).substring(0, 100);
-    } catch (e) { return str; }
+// Hàm tạo câu tóm tắt thân thiện với người dùng
+const generateSummary = (row) => {
+    const action = row.hanhDong || '';
+    const details = parseChiTiet(row.chiTiet);
+    
+    // Các giá trị nhận diện chung
+    const id = details.maSP || details.maHang || details.maHoaDon || details.maNhanVien || details.id || details.maNV || '';
+    const name = details.tenSP || details.hoTen || details.username || details.tenHang || '';
+    const identifier = name ? `"${name}"` : (id ? `mã số #${id}` : '');
+
+    if (action.includes('Đăng nhập')) return 'Đã đăng nhập vào hệ thống thành công.';
+    if (action.includes('Đổi mật khẩu')) return 'Đã thực hiện thay đổi mật khẩu tài khoản.';
+    
+    // Xử lý Sản phẩm
+    if (action.toLowerCase().includes('sản phẩm') || action.toLowerCase().includes('hãng')) {
+        if (action.includes('Thêm')) return `Đã tạo mới ${identifier} vào danh mục hệ thống.`;
+        if (action.includes('Cập nhật')) return `Đã chỉnh sửa thông tin cho ${identifier}.`;
+        if (action.includes('Xóa')) return `Đã gỡ bỏ ${identifier} khỏi hệ thống.`;
+    }
+
+    // Xử lý Hóa đơn / Giao dịch
+    if (action.toLowerCase().includes('hóa đơn') || action.toLowerCase().includes('đơn hàng') || action.toLowerCase().includes('thanh toán')) {
+        const total = details.tongTien || details.amount || 0;
+        const formattedTotal = total ? new Intl.NumberFormat('vi-VN').format(total) + 'đ' : '';
+        if (action.includes('Thêm')) return `Đã lập hóa đơn mới #${id} với tổng trị giá ${formattedTotal}.`;
+        if (action.includes('Thanh toán')) return `Đã xác nhận thanh toán thành công ${formattedTotal} cho hóa đơn #${id}.`;
+        return `Đã cập nhật trạng thái cho hóa đơn #${id}.`;
+    }
+
+    // Xử lý Nhân sự & Tài khoản
+    if (action.toLowerCase().includes('nhân viên') || action.toLowerCase().includes('tài khoản')) {
+        if (action.includes('Thêm')) return `Đã cấp tài khoản/hồ sơ mới cho ${identifier}.`;
+        if (action.includes('Cập nhật') || action.includes('Đổi')) return `Đã điều chỉnh thông tin hoặc quyền hạn của ${identifier}.`;
+        if (action.includes('Reset')) return `Đã đặt lại mật khẩu về mặc định cho ${identifier}.`;
+    }
+
+    // Xử lý Lương thưởng
+    if (action.toLowerCase().includes('lương') || action.toLowerCase().includes('thưởng')) {
+        const month = details.thang;
+        const year = details.nam;
+        if (action.includes('Tính')) return `Đã thực hiện tính toán bảng lương cho tháng ${month}/${year}.`;
+        if (action.includes('Chốt')) return `Đã chốt sổ lương tháng ${month}/${year}.`;
+        return `Đã điều chỉnh khoản thưởng/phạt cho nhân viên ${identifier}.`;
+    }
+
+    // Xử lý Chấm công
+    if (action.toLowerCase().includes('chấm công') || action.toLowerCase().includes('check')) {
+        return `Đã thực hiện ghi nhận giờ làm việc (Check-in/out).`;
+    }
+
+    // Mặc định
+    if (!row.chiTiet) return action;
+    return `${action} ${identifier ? 'cho ' + identifier : ''}.`;
+};
+
+const getStatusColorClass = (action) => {
+    if (action.includes('Thêm')) return 'bg-emerald-500';
+    if (action.includes('Cập nhật') || action.includes('Sửa')) return 'bg-amber-500';
+    if (action.includes('Xóa')) return 'bg-rose-500';
+    if (action.includes('Thanh toán')) return 'bg-blue-500';
+    return 'bg-slate-400';
 };
 
 const parseChiTiet = (str) => {

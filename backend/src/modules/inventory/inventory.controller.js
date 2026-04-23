@@ -397,11 +397,11 @@ const InventoryController = {
             // Lấy parameters từ Frontend gửi lên (gồm maHang, month, year)
             const filters = req.query;
             
-            if (filters.month && filters.year) {
-                console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu cuối kỳ: Tháng ${filters.month} Năm ${filters.year}`);
-            } else {
-                console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu Real-time hiện tại...`);
-            }
+            // if (filters.month && filters.year) {
+            //     console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu cuối kỳ: Tháng ${filters.month} Năm ${filters.year}`);
+            // } else {
+            //     console.log(`[Báo Cáo Tồn Kho] Đang tính toán dữ liệu Real-time hiện tại...`);
+            // }
 
             // Gọi Model xử lý (Khâu phức tạp nhất đã được Model lo)
             const reportData = await InventoryModel.getInventoryReport(filters);

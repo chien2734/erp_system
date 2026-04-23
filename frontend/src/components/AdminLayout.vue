@@ -119,7 +119,7 @@
                         <p class="text-sm font-bold text-gray-700 truncate max-w-[150px]">
                             {{ authStore.user?.hoten || authStore.user?.username || 'Người dùng' }}
                         </p>
-                        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider truncate max-w-[150px]">
+                        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider whitespace-nowrap">
                             {{ authStore.user?.tenNhomQuyen || 'Nhân viên' }}
                         </p>
                     </div>
