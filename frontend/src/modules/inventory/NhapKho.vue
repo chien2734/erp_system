@@ -20,9 +20,19 @@
             <el-icon class="text-blue-500 text-lg"><Box /></el-icon> Thông tin lô hàng
           </h3>
           <el-form-item label="Nhà cung cấp (*)" class="mb-0 font-medium">
-            <el-select v-model="phieuNhap.maNCC" placeholder="Chọn nhà cung cấp" class="w-full" size="large" filterable>
+            <el-select 
+              v-model="phieuNhap.maNCC" 
+              placeholder="Chọn nhà cung cấp" 
+              class="w-full" 
+              size="large" 
+              filterable
+              :disabled="phieuNhap.items.length > 0"
+            >
               <el-option v-for="ncc in dbNhaCungCap" :key="ncc.maNCC" :label="ncc.tenNCC" :value="ncc.maNCC" />
             </el-select>
+            <p v-if="phieuNhap.items.length > 0" class="text-[10px] text-orange-500 italic mt-1">
+              * Đã có sản phẩm trong danh sách, không thể đổi Nhà cung cấp.
+            </p>
           </el-form-item>
         </div>
 
