@@ -163,6 +163,12 @@ const routes = [
         ],
         meta: { requiresAuth: true }
     },
+    // --- 404 NOT FOUND (CATCH ALL) ---
+    {
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: () => import('../modules/errors/NotFound.vue')
+    }
 ];
 
 const router = createRouter({
