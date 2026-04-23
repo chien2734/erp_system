@@ -196,7 +196,7 @@
         </div>
       </el-tab-pane>
 
-      <el-tab-pane label="PHIẾU LƯƠNG (PAYSLIP)" name="payslip">
+      <el-tab-pane label="PHIẾU LƯƠNG" name="payslip">
         <div class="p-2 md:p-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3 md:gap-4 bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-200">
             <div class="flex items-center gap-3 w-full sm:w-auto">

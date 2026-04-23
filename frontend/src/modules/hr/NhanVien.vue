@@ -3,7 +3,7 @@
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh sách nhân viên</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh Sách Nhân Viên</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Quản lý hồ sơ, phòng ban và thông tin liên lạc</p>
       </div>
       <el-button type="primary" :icon="Plus" size="large" class="w-full md:w-auto font-bold shadow-lg shadow-blue-500/30 m-0 shrink-0" @click="openAddDialog">

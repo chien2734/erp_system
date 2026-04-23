@@ -3,7 +3,7 @@
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản lý Chức vụ & Cấp bậc</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản Lý Chức Vụ & Cấp Bậc</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Thiết lập chức danh, mức lương cơ sở theo giờ và phụ cấp trách nhiệm</p>
       </div>
       <el-button type="primary" size="large" @click="openModal(null)" class="w-full md:w-auto font-bold shadow-md shadow-blue-500/30 shrink-0 m-0">

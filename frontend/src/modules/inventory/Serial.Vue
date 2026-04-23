@@ -3,7 +3,7 @@
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản lý Serial Máy tính</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản Lý Serial Máy Tính</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Tra cứu vòng đời, lịch sử xuất nhập và trạng thái của từng mã máy (S/N)</p>
       </div>
     </div>

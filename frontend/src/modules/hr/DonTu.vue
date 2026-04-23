@@ -3,7 +3,7 @@
     
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản lý Đơn từ & Nghỉ phép</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Quản Lý Đơn Từ & Nghỉ Phép</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Tiếp nhận, xét duyệt đơn xin nghỉ phép, nghỉ ốm, thai sản của nhân viên</p>
       </div>
       <el-button type="primary" size="large" @click="fetchLeaveRequests" :loading="loading" class="w-full sm:w-auto shadow-md shadow-blue-500/30 font-bold shrink-0">
