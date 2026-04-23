@@ -17,6 +17,7 @@ router.get('/nhanvien/:id/lichsu', HrController.getLichSu); // Lịch sử công
 // Phần Quản lý nhân viên
 router.get('/nhanvien' , HrController.getAll); // Lấy danh sách nhân viên với phân trang và lọc
 router.get('/nhanvien/:id', HrController.getOne);// Lấy chi tiết 1 nhân viên theo ID
+router.get('/nhanvien/:id/check-payroll', HrController.checkPayroll); // Kiểm tra đã có lương chưa
 router.post('/nhanvien', HrController.create);// Thêm mới nhân viên
 router.put('/nhanvien/:id', HrController.update);// Cập nhật thông tin nhân viên
 router.delete('/nhanvien/:id', HrController.delete);// Xóa nhân viên (chuyển trạng thái)

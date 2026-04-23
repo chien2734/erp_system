@@ -24,17 +24,17 @@
         <div class="p-2 md:p-4 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           <div class="space-y-4">
             <h3 class="font-bold text-base md:text-lg text-slate-800 border-b border-slate-100 pb-2 mb-4">Thông tin liên hệ</h3>
-            <el-form label-position="top">
-              <el-form-item label="Số điện thoại cá nhân">
+            <el-form ref="profileFormRef" :model="formProfile" :rules="rulesProfile" label-position="top">
+              <el-form-item label="Số điện thoại cá nhân" prop="sdt">
                 <el-input v-model="formProfile.sdt" placeholder="09xxxx..." size="large" />
               </el-form-item>
-              <el-form-item label="Địa chỉ Email">
+              <el-form-item label="Địa chỉ Email" prop="email">
                 <el-input v-model="formProfile.email" placeholder="email@congty.com" size="large" />
               </el-form-item>
               <el-form-item label="Địa chỉ thường trú">
                 <el-input v-model="formProfile.diaChi" type="textarea" :rows="3" />
               </el-form-item>
-              <el-button type="primary" @click="updateProfile" :loading="updatingInfo" class="mt-2 font-bold w-full md:w-auto" size="large">
+              <el-button type="primary" @click="updateProfile(profileFormRef)" :loading="updatingInfo" class="mt-2 font-bold w-full md:w-auto" size="large">
                 CẬP NHẬT THÔNG TIN
               </el-button>
             </el-form>
@@ -413,11 +413,24 @@ const myCareer = ref([]);
 
 // Form Đổi thông tin
 const updatingInfo = ref(false);
+const profileFormRef = ref(null);
 const formProfile = ref({ sdt: '', email: '', diaChi: '' });
 
 // Form Đổi mật khẩu
 const changingPass = ref(false);
 const formPassword = ref({ oldPass: '', newPass: '', confirmPass: '' });
+
+// --- RULES VALIDATE ---
+const rulesProfile = {
+  sdt: [
+    { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },
+    { pattern: /(84|0[3|5|7|8|9])+([0-9]{8})\b/, message: 'SĐT không hợp lệ (10 số)', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: 'Vui lòng nhập email', trigger: 'blur' },
+    { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }
+  ]
+};
 
 // State cho các Tab khác
 const myAttendance = ref([]);
@@ -477,21 +490,32 @@ const fetchCareer = async () => {
 // ==========================================
 // 2. TAB THÔNG TIN & BẢO MẬT
 // ==========================================
-const updateProfile = async () => {
-  updatingInfo.value = true;
-  try {
-    const res = await api.put('/hr/profile/update-info', formProfile.value);
-    if (res.data?.success || res.success) {
-      ElMessage.success('Cập nhật thông tin thành công!');
-      currentUser.value.sdt = formProfile.value.sdt;
-      currentUser.value.email = formProfile.value.email;
-      currentUser.value.diaChi = formProfile.value.diaChi;
+const updateProfile = async (formEl) => {
+  if (!formEl) return;
+  await formEl.validate(async (valid) => {
+    if (valid) {
+      updatingInfo.value = true;
+      try {
+        const res = await api.put('/hr/profile/update-info', formProfile.value);
+        if (res.data?.success || res.success) {
+          ElMessage.success('Cập nhật thông tin thành công!');
+          currentUser.value.sdt = formProfile.value.sdt;
+          currentUser.value.email = formProfile.value.email;
+          currentUser.value.diaChi = formProfile.value.diaChi;
+        }
+      } catch (error) {
+        ElMessage.error(error.response?.data?.message || 'Lỗi cập nhật');
+        // Tự động load lại dữ liệu cũ từ currentUser nếu có lỗi
+        formProfile.value = { 
+          sdt: currentUser.value.sdt, 
+          email: currentUser.value.email, 
+          diaChi: currentUser.value.diaChi 
+        };
+      } finally {
+        updatingInfo.value = false;
+      }
     }
-  } catch (error) {
-    ElMessage.error(error.response?.data?.message || 'Lỗi cập nhật');
-  } finally {
-    updatingInfo.value = false;
-  }
+  });
 };
 
 const changePassword = async () => {
