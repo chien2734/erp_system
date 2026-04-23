@@ -148,9 +148,10 @@ const handleLogin = async (formEl) => {
         ElMessage.success(`Đăng nhập thành công! Chào mừng ${authStore.user?.hoten || authStore.user?.username || 'Người dùng' }`);
         
         // ĐIỀU HƯỚNG THEO YÊU CẦU:
-        // 1. Giám đốc (maNhomQuyen === 1) -> Vào Dashboard
+        // 1. Giám đốc & Quản lý (ID: 1 & 2) -> Vào Dashboard
         // 2. Tất cả các bộ phận khác -> Phải vào Check-in trước
-        if (authStore.user?.maNhomQuyen === 1) {
+        const userRole = authStore.user?.maNhomQuyen;
+        if (userRole === 1 || userRole === 2) {
           router.push('/');
         } else {
           router.push('/hr/checkin');

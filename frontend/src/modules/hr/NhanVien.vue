@@ -33,7 +33,7 @@
         </el-select>
         
         <div class="w-full text-xs md:text-sm text-slate-500 bg-slate-50 px-3 rounded-lg border border-slate-200 text-center font-medium h-[40px] flex items-center justify-center">
-          Tổng danh sách: <span class="font-bold text-blue-600 text-base ml-1.5">{{ filteredEmployees.length }}</span> nv
+          Tổng danh sách: <span class="font-bold text-blue-600 text-base mx-1.5">{{ filteredEmployees.length }}</span> nhân viên
         </div>
       </div>
     </div>

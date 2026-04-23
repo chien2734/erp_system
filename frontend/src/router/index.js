@@ -23,7 +23,7 @@ const routes = [
             path: '', 
             name: 'Tổng quan',
             component: () => import('../modules/dashboard/Dashboard.vue'),
-            meta: { permission: CHUCNANG.BAO_CAO }
+            meta: { permission: CHUCNANG.SAN_PHAM}
         },
         {
             path: '/hr/checkin',
@@ -189,12 +189,12 @@ router.beforeEach((to, from) => {
 
     // 2. Đã đăng nhập mà cố vào trang Login -> Đẩy về đúng trang mặc định
     if (to.path === '/login' && isAuthenticated) {
-        return userRole === 1 ? { path: '/' } : { path: '/hr/checkin' };
+        return (userRole === 1 || userRole === 2) ? { path: '/' } : { path: '/hr/checkin' };
     }
 
-    // 3. CHỐT CHẶN DASHBOARD: Chỉ Giám đốc mới được xem
+    // 3. CHỐT CHẶN DASHBOARD: Chỉ Giám đốc & Quản lý mới được xem
     if (to.path === '/' && isAuthenticated) {
-        if (userRole !== 1) {
+        if (userRole !== 1 && userRole !== 2) {
             return { path: '/hr/checkin' }; // Nhân viên khác bị đá sang Chấm công
         }
     }
@@ -203,8 +203,8 @@ router.beforeEach((to, from) => {
     if (to.meta.permission) {
         if (!authStore.hasPermission(to.meta.permission, 'quyenXem')) {
             ElMessage.error('Truy cập bị từ chối! Bạn không có quyền xem trang này.');
-            // Nếu bị từ chối, cũng phải trả về đúng trang mặc định theo Role
-            return userRole === 1 ? { path: '/' } : { path: '/hr/checkin' };
+            // Nếu bị từ chối, cũng phải trả về đúng trang mặc định theo Role (Giám đốc & Quản lý về Dashboard)
+            return (userRole === 1 || userRole === 2) ? { path: '/' } : { path: '/hr/checkin' };
         }
     }
 

@@ -11,7 +11,7 @@
       <div class="space-y-3">
         <h2 class="text-2xl font-bold text-slate-800 uppercase tracking-tight">Trang không tồn tại</h2>
         <p class="text-slate-500 leading-relaxed">
-          Có vẻ như đường dẫn bạn đang truy cập không tồn tại trong hệ thống hoặc đã bị di dời.
+          Có vẻ như đường dẫn bạn đang truy cập không tồn tại trong hệ thống hoặc đã bị thay đổi địa chỉ.
         </p>
       </div>
 
@@ -39,8 +39,8 @@ const authStore = useAuthStore();
 
 const goHome = () => {
   const userRole = authStore.getUserRole;
-  // Quay về trang mặc định theo phân quyền
-  if (userRole === 1) {
+  // Quay về trang mặc định: Giám đốc & Quản lý -> Dashboard, còn lại -> Check-in
+  if (userRole === 1 || userRole === 2) {
     router.push('/');
   } else {
     router.push('/hr/checkin');
