@@ -18,7 +18,7 @@
             >
                 <div class="flex items-center gap-3">
                     <el-icon class="text-2xl text-blue-400"><Monitor /></el-icon>
-                    <span class="font-bold text-lg tracking-tight">LAPTOP ERP</span>
+                    <span class="font-bold text-lg tracking-tight">LAPTOP STORE ERP</span>
                 </div>
                 <button @click.stop="isSidebarOpen = false" class="md:hidden text-slate-400 hover:text-white p-1">
                     <el-icon class="text-2xl"><Close /></el-icon>

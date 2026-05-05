@@ -3,7 +3,7 @@
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh mục Sản phẩm</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh Mục Sản Phẩm</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Quản lý thông tin máy tính, cấu hình và giá bán</p>
       </div>
       <el-button type="primary" size="large" @click="openAddModal" class="w-full md:w-auto font-bold shadow-lg shadow-blue-500/30 shrink-0">

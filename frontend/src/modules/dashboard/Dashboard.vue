@@ -3,7 +3,6 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-bold text-slate-900">Tổng quan hệ thống</h2>
-                <p class="text-slate-500 mt-1">Chào mừng Ban giám đốc trở lại, đây là những gì đang diễn ra hôm nay.</p>
             </div>
             <el-button type="primary" :icon="Plus" @click="$router.push('/sales/pos')">Bán hàng (POS)</el-button>
         </div>

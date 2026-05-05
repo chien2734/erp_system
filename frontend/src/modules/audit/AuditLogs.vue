@@ -6,7 +6,6 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 class="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-3">
-            <el-icon class="text-blue-600"><Timer /></el-icon>
             LỊCH SỬ HỆ THỐNG
           </h1>
           <p class="text-xs md:text-sm text-slate-500 mt-1">Theo dõi hoạt động nhạy cảm trên hệ thống</p>
@@ -24,7 +23,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <el-card shadow="never" class="!border-none !bg-gradient-to-br from-blue-600 to-indigo-700 text-white !rounded-xl shadow-lg shadow-blue-500/20">
           <div class="flex items-center gap-4">
-            <div class="p-2 md:p-3 bg-white/20 rounded-lg text-xl md:text-2xl"><el-icon><Operation /></el-icon></div>
+            <div class="p-2 md:p-3 bg-white/20 rounded-lg text-xl md:text-2xl"><el-icon><Histogram /></el-icon></div>
             <div>
               <p class="text-[10px] md:text-xs opacity-80 uppercase font-bold tracking-wider">Tổng hoạt động</p>
               <p class="text-xl md:text-2xl font-black">{{ totalLogs }}</p>
@@ -178,7 +177,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Timer, Refresh, Download, Search, InfoFilled, Operation } from '@element-plus/icons-vue';
+import { Timer, Refresh, Download, Search, InfoFilled, Histogram } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
 import dayjs from 'dayjs';

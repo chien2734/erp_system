@@ -4,7 +4,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
         <h2 class="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <el-icon class="text-blue-600"><Avatar /></el-icon> Quản lý Khách Hàng
+          <el-icon class="text-blue-600"><Avatar /></el-icon> Quản Lý Khách Hàng
         </h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Lưu trữ thông tin liên hệ và theo dõi lịch sử mua sắm của khách hàng</p>
       </div>

@@ -210,6 +210,36 @@ const HrModel = {
         return [];
     },
 
+    // Kiểm tra trùng Email hoặc Số điện thoại
+    checkUniqueEmailSdt: async (email, sdt, excludeId = null) => {
+        let sqlEmail = `SELECT maNhanVien FROM nhanvien WHERE email = ?`;
+        let sqlSdt = `SELECT maNhanVien FROM nhanvien WHERE sdt = ?`;
+        let valuesEmail = [email];
+        let valuesSdt = [sdt];
+
+        if (excludeId) {
+            sqlEmail += ` AND maNhanVien != ?`;
+            sqlSdt += ` AND maNhanVien != ?`;
+            valuesEmail.push(excludeId);
+            valuesSdt.push(excludeId);
+        }
+
+        const [rowsEmail] = await db.query(sqlEmail, valuesEmail);
+        const [rowsSdt] = await db.query(sqlSdt, valuesSdt);
+
+        return {
+            emailExists: rowsEmail.length > 0,
+            sdtExists: rowsSdt.length > 0
+        };
+    },
+
+    // Kiểm tra nhân viên đã có bảng lương chưa
+    checkNhanVienHasPayroll: async (maNhanVien) => {
+        const sql = `SELECT 1 FROM bangluong WHERE maNhanVien = ? LIMIT 1`;
+        const [rows] = await db.query(sql, [maNhanVien]);
+        return rows.length > 0;
+    },
+
     //================================
     // Phan 2: Quan ly chuc vu
     // ===============================

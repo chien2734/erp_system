@@ -27,7 +27,7 @@ const routes = [
         },
         {
             path: '/hr/checkin',
-            name: 'Portal Chấm Công',
+            name: 'Chấm công',
             component: () => import('../modules/hr/CheckIn.vue')
             // Quyền cá nhân mặc định (Không cần meta.permission)
         },

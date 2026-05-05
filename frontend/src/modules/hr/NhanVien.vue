@@ -3,7 +3,7 @@
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100">
       <div>
-        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh sách nhân viên</h2>
+        <h2 class="text-xl md:text-2xl font-bold text-slate-900">Danh Sách Nhân Viên</h2>
         <p class="text-xs md:text-sm text-slate-500 mt-1">Quản lý hồ sơ, phòng ban và thông tin liên lạc</p>
       </div>
       <el-button type="primary" :icon="Plus" size="large" class="w-full md:w-auto font-bold shadow-lg shadow-blue-500/30 m-0 shrink-0" @click="openAddDialog">
@@ -213,7 +213,11 @@
               format="DD/MM/YYYY"
               value-format="YYYY-MM-DD"
               class="w-full"
+              :disabled="hasPayroll"
             />
+            <p v-if="hasPayroll" class="text-[10px] text-orange-500 italic mt-1">
+              * Đã có bảng lương, không được phép sửa ngày vào làm.
+            </p>
           </el-form-item>
 
           <el-form-item label="Trạng thái làm việc" class="md:pl-4">
@@ -257,6 +261,9 @@ import { ElMessage } from 'element-plus';
 import api from '../../services/api'; 
 import { useAuthStore } from '../auth/auth.store';
 import { usePagination } from '../../composables/usePagination';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+dayjs.extend(isSameOrBefore);
 
 // --- STATE QUẢN LÝ DỮ LIỆU ---
 const employees = ref([]);
@@ -273,6 +280,7 @@ const filterStatus = ref('');
 const dialogVisible = ref(false);
 const isEditMode = ref(false);
 const isSubmitting = ref(false);
+const hasPayroll = ref(false); // Trạng thái khóa ngày vào làm
 const formRef = ref(null);
 
 // --- FORM DATA ---
@@ -282,13 +290,28 @@ const formData = reactive({
 });
 
 // --- RULES VALIDATE ---
+const validateAge = (rule, value, callback) => {
+  if (!value) return callback(new Error('Vui lòng chọn ngày sinh'));
+  const age = dayjs().diff(dayjs(value), 'year');
+  if (age < 18) {
+    callback(new Error('Nhân viên phải từ 18 tuổi trở lên'));
+  } else {
+    callback();
+  }
+};
+
 const rules = reactive({
   hoTen: [{ required: true, message: 'Vui lòng nhập họ tên', trigger: 'blur' }],
   gioiTinh: [{ required: true, message: 'Vui lòng chọn giới tính', trigger: 'change' }],
+  ngaySinh: [{ required: true, validator: validateAge, trigger: 'change' }],
   ngayVaoLam: [{ required: true, message: 'Vui lòng chọn ngày vào làm', trigger: 'change' }],
   sdt: [
     { required: true, message: 'Vui lòng nhập số điện thoại', trigger: 'blur' },
     { pattern: /(84|0[3|5|7|8|9])+([0-9]{8})\b/, message: 'SĐT không hợp lệ', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: 'Vui lòng nhập email', trigger: 'blur' },
+    { type: 'email', message: 'Email không hợp lệ', trigger: ['blur', 'change'] }
   ],
   maChucVu: [{ required: true, message: 'Vui lòng chọn chức vụ', trigger: 'change' }]
 });
@@ -371,14 +394,24 @@ const resetForm = () => {
 
 const openAddDialog = () => {
   isEditMode.value = false;
+  hasPayroll.value = false;
   resetForm();
   dialogVisible.value = true;
 };
 
-const openEditDialog = (row) => {
+const openEditDialog = async (row) => {
   isEditMode.value = true;
+  hasPayroll.value = false;
   Object.assign(formData, { ...row, trangThai: row.trangThai === 1 });
   dialogVisible.value = true;
+
+  // Kiểm tra bảng lương để khóa ngày vào làm
+  try {
+    const res = await api.get(`/hr/nhanvien/${row.maNhanVien}/check-payroll`);
+    hasPayroll.value = res.data.hasPayroll;
+  } catch (e) {
+    console.error("Lỗi check-payroll:", e);
+  }
 };
 
 const tableRowClassName = ({ row }) => {

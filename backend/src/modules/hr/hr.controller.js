@@ -19,6 +19,12 @@ const HrController = {
     updateProfileInfo: async (req, res) => {
         try {
             const maNhanVien = req.user.maNhanVien;
+            const { email, sdt } = req.body;
+
+            // 1. KIỂM TRA TRÙNG EMAIL/SĐT (loại trừ chính mình)
+            const checkUnique = await HrModel.checkUniqueEmailSdt(email, sdt, maNhanVien);
+            if (checkUnique.emailExists) return res.status(400).json({ success: false, message: 'Email này đã được người khác sử dụng!' });
+            if (checkUnique.sdtExists) return res.status(400).json({ success: false, message: 'Số điện thoại này đã được người khác sử dụng!' });
             
             await HrModel.updateProfileInfo(maNhanVien, req.body);
             
@@ -75,12 +81,25 @@ const HrController = {
     // Thêm mới nhân viên
     create: async (req, res) => {
         try {
-            const roleNguoiDangSua = req.user.maNhomQuyen; // Lấy role từ token
-            const maChucVuMoi = req.body.maChucVu;
+            const roleNguoiDangSua = req.user.maNhomQuyen; 
+            const { hoTen, email, sdt, maChucVu, ngaySinh } = req.body;
 
-            // CHỐT CHẶN BỔ NHIỆM LÚC TẠO MỚI
-            if (roleNguoiDangSua !== 1 && maChucVuMoi) {
-                const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
+            // 1. KIỂM TRA TUỔI (Frontend đã check nhưng Backend phải chốt chặn)
+            if (ngaySinh) {
+                const age = Math.floor((new Date() - new Date(ngaySinh)) / (365.25 * 24 * 60 * 60 * 1000));
+                if (age < 18) {
+                    return res.status(400).json({ success: false, message: 'Nhân viên phải từ 18 tuổi trở lên!' });
+                }
+            }
+
+            // 2. KIỂM TRA TRÙNG EMAIL/SĐT
+            const checkUnique = await HrModel.checkUniqueEmailSdt(email, sdt);
+            if (checkUnique.emailExists) return res.status(400).json({ success: false, message: 'Email này đã tồn tại trong hệ thống!' });
+            if (checkUnique.sdtExists) return res.status(400).json({ success: false, message: 'Số điện thoại này đã tồn tại!' });
+
+            // 3. CHỐT CHẶN BỔ NHIỆM
+            if (roleNguoiDangSua !== 1 && maChucVu) {
+                const chucVuCheck = await HrModel.getChucVuById(maChucVu);
                 if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
                     return res.status(403).json({ 
                         success: false, 
@@ -104,44 +123,52 @@ const HrController = {
         try {
             const roleNguoiDangSua = req.user.maNhomQuyen; 
             const { id } = req.params; 
+            const { email, sdt, ngaySinh, ngayVaoLam } = req.body;
 
             const targetEmployee = await HrModel.getNhanVienById(id);
-            
-            if (!targetEmployee) {
-                return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
+            if (!targetEmployee) return res.status(404).json({ success: false, message: 'Nhân viên không tồn tại' });
+
+            // 1. KIỂM TRA TUỔI
+            if (ngaySinh) {
+                const age = Math.floor((new Date() - new Date(ngaySinh)) / (365.25 * 24 * 60 * 60 * 1000));
+                if (age < 18) return res.status(400).json({ success: false, message: 'Nhân viên phải từ 18 tuổi trở lên!' });
             }
 
-            //  CHỐT CHẶN 1: BẢO VỆ HỒ SƠ SẾP
-            if (roleNguoiDangSua !== 1 && targetEmployee.maNhomQuyen === 1) {
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Từ chối truy cập! Bạn không có thẩm quyền thay đổi hồ sơ của Ban Giám Đốc.' 
-                });
-            }
+            // 2. KIỂM TRA TRÙNG EMAIL/SĐT (loại trừ chính mình)
+            const checkUnique = await HrModel.checkUniqueEmailSdt(email, sdt, id);
+            if (checkUnique.emailExists) return res.status(400).json({ success: false, message: 'Email đã được sử dụng bởi nhân viên khác!' });
+            if (checkUnique.sdtExists) return res.status(400).json({ success: false, message: 'Số điện thoại đã được sử dụng!' });
 
-            // CHỐT CHẶN 2: BẢO VỆ GHẾ SẾP (Chống thăng chức)
-            const maChucVuMoi = req.body.maChucVu;
-            // Chỉ check nếu Quản lý đổi chức vụ sang một mã khác với chức vụ hiện tại
-            if (roleNguoiDangSua !== 1 && maChucVuMoi && maChucVuMoi !== targetEmployee.maChucVu) {
-                const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
-                if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
-                    return res.status(403).json({ 
+            // 3. KIỂM TRA KHÓA NGÀY VÀO LÀM (Nếu ngày bị thay đổi)
+            const oldNgayVaoLam = targetEmployee.ngayVaoLam ? new Date(targetEmployee.ngayVaoLam).toISOString().split('T')[0] : null;
+            if (ngayVaoLam && ngayVaoLam !== oldNgayVaoLam) {
+                const hasPayroll = await HrModel.checkNhanVienHasPayroll(id);
+                if (hasPayroll) {
+                    return res.status(400).json({ 
                         success: false, 
-                        message: 'Từ chối truy cập! Chỉ Giám đốc mới có quyền bổ nhiệm chức vụ Giám đốc.' 
+                        message: 'Không thể sửa Ngày vào làm vì nhân viên này đã có dữ liệu bảng lương!' 
                     });
                 }
             }
 
-            // 3. Vượt qua 2 chốt chặn an toàn -> Cho phép Cập nhật
-            const success = await HrModel.updateNhanVien(id, req.body);
-            
-            // Fix logic check DB update thành công (Model trả về true, không phải số dòng)
-            if (!success) {
-                return res.status(400).json({ success: false, message: 'Không thể cập nhật nhân viên lúc này' });
+            // 4. BẢO VỆ HỒ SƠ SẾP
+            if (roleNguoiDangSua !== 1 && targetEmployee.maNhomQuyen === 1) {
+                return res.status(403).json({ success: false, message: 'Bạn không có thẩm quyền thay đổi hồ sơ của Ban Giám Đốc.' });
             }
+
+            // 5. BẢO VỆ GHẾ SẾP
+            const maChucVuMoi = req.body.maChucVu;
+            if (roleNguoiDangSua !== 1 && maChucVuMoi && maChucVuMoi !== targetEmployee.maChucVu) {
+                const chucVuCheck = await HrModel.getChucVuById(maChucVuMoi);
+                if (chucVuCheck && chucVuCheck.tenChucVu.toLowerCase().includes('giám đốc')) {
+                    return res.status(403).json({ success: false, message: 'Chỉ Giám đốc mới có quyền bổ nhiệm chức vụ Giám đốc.' });
+                }
+            }
+
+            const success = await HrModel.updateNhanVien(id, req.body);
+            if (!success) return res.status(400).json({ success: false, message: 'Không thể cập nhật nhân viên lúc này' });
             
             res.status(200).json({ success: true, message: 'Cập nhật nhân viên thành công' });
-            
             await recordLog(req.user.maNhanVien, 'Cập nhật nhân viên', { maNhanVien: id, hoTen: req.body.hoTen });
         } catch (error) {
             console.error("Lỗi cập nhật NV:", error);
@@ -198,6 +225,16 @@ const HrController = {
                 success: false,
                 message: 'Lỗi máy chủ khi cập nhật chức vụ'
             });
+        }
+    },
+
+    // Kiểm tra nhân viên đã có lương chưa
+    checkPayroll: async (req, res) => {
+        try {
+            const hasPayroll = await HrModel.checkNhanVienHasPayroll(req.params.id);
+            res.status(200).json({ success: true, hasPayroll });
+        } catch (error) {
+            res.status(500).json({ success: false, message: 'Lỗi kiểm tra bảng lương' });
         }
     },
 
