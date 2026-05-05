@@ -241,7 +241,25 @@ const exportExcel = async () => {
 };
 
 const handlePrint = () => {
-  window.print();
+  if (!reportList.value || reportList.value.length === 0) return ElMessage.warning('Không có dữ liệu để in.');
+
+  const payload = {
+    type: selectedType.value,
+    data: reportList.value,
+    summary: summary.value || null,
+    // thêm thông tin kỳ để hiển thị trên báo cáo
+    month: selectedType.value === 'month' ? selectedMonth.value.split('-')[1] : undefined,
+    quarter: selectedType.value === 'quarter' ? selectedQuarter.value : undefined,
+    year: selectedYear.value
+  };
+
+  try {
+    localStorage.setItem('print_report_product_data', JSON.stringify(payload));
+    window.open('/print-report-product', '_blank');
+  } catch (err) {
+    console.error('Lỗi khi chuẩn bị in:', err);
+    ElMessage.error('Không thể mở trang in. Vui lòng thử lại.');
+  }
 };
 
 onMounted(() => {

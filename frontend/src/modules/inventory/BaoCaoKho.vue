@@ -51,7 +51,7 @@
       </div>
 
       <div class="overflow-x-auto rounded-lg border border-slate-200">
-        <el-table :data="paginatedData" style="width: 100%" v-loading="loading" stripe class="min-w-[800px]">
+        <el-table :data="paginatedData" @sort-change="handleSortChange" style="width: 100%" v-loading="loading" stripe class="min-w-[800px]">
           
           <el-table-column type="index" label="STT" width="60" align="center" fixed="left" />
           
@@ -69,7 +69,7 @@
             <template #default="scope"><el-tag effect="plain" class="font-bold">{{ scope.row.tenHang }}</el-tag></template>
           </el-table-column>
           
-          <el-table-column prop="soLuongTon" label="Tồn Kho" width="100" align="center" sortable>
+          <el-table-column prop="soLuongTon" label="Tồn Kho" width="120" align="center" sortable>
             <template #default="scope">
               <span class="text-sm md:text-base" :class="scope.row.soLuongTon < 5 ? 'text-rose-600 font-black' : 'text-emerald-600 font-bold'">
                 {{ scope.row.soLuongTon }}
@@ -77,11 +77,11 @@
             </template>
           </el-table-column>
           
-          <el-table-column prop="giaVonTrungBinh" label="Giá vốn bình quân" min-width="140" align="right">
+          <el-table-column prop="giaVonTrungBinh" label="Giá vốn bình quân" min-width="140" align="right" sortable>
             <template #default="scope"><span class="text-slate-600 font-medium">{{ formatPrice(scope.row.giaVonTrungBinh || scope.row.giaNhapGanNhat) }}</span></template>
           </el-table-column>
           
-          <el-table-column prop="tongGiaTriTon" label="Tổng Giá Trị Tồn" min-width="150" align="right" sortable>
+          <el-table-column label="Tổng Giá Trị Tồn" min-width="150" align="right" sortable  prop="tongGiaTriTon">
             <template #default="scope"><span class="font-black text-blue-700 text-sm md:text-base">{{ formatPrice(scope.row.tongGiaTriTon) }}</span></template>
           </el-table-column>
 
@@ -136,12 +136,49 @@ const filteredData = computed(() => {
   );
 });
 
+// Client-side sort (suitable for small report sizes)
+const sortBy = ref('');
+const sortOrder = ref('');
+
+const sortedData = computed(() => {
+  const src = filteredData.value || [];
+  if (!sortBy.value) return src.slice();
+  const arr = src.slice();
+  const compare = (a, b) => {
+    const va = a[sortBy.value];
+    const vb = b[sortBy.value];
+    if (va == null && vb == null) return 0;
+    if (va == null) return -1;
+    if (vb == null) return 1;
+    const na = Number(va);
+    const nb = Number(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(va).localeCompare(String(vb), 'vi', { numeric: true });
+  };
+  arr.sort((x, y) => {
+    const c = compare(x, y);
+    return sortOrder.value === 'asc' ? c : -c;
+  });
+  return arr;
+});
+
 const { 
   currentPage, 
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredData, 7);
+} = usePagination(sortedData, 10);
+
+const handleSortChange = ({ prop, order }) => {
+  if (!prop || !order) {
+    sortBy.value = '';
+    sortOrder.value = '';
+  } else {
+    sortBy.value = prop;
+    sortOrder.value = order === 'ascending' ? 'asc' : 'desc';
+  }
+  currentPage.value = 1;
+};
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 

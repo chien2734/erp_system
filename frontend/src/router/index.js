@@ -16,6 +16,12 @@ const routes = [
         meta: { requiresAuth: true } 
     },
     {
+        path: '/print-report-product',
+        name: 'In báo cáo sản phẩm',
+        component: () => import('../modules/sales/PrintReportProduct.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/',
         component: () => import('../components/AdminLayout.vue'), 
         children: [

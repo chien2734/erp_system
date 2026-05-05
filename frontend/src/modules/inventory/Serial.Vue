@@ -36,9 +36,9 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="paginatedData" style="width: 100%" size="large" stripe v-loading="loading" class="min-w-[900px]">
+      <el-table :data="paginatedData" @sort-change="handleSortChange" style="width: 100%" size="large" stripe v-loading="loading" class="min-w-[900px]">
         
-        <el-table-column prop="maMay" label="Mã Máy (S/N)" min-width="140" fixed="left">
+        <el-table-column prop="maMay" label="Mã Máy (S/N)" min-width="140" fixed="left" sortable>
           <template #default="scope">
             <div class="flex items-center gap-1.5 md:gap-2">
               <el-icon class="text-slate-400 hidden sm:inline-block"><Cpu /></el-icon>
@@ -47,7 +47,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Sản phẩm" min-width="200">
+        <el-table-column label="Sản phẩm" min-width="180">
           <template #default="scope">
             <span class="font-semibold text-slate-700 text-xs md:text-sm line-clamp-2" :title="scope.row.tenSP || getTenSP(scope.row.maSP)">
               {{ scope.row.tenSP || getTenSP(scope.row.maSP) }}
@@ -61,7 +61,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Giá Nhập" min-width="120" align="right">
+        <el-table-column label="Giá Nhập" min-width="120" align="right" sortable prop="donGiaNhap">
           <template #default="scope">
             <span class="font-bold text-emerald-600 text-xs md:text-sm whitespace-nowrap">{{ formatPrice(scope.row.donGiaNhap) }}</span>
           </template>
@@ -92,7 +92,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Thao tác" width="80" align="center" fixed="right">
+        <el-table-column label="Thao tác" width="100" align="center" fixed="right">
           <template #default="scope">
             <el-button 
               type="primary" link 
@@ -272,12 +272,56 @@ const filteredSerials = computed(() => {
   });
 });
 
+// --- SORT STATE & LOGIC (Client-side global sort)
+const sortBy = ref(''); // prop name
+const sortOrder = ref(''); // 'asc' or 'desc' or ''
+
+const sortedSerials = computed(() => {
+  const src = filteredSerials.value || [];
+  if (!sortBy.value) return src.slice();
+
+  const arr = src.slice();
+
+  const compare = (a, b) => {
+    const va = a[sortBy.value];
+    const vb = b[sortBy.value];
+    if (va == null && vb == null) return 0;
+    if (va == null) return -1;
+    if (vb == null) return 1;
+
+    const na = Number(va);
+    const nb = Number(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+
+    return String(va).localeCompare(String(vb), 'vi', { numeric: true });
+  };
+
+  arr.sort((x, y) => {
+    const c = compare(x, y);
+    return sortOrder.value === 'asc' ? c : -c;
+  });
+
+  return arr;
+});
+
 const { 
   currentPage, 
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredSerials, 7);
+} = usePagination(sortedSerials, 10);
+
+// Khi user thay đổi sort từ header
+const handleSortChange = ({ prop, order }) => {
+  if (!prop || !order) {
+    sortBy.value = '';
+    sortOrder.value = '';
+  } else {
+    sortBy.value = prop;
+    sortOrder.value = order === 'ascending' ? 'asc' : 'desc';
+  }
+  currentPage.value = 1; // quay về trang 1 khi sort
+};
 
 const availableStatusOptions = computed(() => {
   // Tránh lỗi khi vừa mở trang lên chưa click vào máy nào
