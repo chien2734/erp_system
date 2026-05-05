@@ -57,7 +57,7 @@
         <h3 class="text-2xl md:text-3xl font-black">{{ formatPrice(summary.tongQuyLuong) }}</h3>
       </div>
       <div class="bg-amber-50 border border-amber-200 p-4 md:p-5 rounded-xl md:rounded-2xl shadow-sm">
-        <p class="text-amber-600 font-semibold text-xs md:text-sm mb-1 uppercase">Tổng Chi OT & Phụ Cấp</p>
+        <p class="text-amber-600 font-semibold text-xs md:text-sm mb-1 uppercase">Tổng Chi Tăng Ca & Phụ Cấp</p>
         <h3 class="text-2xl md:text-3xl font-black text-amber-700">{{ formatPrice(structureStats.tongOT + structureStats.tongPhuCap) }}</h3>
       </div>
       <div class="bg-rose-50 border border-rose-200 p-4 md:p-5 rounded-xl md:rounded-2xl shadow-sm">
@@ -110,9 +110,10 @@
         <el-input v-model="searchQuery" placeholder="Tìm tên nhân viên..." :prefix-icon="Search" class="w-full sm:!w-64" size="large" clearable />
       </div>
 
-      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
         <el-table 
           :data="paginatedData" 
+          @sort-change="handleSortChange"
           style="width: 100%" 
           v-loading="loading" 
           stripe 
@@ -280,12 +281,49 @@ const filteredData = computed(() => {
   );
 });
 
+// Client-side sort for reports
+const sortBy = ref('');
+const sortOrder = ref('');
+
+const sortedData = computed(() => {
+  const src = filteredData.value || [];
+  if (!sortBy.value) return src.slice();
+  const arr = src.slice();
+  const compare = (a, b) => {
+    const va = a[sortBy.value];
+    const vb = b[sortBy.value];
+    if (va == null && vb == null) return 0;
+    if (va == null) return -1;
+    if (vb == null) return 1;
+    const na = Number(va);
+    const nb = Number(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(va).localeCompare(String(vb), 'vi', { numeric: true });
+  };
+  arr.sort((x, y) => {
+    const c = compare(x, y);
+    return sortOrder.value === 'asc' ? c : -c;
+  });
+  return arr;
+});
+
 const { 
   currentPage, 
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredData, 10);
+} = usePagination(sortedData, 10);
+
+const handleSortChange = ({ prop, order }) => {
+  if (!prop || !order) {
+    sortBy.value = '';
+    sortOrder.value = '';
+  } else {
+    sortBy.value = prop;
+    sortOrder.value = order === 'ascending' ? 'asc' : 'desc';
+  }
+  currentPage.value = 1;
+};
 
 // ==========================================
 // VẼ BIỂU ĐỒ ECHARTS 

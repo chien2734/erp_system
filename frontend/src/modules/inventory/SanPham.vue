@@ -26,7 +26,7 @@
     </div>
 
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-      <el-table :data="paginatedData" style="width: 100%" size="large" v-loading="loading" class="min-w-[900px]">
+      <el-table :data="paginatedData" @sort-change="handleSortChange" style="width: 100%" size="large" v-loading="loading" class="min-w-[900px]">
 
         <el-table-column label="Hình ảnh" width="90" align="center" fixed="left">
           <template #default="scope">
@@ -61,13 +61,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="Giá bán" width="140" align="right">
+        <el-table-column label="Giá bán" width="140" align="right" sortable prop="giaBan">
           <template #default="scope">
             <span class="font-bold text-blue-600 whitespace-nowrap">{{ formatPrice(scope.row.giaBan) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="soLuongTon" label="Tồn kho" width="100" align="center">
+        <el-table-column prop="soLuongTon" label="Tồn kho" width="120" align="center" sortable>
           <template #default="scope">
             <el-tag :type="scope.row.soLuongTon > 0 ? 'success' : 'danger'" effect="dark" class="font-bold border-none">{{ scope.row.soLuongTon }}</el-tag>
           </template>
@@ -272,12 +272,49 @@ const filteredProducts = computed(() => {
   });
 });
 
+// Client-side global sort for small datasets
+const sortBy = ref('');
+const sortOrder = ref('');
+
+const sortedProducts = computed(() => {
+  const src = filteredProducts.value || [];
+  if (!sortBy.value) return src.slice();
+  const arr = src.slice();
+  const compare = (a, b) => {
+    const va = a[sortBy.value];
+    const vb = b[sortBy.value];
+    if (va == null && vb == null) return 0;
+    if (va == null) return -1;
+    if (vb == null) return 1;
+    const na = Number(va);
+    const nb = Number(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return String(va).localeCompare(String(vb), 'vi', { numeric: true });
+  };
+  arr.sort((x, y) => {
+    const c = compare(x, y);
+    return sortOrder.value === 'asc' ? c : -c;
+  });
+  return arr;
+});
+
 const { 
   currentPage, 
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredProducts, 7);
+} = usePagination(sortedProducts, 7);
+
+const handleSortChange = ({ prop, order }) => {
+  if (!prop || !order) {
+    sortBy.value = '';
+    sortOrder.value = '';
+  } else {
+    sortBy.value = prop;
+    sortOrder.value = order === 'ascending' ? 'asc' : 'desc';
+  }
+  currentPage.value = 1;
+};
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 
