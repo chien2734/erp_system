@@ -71,15 +71,15 @@
             
             <div class="px-2 md:px-6">
               <el-timeline v-if="myCareer.length > 0">
-                <el-timeline-item
-                  v-for="(item, index) in myCareer"
-                  :key="index"
-                  :timestamp="formatDateVN(item.ngayBatDau)"
-                  placement="top"
-                  :color="index === 0 ? '#3b82f6' : '#cbd5e1'"
-                  :hollow="index !== 0"
-                  :size="index === 0 ? 'large' : 'normal'"
-                >
+                  <el-timeline-item
+                    v-for="(item, index) in myCareer"
+                    :key="index"
+                    :timestamp="formatDateRange(item.ngayBatDau, item.ngayKetThuc)"
+                    placement="top"
+                    :color="index === 0 ? '#3b82f6' : '#cbd5e1'"
+                    :hollow="index !== 0"
+                    :size="index === 0 ? 'large' : 'normal'"
+                  >
                   <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:shadow-md transition-shadow">
                     <h4 class="font-bold text-base md:text-lg text-slate-800">{{ item.tenChucVu }}</h4>
                     <p class="text-sm text-slate-600 mt-1 flex items-start gap-2">
@@ -673,6 +673,11 @@ const formatDateVN = (dateStr) => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
+};
+const formatDateRange = (start, end) => {
+  const s = formatDateVN(start) || '';
+  const e = end ? formatDateVN(end) : 'Hiện tại';
+  return `${s} - ${e}`;
 };
 const getInitials = (name) => {
   if (!name) return 'NV';
