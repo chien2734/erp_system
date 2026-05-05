@@ -273,7 +273,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredAccounts, 10);
+} = usePagination(filteredAccounts, 7);
 
 // --- LIFECYCLE ---
 onMounted(async () => {

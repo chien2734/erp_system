@@ -277,7 +277,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredSerials, 10);
+} = usePagination(filteredSerials, 7);
 
 const availableStatusOptions = computed(() => {
   // Tránh lỗi khi vừa mở trang lên chưa click vào máy nào

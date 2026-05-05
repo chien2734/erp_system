@@ -45,7 +45,17 @@ Giao diện quản trị hiện đại, chuyên nghiệp dành cho hệ thống 
 *   `src/stores/`: Quản lý trạng thái toàn cục bằng Pinia.
 *   `src/utils/`: Các hàm bổ trợ, định dạng tiền tệ, ngày tháng và hằng số.
 
+## ⚙️ Cấu Hình Môi Trường (.env)
+
+Tạo một file `.env` tại thư mục gốc của `frontend` (cùng cấp với `package.json`) và thêm cấu hình URL để kết nối với Backend API:
+
+```env
+# URL của Backend API (mặc định)
+VITE_API_BASE_URL=http://localhost:5000/api/v1
+```
+
 ## 🚀 Khởi Chạy
 1. `npm install`
-2. `npm run dev`
-3. Truy cập: `http://localhost:5173`
+2. Cấu hình file `.env` như hướng dẫn bên trên.
+3. `npm run dev`
+4. Truy cập: `http://localhost:5173`

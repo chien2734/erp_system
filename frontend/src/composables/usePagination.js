@@ -3,9 +3,9 @@ import { ref, computed, watch } from 'vue';
 /**
  * Hàm phân trang dùng chung cho mọi bảng dữ liệu
  * @param {Ref<Array>} sourceData - Mảng dữ liệu NGUỒN (Thường là biến computed đã được filter/search)
- * @param {Number} defaultPageSize - Số dòng trên 1 trang (Mặc định: 10)
+ * @param {Number} defaultPageSize - Số dòng trên 1 trang (Mặc định: 7)
  */
-export function usePagination(sourceData, defaultPageSize = 10) {
+export function usePagination(sourceData, defaultPageSize = 7) {
   const currentPage = ref(1);
   const pageSize = ref(defaultPageSize);
 

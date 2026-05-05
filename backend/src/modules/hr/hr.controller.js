@@ -142,12 +142,20 @@ const HrController = {
             // 3. KIỂM TRA KHÓA NGÀY VÀO LÀM (Nếu ngày bị thay đổi)
             const oldNgayVaoLam = targetEmployee.ngayVaoLam ? new Date(targetEmployee.ngayVaoLam).toISOString().split('T')[0] : null;
             if (ngayVaoLam && ngayVaoLam !== oldNgayVaoLam) {
-                const hasPayroll = await HrModel.checkNhanVienHasPayroll(id);
-                if (hasPayroll) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        message: 'Không thể sửa Ngày vào làm vì nhân viên này đã có dữ liệu bảng lương!' 
-                    });
+                const earliestPayroll = await HrModel.getEarliestPayroll(id);
+                if (earliestPayroll) {
+                    const { thang, nam } = earliestPayroll;
+                    const newDate = new Date(ngayVaoLam);
+                    const newMonth = newDate.getMonth() + 1;
+                    const newYear = newDate.getFullYear();
+
+                    // Nếu tháng/năm mới lớn hơn tháng/năm của phiếu lương sớm nhất thì báo lỗi
+                    if (newYear > nam || (newYear === nam && newMonth > thang)) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            message: `Không thể sửa Ngày vào làm lớn hơn kỳ lương sớm nhất của nhân viên (${thang}/${nam})!` 
+                        });
+                    }
                 }
             }
 
@@ -228,11 +236,15 @@ const HrController = {
         }
     },
 
-    // Kiểm tra nhân viên đã có lương chưa
+    // Kiểm tra nhân viên đã có lương chưa và kỳ lương sớm nhất
     checkPayroll: async (req, res) => {
         try {
-            const hasPayroll = await HrModel.checkNhanVienHasPayroll(req.params.id);
-            res.status(200).json({ success: true, hasPayroll });
+            const earliestPayroll = await HrModel.getEarliestPayroll(req.params.id);
+            res.status(200).json({ 
+                success: true, 
+                hasPayroll: !!earliestPayroll,
+                earliestPayroll: earliestPayroll 
+            });
         } catch (error) {
             res.status(500).json({ success: false, message: 'Lỗi kiểm tra bảng lương' });
         }

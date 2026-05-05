@@ -240,6 +240,13 @@ const HrModel = {
         return rows.length > 0;
     },
 
+    // Lấy thông tin tháng lương sớm nhất của nhân viên
+    getEarliestPayroll: async (maNhanVien) => {
+        const sql = `SELECT thang, nam FROM bangluong WHERE maNhanVien = ? ORDER BY nam ASC, thang ASC LIMIT 1`;
+        const [rows] = await db.query(sql, [maNhanVien]);
+        return rows[0] || null;
+    },
+
     //================================
     // Phan 2: Quan ly chuc vu
     // ===============================
@@ -450,9 +457,10 @@ const HrModel = {
                 FROM nhanvien nv
                 LEFT JOIN chamcong cc ON nv.maNhanVien = cc.maNhanVien 
                     AND MONTH(cc.ngayLamViec) = ? AND YEAR(cc.ngayLamViec) = ?
-                WHERE nv.trangThai = 1 OR cc.maNhanVien IS NOT NULL
+                WHERE (nv.trangThai = 1 OR cc.maNhanVien IS NOT NULL)
+                AND nv.ngayVaoLam <= LAST_DAY(STR_TO_DATE(CONCAT(?, '-', ?, '-01'), '%Y-%m-%d'))
             `;
-            const [dsNhanVien] = await connection.query(sqlGetNhanVien, [thang, nam]);
+            const [dsNhanVien] = await connection.query(sqlGetNhanVien, [thang, nam, nam, thang]);
 
             const [dsChamCong] = await connection.query(
                 `SELECT maNhanVien, soGioLam, trangThai, gioVao 

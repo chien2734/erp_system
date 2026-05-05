@@ -285,7 +285,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredData, 10);
+} = usePagination(filteredData, 7);
 
 // ==========================================
 // VẼ BIỂU ĐỒ ECHARTS 

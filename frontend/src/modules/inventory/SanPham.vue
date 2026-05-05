@@ -277,7 +277,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredProducts, 10);
+} = usePagination(filteredProducts, 7);
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value || 0);
 

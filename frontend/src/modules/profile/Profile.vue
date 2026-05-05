@@ -590,7 +590,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredAttendance, 10);
+} = usePagination(filteredAttendance, 7);
 
 const countAttendanceStatus = (type) => {
   const listInMonth = myAttendance.value.filter(a => {
