@@ -63,7 +63,7 @@ const HrModel = {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
             `;
             const [result] = await connection.query(sqlNV, [
-                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt, 
+                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt,
                 data.email, data.diaChi, data.ngayVaoLam, data.maChucVu
             ]);
             const newId = result.insertId;
@@ -98,29 +98,40 @@ const HrModel = {
 
             // 2. Nếu chức vụ bị thay đổi -> Ghi nhận vào bảng thaydoichucvu
             if (oldMaChucVu && oldMaChucVu != data.maChucVu) {
-                const ngayThayDoi = new Date().toISOString().split('T')[0];
+                // Khởi tạo đối tượng Date riêng biệt
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1); // Không làm ảnh hưởng đến 'today'
+
+                // Xử lý bù trừ múi giờ (để lấy đúng Local Date)
+                const offset = today.getTimezoneOffset() * 60000;
+                const localToday = new Date(today.getTime() - offset);
+                const localYesterday = new Date(yesterday.getTime() - offset);
+
+                const ngayKetThucCu = localYesterday.toISOString().split('T')[0];
+                const ngayBatDauMoi = localToday.toISOString().split('T')[0];
 
                 // Chốt ngày kết thúc chức vụ cũ
                 await connection.query(
-                  `UPDATE thaydoichucvu SET ngayKetThuc = ? WHERE maNhanVien = ? AND ngayKetThuc IS NULL`,
-                  [ngayThayDoi, id]
+                    `UPDATE thaydoichucvu SET ngayKetThuc = ? WHERE maNhanVien = ? AND ngayKetThuc IS NULL`,
+                    [ngayKetThucCu, id]
                 );
 
                 // Thêm dòng lịch sử cho chức vụ mới
                 await connection.query(
-                  `INSERT INTO thaydoichucvu (maNhanVien, maChucVu, ngayBatDau) VALUES (?, ?, ?)`,
-                  [id, data.maChucVu, ngayThayDoi]
+                    `INSERT INTO thaydoichucvu (maNhanVien, maChucVu, ngayBatDau) VALUES (?, ?, ?)`,
+                    [id, data.maChucVu, ngayBatDauMoi]
                 );
             }
 
             // 3. Cập nhật bảng chính nhanvien
             const sqlUpdate = `
-                UPDATE nhanvien 
-                SET hoTen = ?, ngaySinh = ?, gioiTinh = ?, sdt = ?, email = ?, diaChi = ?, ngayVaoLam = ?, maChucVu = ?, trangThai = ?
-                WHERE maNhanVien = ?
-            `;
+            UPDATE nhanvien 
+            SET hoTen = ?, ngaySinh = ?, gioiTinh = ?, sdt = ?, email = ?, diaChi = ?, ngayVaoLam = ?, maChucVu = ?, trangThai = ?
+            WHERE maNhanVien = ?
+        `;
             const values = [
-                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt, 
+                data.hoTen, data.ngaySinh || null, data.gioiTinh, data.sdt,
                 data.email, data.diaChi, data.ngayVaoLam || null, data.maChucVu, data.trangThai, id
             ];
             await connection.query(sqlUpdate, values);
@@ -188,8 +199,8 @@ const HrModel = {
         // Nếu đã có lịch sử thì trả về luôn
         if (history.length > 0) {
             return history;
-        } 
-        
+        }
+
         // 2. Nếu chưa từng thăng tiến, lấy chức vụ ngày đầu tiên vào làm
         const sqlDefault = `
             SELECT nv.ngayVaoLam AS ngayBatDau, cv.tenChucVu
@@ -198,7 +209,7 @@ const HrModel = {
             WHERE nv.maNhanVien = ?
         `;
         const [defaultRole] = await db.query(sqlDefault, [id]);
-        
+
         // Trả về Object mô phỏng lại bảng thaydoichucvu
         if (defaultRole.length > 0) {
             return [{
@@ -365,14 +376,14 @@ const HrModel = {
     // 3. Cấu Hình
     getCauHinh: async () => {
         const sql = `SELECT * FROM cauhinh LIMIT 1`;
-        
+
         try {
             const [rows] = await db.query(sql);
             return rows[0] || {
-                gioVaoLamChuan: '08:00:00', 
-                gioRaLamChuan: '17:00:00',  
+                gioVaoLamChuan: '08:00:00',
+                gioRaLamChuan: '17:00:00',
                 tgChoTangCa: 60,     // phút     
-                soGioTangCaToiDa: 2,   
+                soGioTangCaToiDa: 2,
                 tienPhatDiTre: 2000,
                 heSoTangCa: 1.5,
                 phanTramBHXH: 8.0,
@@ -383,7 +394,7 @@ const HrModel = {
             };
         } catch (error) {
             console.error("Lỗi lấy cấu hình:", error);
-            return {}; 
+            return {};
         }
     },
 
@@ -404,16 +415,16 @@ const HrModel = {
             WHERE maCauHinh = 1
         `;
         const values = [
-            data.gioVaoLamChuan, 
-            data.gioRaLamChuan, 
-            data.tgChoTangCa || 60,      
-            data.soGioTangCaToiDa || 2,  
-            data.tienPhatDiTre, 
-            data.heSoTangCa, 
-            data.luongCoSoBH, 
-            data.phanTramBHXH, 
-            data.phanTramBHYT, 
-            data.phuCapAnTrua, 
+            data.gioVaoLamChuan,
+            data.gioRaLamChuan,
+            data.tgChoTangCa || 60,
+            data.soGioTangCaToiDa || 2,
+            data.tienPhatDiTre,
+            data.heSoTangCa,
+            data.luongCoSoBH,
+            data.phanTramBHXH,
+            data.phanTramBHYT,
+            data.phuCapAnTrua,
             data.phuCapXangXe
         ];
         const [result] = await db.query(sql, values);
@@ -428,7 +439,7 @@ const HrModel = {
 
             // Nếu đã chốt (trangThai = 1) thì CẤM không cho tính lại để bảo vệ dữ liệu!
             const [checkChot] = await connection.query(
-                `SELECT 1 FROM bangluong WHERE thang = ? AND nam = ? AND trangThai = 1 LIMIT 1`, 
+                `SELECT 1 FROM bangluong WHERE thang = ? AND nam = ? AND trangThai = 1 LIMIT 1`,
                 [thang, nam]
             );
             if (checkChot.length > 0) {
@@ -436,17 +447,17 @@ const HrModel = {
             }
 
             // Dùng || để nếu DB thiếu cột, hệ thống tự lấy số mặc định để tính tiếp
-            const TIEN_PHAT_MOI_PHUT = parseFloat(cauHinh.tienPhatDiTre || cauHinh.tienPhatDitre || 2000); 
+            const TIEN_PHAT_MOI_PHUT = parseFloat(cauHinh.tienPhatDiTre || cauHinh.tienPhatDitre || 2000);
             const GIO_VAO_CHUAN = cauHinh.gioVaoLamChuan || '08:00:00';
             const HE_SO_TANG_CA = parseFloat(cauHinh.heSoTangCa || 1.5);
             const ptBHXH = parseFloat(cauHinh.phanTramBHXH || 8.0);
             const ptBHYT = parseFloat(cauHinh.phanTramBHYT || 1.5);
             const BH_PERCENT = (ptBHXH + ptBHYT) / 100;
-            
+
             const pcAnTrua = parseFloat(cauHinh.phuCapAnTrua || 730000);
             const pcXangXe = parseFloat(cauHinh.phuCapXangXe || 300000);
             const PHU_CAP_CO_DINH = pcAnTrua + pcXangXe;
-            
+
             const luongCoSo = parseFloat(cauHinh.luongCoSo || 4680000);
             const MUC_TRU_BAO_HIEM = Math.round(luongCoSo * BH_PERCENT);
 
@@ -465,7 +476,7 @@ const HrModel = {
             const [dsChamCong] = await connection.query(
                 `SELECT maNhanVien, soGioLam, trangThai, gioVao 
                  FROM chamcong 
-                 WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?`, 
+                 WHERE MONTH(ngayLamViec) = ? AND YEAR(ngayLamViec) = ?`,
                 [thang, nam]
             );
 
@@ -474,7 +485,7 @@ const HrModel = {
 
             for (let nv of dsNhanVien) {
                 // TÌM CHỨC VỤ ÁP DỤNG CHO THÁNG TÍNH LƯƠNG
-                let luongTheoGio = 0; 
+                let luongTheoGio = 0;
                 let pcChucVu = 0;
                 let tenChucVu = '';
 
@@ -542,12 +553,12 @@ const HrModel = {
                     // BỌC THÉP 3: Xử lý định dạng giờ bị thiếu giây (08:00 thay vì 08:00:00)
                     if (gioVao && typeof gioVao === 'string') {
                         if (gioVao.length === 5) gioVao += ':00'; // Sửa 08:05 thành 08:05:00
-                        
+
                         if (gioVao > GIO_VAO_CHUAN) {
                             const timeVao = new Date(`1970-01-01T${gioVao}Z`);
                             const timeChuan = new Date(`1970-01-01T${GIO_VAO_CHUAN}Z`);
                             if (!isNaN(timeVao.getTime())) { // Đảm bảo Date hợp lệ
-                                const phutTre = Math.floor((timeVao - timeChuan) / 60000); 
+                                const phutTre = Math.floor((timeVao - timeChuan) / 60000);
                                 if (phutTre > 0) soPhutDiTre += phutTre;
                             }
                         }
@@ -557,12 +568,12 @@ const HrModel = {
                 // FIX LỖI FLOATING POINT (Làm tròn 2 chữ số thập phân)
                 soGioHanhChinh = Math.round(soGioHanhChinh * 100) / 100;
                 soGioTangCa = Math.round(soGioTangCa * 100) / 100;
-                
+
                 // TÍNH TIỀN (Chặn toàn bộ số âm hoặc NaN)
                 const luongCoBan = Math.round(soGioHanhChinh * luongTheoGio) || 0;
                 const tongTienTangCa = Math.round(soGioTangCa * luongTheoGio * HE_SO_TANG_CA) || 0;
-                const tongTienPhat = Math.round(soPhutDiTre * TIEN_PHAT_MOI_PHUT) || 0; 
-                
+                const tongTienPhat = Math.round(soPhutDiTre * TIEN_PHAT_MOI_PHUT) || 0;
+
                 const backup = oldSalary.find(o => o.maNhanVien === nv.maNhanVien) || { thuong: 0 };
                 const thuongThem = parseFloat(backup.thuong || 0);
 
@@ -581,7 +592,7 @@ const HrModel = {
                         phuCapChucVu, phuCapKhac, thuong, truBaoHiem, thucLanh, ngayTao, trangThai
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0)
                 `;
-                
+
                 await connection.query(sqlInsert, [
                     nv.maNhanVien, thang, nam, luongTheoGio, soGioHanhChinh,
                     luongCoBan, soGioTangCa, HE_SO_TANG_CA, tongTienTangCa,
@@ -633,13 +644,13 @@ const HrModel = {
             WHERE bl.maNhanVien = ? and bl.trangThai = 1
         `;
         let values = [maNhanVien];
-        
+
         if (thang && nam) {
             sql += ` AND bl.thang = ? AND bl.nam = ?`;
             values.push(thang, nam);
         }
         sql += ` ORDER BY bl.nam DESC, bl.thang DESC`; // Sắp xếp lương mới nhất lên đầu
-        
+
         const [rows] = await db.query(sql, values);
         return rows;
     },
@@ -647,7 +658,7 @@ const HrModel = {
     // Lấy bảng lương
     getBangLuong: async (filters) => {
         const { thang, nam, maNhanVien } = filters;
-        
+
         let sql = `
             SELECT 
                 bl.*, 
@@ -702,7 +713,7 @@ const HrModel = {
     // BÁO CÁO QUỸ LƯƠNG THỐNG KÊ
     getSalaryReport: async (filters) => {
         const { thang, nam, keyword } = filters;
-        
+
         let sql = `
             SELECT 
                 bl.*, 
@@ -764,7 +775,7 @@ const HrModel = {
 
     // BỔ SUNG: Kiểm tra xem những ngày xin nghỉ có bị trùng với lịch cũ không
     checkTrungThoiGian: async (maNhanVien, ngayBatDau, ngayKetThuc) => {
-        
+
         // 1. Quét bảng Đơn Từ (Xem có trùng với đơn nào Đã duyệt/Chờ duyệt không)
         const sqlDonTu = `
             SELECT maDon, loaiDon FROM dontu 
@@ -795,9 +806,9 @@ const HrModel = {
         // Vượt qua 2 chốt an toàn
         return { isTrung: false };
     },
-    
+
     // 1. Nhân viên: Nộp đơn xin nghỉ
-   createLeaveRequest: async (maNhanVien, data) => {
+    createLeaveRequest: async (maNhanVien, data) => {
         const sql = `
             INSERT INTO dontu (maNhanVien, loaiDon, lyDo, ngayBatDau, ngayKetThuc, trangThai) 
             VALUES (?, ?, ?, ?, ?, 'Chờ duyệt')
@@ -821,7 +832,7 @@ const HrModel = {
     // 3. Quản lý/HR: Xem toàn bộ đơn xin nghỉ của cả công ty (Có bộ lọc)
     getAllLeaveRequest: async (filters) => {
         const { trangThai, thang, nam } = filters;
-        
+
         // ĐÃ SỬA: Chuyển toàn bộ thành LEFT JOIN để chống thất thoát dữ liệu
         let sql = `
             SELECT dt.*, nv.hoTen, cv.tenChucVu, nd.hoTen as tenNguoiDuyet
@@ -835,7 +846,7 @@ const HrModel = {
 
         if (trangThai) { sql += ` AND dt.trangThai = ?`; values.push(trangThai); }
         if (thang && nam) { sql += ` AND MONTH(dt.ngayBatDau) = ? AND YEAR(dt.ngayBatDau) = ?`; values.push(thang, nam); }
-        
+
         sql += ` ORDER BY dt.ngayTao DESC`;
         const [rows] = await db.query(sql, values);
         return rows;
@@ -843,44 +854,44 @@ const HrModel = {
 
     // 4. Quản lý/HR: Duyệt hoặc Từ chối đơn (TÍCH HỢP TỰ ĐỘNG CHẤM CÔNG)
     handleLeaveRequest: async (maDon, trangThaiMoi, nguoiDuyet) => {
-        const connection = await db.getConnection(); 
+        const connection = await db.getConnection();
 
         try {
             await connection.beginTransaction();
 
             const sqlUpdateDon = `UPDATE dontu SET trangThai = ?, maNguoiDuyet = ? WHERE maDon = ?`;
             const [result] = await connection.query(sqlUpdateDon, [trangThaiMoi, nguoiDuyet, maDon]);
-            
+
             if (trangThaiMoi === 'Đã duyệt') {
                 const sqlGetDon = `SELECT maNhanVien, ngayBatDau, ngayKetThuc, loaiDon FROM dontu WHERE maDon = ?`;
                 const [donInfo] = await connection.query(sqlGetDon, [maDon]);
 
                 if (donInfo.length > 0) {
-                    const { maNhanVien, ngayBatDau, ngayKetThuc, loaiDon } = donInfo[0]; 
-                    
+                    const { maNhanVien, ngayBatDau, ngayKetThuc, loaiDon } = donInfo[0];
+
                     let currentDate = new Date(ngayBatDau);
                     const endDate = new Date(ngayKetThuc);
-                    
+
                     // Bất chấp Node.js hay MySQL bị lệch múi giờ, +- 7 tiếng vẫn nằm gọn trong cùng 1 ngày!
                     currentDate.setHours(12, 0, 0, 0);
                     endDate.setHours(12, 0, 0, 0);
-                    
+
                     while (currentDate <= endDate) {
                         // Tự build chuỗi YYYY-MM-DD an toàn tuyệt đối
                         const y = currentDate.getFullYear();
                         const m = String(currentDate.getMonth() + 1).padStart(2, '0');
                         const d = String(currentDate.getDate()).padStart(2, '0');
                         const dateString = `${y}-${m}-${d}`;
-                        
+
                         // Lấy trạng thái là tên loại đơn (Nghỉ phép năm, Nghỉ ốm...)
                         const trangThaiNghi = loaiDon;
-                        
+
                         // Tính lương: Phép năm & Việc riêng được tính 8h, còn lại 0h
                         let gioTinhLuong = 0;
                         if (loaiDon === 'Nghỉ phép năm' || loaiDon === 'Nghỉ việc riêng') {
                             gioTinhLuong = 8;
                         }
-                        
+
                         // Đẩy vào bảng chấm công
                         const sqlChamCong = `
                             INSERT INTO chamcong (maNhanVien, ngayLamViec, trangThai, soGioLam) 
@@ -888,10 +899,10 @@ const HrModel = {
                             ON DUPLICATE KEY UPDATE trangThai = ?, soGioLam = ?
                         `;
                         await connection.query(sqlChamCong, [
-                            maNhanVien, dateString, trangThaiNghi, gioTinhLuong, 
+                            maNhanVien, dateString, trangThaiNghi, gioTinhLuong,
                             trangThaiNghi, gioTinhLuong
                         ]);
-                        
+
                         // LƯU Ý TỐI QUAN TRỌNG: Lệnh cộng thêm 1 ngày PHẢI NẰM Ở CUỐI CÙNG
                         currentDate.setDate(currentDate.getDate() + 1);
                     }
@@ -914,7 +925,7 @@ const HrModel = {
             WHERE maDon = ? 
         `;
         const [result] = await db.query(sql, [data.ngayBatDau, data.ngayKetThuc, data.lyDo, maDon]);
-        return result.affectedRows; 
+        return result.affectedRows;
     },
 
     // Cập nhật thông tin cá nhân (Cho trang Profile)
@@ -923,7 +934,7 @@ const HrModel = {
         const [result] = await db.query(sql, [data.sdt, data.email, data.diaChi, maNhanVien]);
         return result.affectedRows;
     },
-    
+
 };
 
 module.exports = HrModel;
