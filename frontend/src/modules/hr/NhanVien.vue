@@ -379,8 +379,7 @@ const {
 // --- FORMATTERS ---
 const formatDate = (dateString) => {
   if (!dateString) return '---';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('vi-VN');
+  return dayjs(dateString).format('DD/MM/YYYY');
 };
 
 // --- QUẢN LÝ FORM ---
@@ -402,7 +401,16 @@ const openAddDialog = () => {
 const openEditDialog = async (row) => {
   isEditMode.value = true;
   hasPayroll.value = false;
-  Object.assign(formData, { ...row, trangThai: row.trangThai === 1 });
+  
+  // Sửa lỗi lệch múi giờ bằng cách format lại ngày tháng trước khi gán vào form
+  const formattedRow = { 
+    ...row, 
+    trangThai: row.trangThai === 1,
+    ngaySinh: row.ngaySinh ? dayjs(row.ngaySinh).format('YYYY-MM-DD') : '',
+    ngayVaoLam: row.ngayVaoLam ? dayjs(row.ngayVaoLam).format('YYYY-MM-DD') : ''
+  };
+  
+  Object.assign(formData, formattedRow);
   dialogVisible.value = true;
 
   // Kiểm tra bảng lương để hiển thị cảnh báo ngày vào làm
