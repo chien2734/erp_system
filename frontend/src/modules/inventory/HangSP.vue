@@ -56,17 +56,16 @@
       </el-table>
     </div>
 
-    <!-- Pagination -->
     <div class="flex flex-col sm:flex-row items-center justify-between bg-white p-3 sm:p-4 rounded-xl border border-slate-100 shadow-sm mt-4 gap-4">
       <p class="text-sm text-slate-500 w-full sm:w-1/3 text-center sm:text-left">
-        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ filteredData.length }} dòng
+        Đang hiển thị <span class="font-bold text-slate-800">{{ paginatedData.length }}</span> / {{ totalItems }} dòng
       </p>
       
       <div class="w-full sm:w-1/3 flex justify-center">
         <el-pagination
           v-model:current-page="currentPage"
           :page-size="pageSize"
-          :total="filteredData.length"
+          :total="totalItems"
           background
           layout="prev, pager, next"
         />
@@ -107,6 +106,7 @@ import { ref, computed, onMounted } from 'vue';
 import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import api from '../../services/api';
+import { usePagination } from '../../composables/usePagination';
 
 // State
 const loading = ref(false);
@@ -127,21 +127,18 @@ const rules = {
   tenHang: [{ required: true, message: 'Vui lòng nhập tên hãng', trigger: 'blur' }],
 };
 
-// Pagination
-const currentPage = ref(1);
-const pageSize = ref(10);
-
 const filteredData = computed(() => {
   return dbHangSP.value.filter(item => 
     item.tenHang.toLowerCase().includes(searchQuery.value.toLowerCase())
   );
 });
 
-const paginatedData = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return filteredData.value.slice(start, end);
-});
+const { 
+  currentPage, 
+  pageSize, 
+  totalItems, 
+  paginatedData 
+} = usePagination(filteredData, 7);
 
 // Load data
 const loadData = async () => {

@@ -213,10 +213,9 @@
               format="DD/MM/YYYY"
               value-format="YYYY-MM-DD"
               class="w-full"
-              :disabled="hasPayroll"
             />
             <p v-if="hasPayroll" class="text-[10px] text-orange-500 italic mt-1">
-              * Đã có bảng lương, không được phép sửa ngày vào làm.
+              * Đã có bảng lương, không thể sửa ngày vào làm lớn hơn kỳ lương sớm nhất ({{ earliestPayrollInfo?.thang }}/{{ earliestPayrollInfo?.nam }}).
             </p>
           </el-form-item>
 
@@ -280,7 +279,8 @@ const filterStatus = ref('');
 const dialogVisible = ref(false);
 const isEditMode = ref(false);
 const isSubmitting = ref(false);
-const hasPayroll = ref(false); // Trạng thái khóa ngày vào làm
+const hasPayroll = ref(false); // Trạng thái nhân viên đã có lương
+const earliestPayrollInfo = ref(null); // Thông tin kỳ lương sớm nhất
 const formRef = ref(null);
 
 // --- FORM DATA ---
@@ -374,7 +374,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredEmployees, 10);
+} = usePagination(filteredEmployees, 7);
 
 // --- FORMATTERS ---
 const formatDate = (dateString) => {
@@ -405,10 +405,11 @@ const openEditDialog = async (row) => {
   Object.assign(formData, { ...row, trangThai: row.trangThai === 1 });
   dialogVisible.value = true;
 
-  // Kiểm tra bảng lương để khóa ngày vào làm
+  // Kiểm tra bảng lương để hiển thị cảnh báo ngày vào làm
   try {
     const res = await api.get(`/hr/nhanvien/${row.maNhanVien}/check-payroll`);
     hasPayroll.value = res.data.hasPayroll;
+    earliestPayrollInfo.value = res.data.earliestPayroll;
   } catch (e) {
     console.error("Lỗi check-payroll:", e);
   }

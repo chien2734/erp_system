@@ -250,7 +250,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredLogs, 10);
+} = usePagination(filteredLogs, 7);
 
 const formatDate = (d) => dayjs(d).format('DD/MM/YYYY');
 const formatTime = (d) => dayjs(d).format('HH:mm:ss');

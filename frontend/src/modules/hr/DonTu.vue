@@ -254,7 +254,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredLeaves, 10);
+} = usePagination(filteredLeaves, 7);
 
 // --- THỐNG KÊ NHANH TRÊN HEADER ---
 const countStatus = (status) => leaveRequests.value.filter(d => d.trangThai === status).length;

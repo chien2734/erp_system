@@ -351,7 +351,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData
-} = usePagination(filteredPayrollList, 10);
+} = usePagination(filteredPayrollList, 7);
 
 // --- THỐNG KÊ ---
 const totalThucLanh = computed(() => filteredPayrollList.value.reduce((sum, item) => sum + Number(item.thucLanh || 0), 0));

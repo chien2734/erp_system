@@ -230,7 +230,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredSuppliers, 10);
+} = usePagination(filteredSuppliers, 7);
 
 // --- HÀNH ĐỘNG ---
 const openAddDialog = () => {

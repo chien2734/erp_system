@@ -302,7 +302,7 @@ const {
   pageSize, 
   totalItems, 
   paginatedData 
-} = usePagination(filteredAttendanceList, 10);
+} = usePagination(filteredAttendanceList, 7);
 
 // --- THỐNG KÊ NHANH ---
 const totalEmployees = computed(() => dbNhanVien.value.length);
