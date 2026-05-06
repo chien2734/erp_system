@@ -821,9 +821,11 @@ const HrModel = {
     // 2. Nhân viên: Xem danh sách đơn mình đã nộp
     getLeaveRequestById: async (maNhanVien) => {
         const sql = `
-            SELECT * FROM dontu 
-            WHERE maNhanVien = ? 
-            ORDER BY ngayBatDau DESC
+            SELECT dt.*, nd.hoTen as tenNguoiDuyet
+            FROM dontu dt
+            LEFT JOIN nhanvien nd ON dt.maNguoiDuyet = nd.maNhanVien
+            WHERE dt.maNhanVien = ? 
+            ORDER BY dt.ngayBatDau DESC
         `;
         const [rows] = await db.query(sql, [maNhanVien]);
         return rows;
