@@ -252,7 +252,7 @@
           </div>
           
           <div class="overflow-x-auto rounded-xl border border-slate-200">
-            <el-table :data="myLeaves" style="width: 100%" stripe class="min-w-[700px]">
+            <el-table :data="myLeaves" style="width: 100%" stripe class="min-w-[850px]">
               <el-table-column prop="loaiDon" label="Loại Đơn" width="150">
                 <template #default="scope"><span class="font-bold text-slate-700 whitespace-nowrap">{{ scope.row.loaiDon }}</span></template>
               </el-table-column>
@@ -264,12 +264,20 @@
               <el-table-column prop="lyDo" label="Lý do chi tiết" min-width="180">
                 <template #default="scope"><span class="text-slate-600 text-xs md:text-sm line-clamp-2">{{ scope.row.lyDo }}</span></template>
               </el-table-column>
-              <el-table-column label="Ngày tạo đơn" width="130" align="center">
+              <el-table-column label="Ngày tạo đơn" width="120" align="center">
                 <template #default="scope">
                   <span class="text-slate-500 text-xs font-medium whitespace-nowrap">{{ formatDateVN(scope.row.ngayTao) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="trangThai" label="Trạng thái duyệt" width="130" align="center" fixed="right">
+              <el-table-column label="Người duyệt" width="150">
+                <template #default="scope">
+                  <span v-if="scope.row.tenNguoiDuyet" class="text-xs font-bold text-blue-600 flex items-center gap-1">
+                    <el-icon><User /></el-icon> {{ scope.row.tenNguoiDuyet }}
+                  </span>
+                  <span v-else class="text-slate-400 italic text-xs">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="trangThai" label="Trạng thái" width="120" align="center" fixed="right">
                 <template #default="scope">
                   <el-tag :type="getLeaveStatusColor(scope.row.trangThai)" effect="dark" class="font-bold w-full text-[10px] md:text-xs">
                     {{ scope.row.trangThai }}

@@ -14,6 +14,7 @@
           format="DD/MM/YYYY"
           value-format="YYYY-MM-DD"
           :clearable="false"
+          :disabled-date="disabledDate"
           class="!w-48"
         />
       </div>
@@ -312,6 +313,10 @@ const countLateEarly = computed(() => attendanceList.value.filter(item => item.t
 const countLeave = computed(() => attendanceList.value.filter(item => item.trangThai.includes('Nghỉ có phép')).length);
 
 // --- METHODS ---
+const disabledDate = (time) => {
+  return time.getTime() > Date.now();
+};
+
 const formatDateVN = (dateStr) => {
   if(!dateStr) return '';
   const parts = dateStr.split('-');
@@ -344,6 +349,29 @@ const openEditModal = (row) => {
 };
 
 const saveAttendance = async () => {
+  // 1. Kiểm tra logic cơ bản
+  const { gioVao, gioRa } = formTime.value;
+
+  // Nếu nhập giờ Ra mà không có giờ Vào
+  if (gioRa && !gioVao) {
+    return ElMessage.warning('Không thể nhập giờ Ra nếu chưa có giờ Vào!');
+  }
+
+  // Nếu có cả hai giờ, kiểm tra giờ Ra có sau giờ Vào không
+  if (gioVao && gioRa) {
+    if (gioRa <= gioVao) {
+      return ElMessage.warning('Giờ Ra phải sau giờ Vào!');
+    }
+  }
+
+  // Kiểm tra ngày tương lai
+  const selected = new Date(selectedDate.value);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  if (selected > now) {
+    return ElMessage.warning('Không thể điều chỉnh chấm công cho ngày trong tương lai!');
+  }
+
   try {
     const payload = {
       maNhanVien: editingRecord.value.maNhanVien,
