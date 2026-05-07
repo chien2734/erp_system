@@ -276,6 +276,14 @@
                   </el-tag>
                 </template>
               </el-table-column>
+              <el-table-column label="Người duyệt" width="160" align="center">
+                <template #default="scope">
+                  <span v-if="scope.row.tenNguoiDuyet" class="text-sm font-semibold text-slate-700 whitespace-nowrap" :title="scope.row.tenNguoiDuyet">
+                    {{ scope.row.tenNguoiDuyet }}
+                  </span>
+                  <span v-else class="text-xs text-slate-400 italic">-- Chưa duyệt --</span>
+                </template>
+              </el-table-column>
             </el-table>
           </div>
         </div>
@@ -403,6 +411,7 @@ import { User, Medal, Calendar, Key, Money, DocumentAdd, CircleCheck, Warning, R
 import { ElMessage } from 'element-plus';
 import api from '../../services/api';
 import { usePagination } from '../../composables/usePagination';
+import { el } from 'element-plus/es/locale/index.mjs';
 
 // --- STATE QUẢN LÝ TÀI KHOẢN ---
 const currentUser = ref({});

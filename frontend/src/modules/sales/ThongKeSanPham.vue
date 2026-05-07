@@ -90,6 +90,12 @@
       </div>
     </div>
 
+    <!-- Chart: doanh thu so sánh -->
+    <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 p-4 mb-4">
+      <h3 class="text-sm font-semibold text-slate-700 mb-2">Biểu đồ so sánh doanh thu</h3>
+      <div ref="chartRef" class="w-full" style="height:320px; min-height:240px;"></div>
+    </div>
+
     <div class="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-100 overflow-x-auto" v-loading="fetching">
       <el-table :data="reportList" style="width: 100%" size="large" stripe border class="min-w-[700px] print-table">
         <el-table-column prop="tenSP" label="Sản phẩm" min-width="200">
@@ -131,8 +137,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
 import { Printer, Download } from '@element-plus/icons-vue';
+import * as echarts from 'echarts';
 import { ElMessage } from 'element-plus';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -149,6 +156,8 @@ const fetching = ref(false);
 
 const reportList = ref([]);
 const summary = ref({ tongSoLuong: 0, tongDoanhThu: 0, tongGiaVon: 0, tongLoiNhuan: 0 });
+const chartRef = ref(null);
+let chartInstance = null;
 
 const formatPrice = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
 
@@ -194,6 +203,108 @@ const loadReport = async () => {
   } finally {
     fetching.value = false;
   }
+    // Cập nhật biểu đồ so sánh doanh thu
+    try {
+      await loadComparisonAndRenderChart();
+    } catch (err) {
+      console.error('Lỗi tải dữ liệu biểu đồ:', err);
+    }
+};
+
+const initChart = () => {
+  if (!chartRef.value) return;
+  chartInstance = echarts.init(chartRef.value);
+  const option = { title: { text: '' }, tooltip: { trigger: 'axis' }, legend: {}, xAxis: { type: 'category', data: [] }, yAxis: { type: 'value' }, series: [] };
+  chartInstance.setOption(option);
+};
+
+const disposeChart = () => {
+  if (chartInstance) {
+    chartInstance.dispose();
+    chartInstance = null;
+  }
+};
+
+const loadComparisonAndRenderChart = async () => {
+  // Build queries for current period and previous year
+  const type = selectedType.value;
+  const year = Number(selectedYear.value);
+  const prevYear = year - 1;
+
+  if (type === 'year') {
+    // Quarterly breakdown for the whole year
+    const resCur = await api.get(`/sales/thongke/loinhuan?type=year&nam=${year}`);
+    const resPrev = await api.get(`/sales/thongke/loinhuan?type=year&nam=${prevYear}`);
+    const payloadCur = normalizeResponse(resCur);
+    const payloadPrev = normalizeResponse(resPrev);
+
+    const curRows = Array.isArray(payloadCur.data) ? payloadCur.data : [];
+    const prevRows = Array.isArray(payloadPrev.data) ? payloadPrev.data : [];
+
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const curData = [0,0,0,0];
+    const prevData = [0,0,0,0];
+
+    curRows.forEach(r => { const q = Number(r.quy || r.quarter || 0); if (q >=1 && q<=4) curData[q-1] = Number(r.doanhThu || 0); });
+    prevRows.forEach(r => { const q = Number(r.quy || r.quarter || 0); if (q >=1 && q<=4) prevData[q-1] = Number(r.doanhThu || 0); });
+
+    const option = {
+      tooltip: { trigger: 'axis', formatter: params => {
+        return params.map(p => `${p.seriesName}: ${formatPrice(p.value)} VND`).join('<br/>');
+      }},
+      legend: { data: [String(year), String(prevYear)] },
+      xAxis: { type: 'category', data: quarters },
+      yAxis: { type: 'value' },
+      series: [
+        { name: String(year), type: 'bar', data: curData, itemStyle: { color: '#3b82f6' } },
+        { name: String(prevYear), type: 'bar', data: prevData, itemStyle: { color: '#10b981' } }
+      ]
+    };
+
+    if (!chartInstance) initChart();
+    chartInstance.setOption(option, true);
+    return;
+  }
+
+  // month or quarter: compare selected period vs same period last year (two bars)
+  let queryCur = '';
+  let queryPrev = '';
+  let label = '';
+  if (type === 'month') {
+    const [y, m] = selectedMonth.value.split('-');
+    const month = Number(m);
+    queryCur = `/sales/thongke/loinhuan?type=month&thang=${month}&nam=${year}`;
+    queryPrev = `/sales/thongke/loinhuan?type=month&thang=${month}&nam=${prevYear}`;
+    label = `Tháng ${month}`;
+  } else if (type === 'quarter') {
+    const q = Number(selectedQuarter.value);
+    queryCur = `/sales/thongke/loinhuan?type=quarter&quy=${q}&nam=${year}`;
+    queryPrev = `/sales/thongke/loinhuan?type=quarter&quy=${q}&nam=${prevYear}`;
+    label = `Quý ${q}`;
+  }
+
+  const resC = await api.get(queryCur);
+  const resP = await api.get(queryPrev);
+  const pC = normalizeResponse(resC);
+  const pP = normalizeResponse(resP);
+
+  // The controller returns data as object for month/quarter
+  const valCur = Number((pC && pC.data && (pC.data.doanhThu || pC.data.tongDoanhThu)) || 0);
+  const valPrev = Number((pP && pP.data && (pP.data.doanhThu || pP.data.tongDoanhThu)) || 0);
+
+  const optionSmall = {
+    tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: ${formatPrice(p.value)} VND`).join('<br/>') },
+    legend: { data: [String(year), String(prevYear)] },
+    xAxis: { type: 'category', data: [label] },
+    yAxis: { type: 'value' },
+    series: [
+      { name: String(year), type: 'bar', data: [valCur], itemStyle: { color: '#3b82f6' } },
+      { name: String(prevYear), type: 'bar', data: [valPrev], itemStyle: { color: '#10b981' } }
+    ]
+  };
+
+  if (!chartInstance) initChart();
+  chartInstance.setOption(optionSmall, true);
 };
 
 const exportExcel = async () => {
@@ -263,11 +374,16 @@ const handlePrint = () => {
 };
 
 onMounted(() => {
+  initChart();
   loadReport();
 });
 
 watch([selectedType, selectedMonth, selectedQuarter, selectedYear], () => {
   loadReport();
+});
+
+onBeforeUnmount(() => {
+  disposeChart();
 });
 </script>
 
