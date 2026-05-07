@@ -823,7 +823,7 @@ const HrModel = {
         const sql = `
             SELECT dt.*, nv.hoTen as tenNguoiDuyet
             FROM dontu dt
-            JOIN nhanvien nv ON dt.maNguoiDuyet = nv.maNhanVien
+            LEFT JOIN nhanvien nv ON dt.maNguoiDuyet = nv.maNhanVien
             WHERE dt.maNhanVien = ? 
             ORDER BY dt.ngayBatDau DESC
         `;
